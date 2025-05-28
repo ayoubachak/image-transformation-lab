@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Transform Lab</title>
+    <!-- Load OpenCV.js locally with CDN fallback -->
+    <script>
+      // Function to load OpenCV with fallback
+      function loadOpenCV() {
+        // First try to load the local version
+        const localScript = document.createElement('script');
+        localScript.setAttribute('src', '/lib/opencv.js');
+        localScript.setAttribute('type', 'text/javascript');
+        localScript.setAttribute('async', 'true');
+        localScript.onerror = function() {
+          console.warn('Local OpenCV failed to load, trying CDN...');
+          // If local version fails, try CDN
+          const cdnScript = document.createElement('script');
+          cdnScript.setAttribute('src', 'https://docs.opencv.org/4.x/opencv.js');
+          cdnScript.setAttribute('type', 'text/javascript');
+          cdnScript.setAttribute('async', 'true');
+          document.head.appendChild(cdnScript);
+        };
+        document.head.appendChild(localScript);
+      }
+      
+      // Load OpenCV when the page loads
+      window.addEventListener('load', loadOpenCV);
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

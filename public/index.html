@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Image Transform Lab - a visual image processing application"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <!-- Load OpenCV.js from local file with proper defer -->
+    <script defer id="opencv-script" 
+      src="%PUBLIC_URL%/lib/opencv.js" 
+      onload="console.log('OpenCV loaded successfully'); window.dispatchEvent(new Event('opencv-loaded'));"
+      onerror="console.error('Failed to load OpenCV'); document.getElementById('opencv-error').style.display='block';">
+    </script>
+    <title>Image Transform Lab</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!-- OpenCV loading error notification (shown if script fails to load) -->
+    <div id="opencv-error" style="display:none; position:fixed; bottom:1rem; right:1rem; background:#FEE2E2; border:1px solid #F87171; padding:1rem; border-radius:0.375rem; max-width:20rem; z-index:9999;">
+      <h3 style="margin:0 0 0.5rem 0; font-size:0.875rem;">Failed to load OpenCV</h3>
+      <p style="margin:0; font-size:0.75rem;">The image processing library could not be loaded. Some features may be limited.</p>
+    </div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html> 
