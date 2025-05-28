@@ -3,9 +3,10 @@ import { Position } from 'reactflow';
 import { useImageProcessing } from '../../contexts/ImageProcessingContext';
 import { processImage } from '../../utils/imageProcessing';
 import type { Transformation, TransformationParameter } from '../../utils/types';
-import { AdjustmentsHorizontalIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, ExclamationTriangleIcon, InformationCircleIcon, EyeIcon, EyeSlashIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, ExclamationTriangleIcon, InformationCircleIcon, EyeIcon, EyeSlashIcon, SparklesIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import type { IntermediateResult } from '../../utils/imageProcessing';
 import BaseNode from './BaseNode';
+import TransformConfigModal from '../modals/TransformConfigModal';
 
 interface TransformationNodeProps {
   id: string;
@@ -33,6 +34,8 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const [detailedErrorShown, setDetailedErrorShown] = useState(false);
   const [intermediateResults, setIntermediateResults] = useState<IntermediateResult[]>([]);
   const [showIntermediates, setShowIntermediates] = useState(false);
+  const [isAdvancedConfigOpen, setIsAdvancedConfigOpen] = useState(false);
+  const [isKernelSizeChanging, setIsKernelSizeChanging] = useState(false);
   const processingAttemptRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastInputRef = useRef<string | null>(null);
@@ -41,6 +44,14 @@ export default function TransformationNode({ id, data, selected }: Transformatio
 
   // Function to update parameter value
   const updateParameterValue = (name: string, value: number | string | boolean) => {
+    // Check if the parameter is kernel size and show warning if needed
+    const isKernelSize = name === 'kernelSize';
+    
+    if (isKernelSize && transformation.metadata?.advancedParameters) {
+      setIsKernelSizeChanging(true);
+      return;
+    }
+
     // Update the local state
     const updatedParams = parameters.map(param => 
       param.name === name ? { ...param, value } : param
@@ -64,396 +75,277 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     processingAttemptRef.current += 1;
   };
 
-  // Check if input has changed
-  const hasInputChanged = useCallback((inputNodeId: string) => {
-    // Check if the input node exists in processedImages
-    const inputImage = processedImages[inputNodeId];
+  // Handle the slider change when user confirmed they want to overwrite advanced configs
+  const confirmKernelSizeChange = (name: string, value: number) => {
+    // Update the local state
+    const updatedParams = parameters.map(param => 
+      param.name === name ? { ...param, value } : param
+    );
+    setParameters(updatedParams);
     
-    // If the image doesn't exist, that's a change
-    if (!inputImage) {
-      if (lastInputRef.current !== null) {
-        lastInputRef.current = null;
-        return true;
+    // Update the transformation in the context, removing any advanced config
+    const updatedTransformation = {
+      ...transformation,
+      parameters: updatedParams,
+      metadata: {
+        ...transformation.metadata,
+        advancedParameters: undefined // Remove advanced parameters
       }
-      return false;
-    }
+    };
+    updateNode(id, { 
+      transformation: updatedTransformation 
+    });
     
-    // Generate a fingerprint of the current input (width, height, and a sample of pixels)
-    try {
-      const ctx = inputImage.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return false;
-      
-      // Get a small sample of pixels from the center for quick comparison
-      const sampleSize = 10;
-      const centerX = Math.floor(inputImage.width / 2);
-      const centerY = Math.floor(inputImage.height / 2);
-      
-      const pixelData = ctx.getImageData(
-        Math.max(0, centerX - sampleSize/2), 
-        Math.max(0, centerY - sampleSize/2), 
-        sampleSize, 
-        sampleSize
-      ).data;
-      
-      // Create a fingerprint using dimensions and a sample of pixel data
-      const fingerprint = `${inputNodeId}_${inputImage.width}x${inputImage.height}_${
-        Array.from(pixelData.slice(0, 100)).join(',')
-      }`;
-      
-      // Check if fingerprint has changed
-      const hasChanged = lastInputRef.current !== fingerprint;
-      lastInputRef.current = fingerprint;
-      return hasChanged;
-    } catch (error) {
-      console.warn('Error checking input changes:', error);
-      return true; // Assume changed on error to be safe
-    }
-  }, [processedImages]);
+    // Reset kernel size changing state
+    setIsKernelSizeChanging(false);
+    
+    // Explicitly invalidate downstream nodes to ensure they reprocess
+    invalidateDownstreamNodes(id);
+    
+    // Reset processing state to force re-processing
+    setProcessingSucceeded(false);
+    processingAttemptRef.current += 1;
+  };
 
-  // Clear all timeouts
-  const clearAllTimeouts = useCallback(() => {
-    if (processingTimeoutRef.current) {
-      clearTimeout(processingTimeoutRef.current);
-      processingTimeoutRef.current = null;
-    }
-  }, []);
+  // Cancel kernel size change
+  const cancelKernelSizeChange = () => {
+    setIsKernelSizeChanging(false);
+  };
 
-  // Toggle showing intermediates
-  const toggleIntermediates = useCallback(() => {
-    setShowIntermediates(prev => !prev);
-  }, []);
+  // Handle opening the advanced configuration modal
+  const openAdvancedConfig = () => {
+    setIsAdvancedConfigOpen(true);
+  };
 
-  // Process the image whenever input changes or parameters change
+  // Handle saving advanced configuration
+  const handleSaveAdvancedConfig = (updatedTransformation: Transformation) => {
+    // Update the transformation in the context
+    updateNode(id, { 
+      transformation: updatedTransformation 
+    });
+    
+    // Update local state
+    setParameters(updatedTransformation.parameters);
+    
+    // Reset processing state to force re-processing
+    setProcessingSucceeded(false);
+    processingAttemptRef.current += 1;
+    
+    // Invalidate downstream nodes
+    invalidateDownstreamNodes(id);
+  };
+
+  // Handle resetting advanced configuration
+  const handleResetAdvancedConfig = () => {
+    // Get rid of advanced parameters
+    const updatedTransformation = {
+      ...transformation,
+      metadata: {
+        ...transformation.metadata,
+        advancedParameters: undefined
+      }
+    };
+    
+    // Update the transformation in the context
+    updateNode(id, { 
+      transformation: updatedTransformation 
+    });
+  };
+
+  // Process the image whenever parameters or inputs change
   useEffect(() => {
-    let isMounted = true;
-    
-    // Function to process the image
+    // Find connected input nodes
     const doImageProcessing = async () => {
-      // Skip if we're already processing to avoid duplicate processing
-      if (isProcessing) {
+      // Skip processing if no transformation or no input nodes
+      if (!transformation || transformation.inputNodes.length === 0) {
         return;
       }
-
+      
+      // Get the first input node
+      const inputNodeId = transformation.inputNodes[0];
+      const inputCanvas = processedImages[inputNodeId];
+      
+      // Skip if no input is available
+      if (!inputCanvas) {
+        return;
+      }
+      
+      // Check if input has changed since last time
+      const inputSignature = `${inputNodeId}-${processingAttemptRef.current}`;
+      if (lastInputRef.current === inputSignature && processingSucceeded) {
+        return; // Input hasn't changed, no need to reprocess
+      }
+      lastInputRef.current = inputSignature;
+      
+      // Cancel any in-progress processing
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
       // Reset error state
       setError(null);
       setErrorDetails(null);
-      setDetailedErrorShown(false);
-      setIntermediateResults([]);
       
-      if (!transformation.inputNodes || transformation.inputNodes.length === 0) {
-        return; // No input nodes connected yet
+      // Start processing
+      setIsProcessing(true);
+      setProcessingSucceeded(false);
+      
+      // Create a processing timeout
+      if (processingTimeoutRef.current) {
+        window.clearTimeout(processingTimeoutRef.current);
       }
+      processingTimeoutRef.current = window.setTimeout(() => {
+        // If still processing after timeout, show error
+        if (isProcessing) {
+          setIsProcessing(false);
+          setError('Processing timed out');
+          setProcessingSucceeded(false);
+        }
+      }, 10000); // 10 second timeout
       
-      const inputNodeId = transformation.inputNodes[0];
-      
-      // Get the input canvas - if it doesn't exist, don't continue
-      const inputCanvas = processedImages[inputNodeId];
-      if (!inputCanvas) {
-        console.log(`Node ${id}: Input from ${inputNodeId} not available yet`);
-        return; // Input not available yet
-      }
-      
-      // Always check if the input has changed, regardless of processing state
-      const inputChanged = hasInputChanged(inputNodeId);
-      
-      // Skip processing if input hasn't changed and we've already processed successfully
-      if (processingSucceeded && !inputChanged) {
-        console.log(`Node ${id}: Skipping processing - input hasn't changed`);
+      // Get image data from input canvas
+      const ctx = inputCanvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        setIsProcessing(false);
+        setError('Could not get context from input canvas');
         return;
       }
       
-      console.log(`Node ${id}: Processing with input from ${inputNodeId} (changed: ${inputChanged})`);
-      
-      if (!canvasRef.current) {
-        return; // Canvas not available
-      }
-      
-      // Clear any existing timeouts
-      clearAllTimeouts();
-      
-      // Prevent multiple processing attempts for the same input
-      processingAttemptRef.current += 1;
-      const currentAttempt = processingAttemptRef.current;
-      
-      // Cancel any previous processing
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      
-      // Create new abort controller for this attempt
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-      
-      // Set processing state OUTSIDE of render cycle
-      setIsProcessing(true);
-      
-      // Set up processing timeout - this will abort if processing takes too long
-      processingTimeoutRef.current = window.setTimeout(() => {
-        if (isMounted && currentAttempt === processingAttemptRef.current) {
-          console.warn(`Processing timeout for ${transformation.name} transformation`);
-          setIsProcessing(false);
-          setError("Processing timed out");
-          setErrorDetails(`The ${transformation.name} operation took too long to complete. This may be due to the image size or complexity. Try a smaller image or simpler transformation.`);
-          if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-          }
-        }
-      }, 8000); // 8 second timeout
+      const imageData = ctx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
       
       try {
-        // Check if we should abort
-        if (signal.aborted) {
-          clearAllTimeouts();
-          setIsProcessing(false);
-          return;
-        }
+        // Get advanced parameters if they exist
+        const advancedParams = transformation.metadata?.advancedParameters;
         
-        // Get canvas context with willReadFrequently flag
-        const ctx = canvasRef.current?.getContext('2d', { willReadFrequently: true });
-        if (!ctx) {
-          throw new Error("Failed to get canvas context");
-        }
-        
-        // Get the input context with willReadFrequently flag
-        const inputCtx = inputCanvas.getContext('2d', { willReadFrequently: true });
-        if (!inputCtx) {
-          throw new Error("Failed to get input canvas context");
-        }
-        
-        try {
-          // Make sure the canvas has the same dimensions as the input image
-          if (canvasRef.current) {
-            canvasRef.current.width = inputCanvas.width;
-            canvasRef.current.height = inputCanvas.height;
-          }
-
-          const imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
-          
-          if (!imageData) {
-            throw new Error("Failed to get image data from input");
-          }
-          
-          // Process the image with the current transformation
-          const processedResult = await processImage(imageData, {
+        // Process the image with the current parameters
+        const result = await processImage(
+          imageData,
+          {
             ...transformation,
-            parameters
-          }, transformation.showPreprocessingSteps);
-          
-          // Extract the actual ImageData from the result
-          const processedData = processedResult.result;
-          
-          // Store intermediate results if available
-          if (processedResult.intermediates && processedResult.intermediates.length > 0) {
-            if (isMounted) {
-              setIntermediateResults(processedResult.intermediates);
-              // Auto-expand if we have intermediates and the option is enabled
-              if (transformation.showPreprocessingSteps && !expanded) {
-                setExpanded(true);
-                setShowIntermediates(true);
-              }
-            }
+            // No need for extra parameters as they're already in metadata
+          },
+          true // Include intermediate results
+        );
+        
+        // Processing completed successfully
+        if (!abortControllerRef.current.signal.aborted) {
+          if (result.intermediates) {
+            setIntermediateResults(result.intermediates);
           }
           
-          // If component unmounted or processing was aborted, don't continue
-          if (!isMounted || signal.aborted || currentAttempt !== processingAttemptRef.current) {
-            clearAllTimeouts();
-            // Ensure processing state is reset
-            if (isMounted) {
-              setIsProcessing(false);
-            }
-            return;
-          }
-          
-          // Capture and store any diagnostic information
-          if (processedResult.diagnosticInfo && processedResult.diagnosticInfo.error) {
-            console.warn('Processing completed with warnings:', processedResult.diagnosticInfo.error);
-          }
-          
-          // Set canvas dimensions and draw the processed image
-          if (canvasRef.current && isMounted) {
-            canvasRef.current.width = processedData.width;
-            canvasRef.current.height = processedData.height;
-            ctx.putImageData(processedData, 0, 0);
+          // Create a canvas with the result
+          const resultCanvas = document.createElement('canvas');
+          resultCanvas.width = result.result.width;
+          resultCanvas.height = result.result.height;
+          const resultCtx = resultCanvas.getContext('2d', { willReadFrequently: true });
+          if (resultCtx) {
+            resultCtx.putImageData(result.result, 0, 0);
             
-            // Use requestAnimationFrame to batch updates
-            window.requestAnimationFrame(() => {
-              if (!isMounted || signal.aborted) return;
-              
-              try {
-                if (canvasRef.current) {
-                  const dataUrl = canvasRef.current.toDataURL();
-                  
-                  // Batch state updates to prevent excessive re-renders
-                  if (isMounted) {
-                    // We use a function to update based on previous state
-                    // This prevents stale state issues
-                    setProcessedImageUrl(dataUrl);
-                    setProcessedImage(id, canvasRef.current);
-                    setProcessingSucceeded(true);
-                    setIsProcessing(false);
-                  }
-                }
-              } catch (dataUrlError) {
-                if (isMounted) {
-                  console.error('Error creating data URL:', dataUrlError);
-                  setError("Failed to create image preview");
-                  setErrorDetails(dataUrlError instanceof Error ? dataUrlError.message : String(dataUrlError));
-                  setIsProcessing(false);
-                }
-              } finally {
-                // Always clear the processing state when done
-                clearAllTimeouts();
-              }
-            });
-          } else {
-            // Ensure processing state is reset if canvas is not available
-            if (isMounted) {
-              clearAllTimeouts();
-              setIsProcessing(false);
-            }
+            // Store the result canvas in context for downstream nodes
+            setProcessedImage(id, resultCanvas);
+            
+            // Convert to data URL for display
+            setProcessedImageUrl(resultCanvas.toDataURL());
           }
-        } catch (imageDataError) {
-          if (isMounted && currentAttempt === processingAttemptRef.current) {
-            console.error('Error processing image data:', imageDataError);
-            setError("Image processing error");
-            setErrorDetails(imageDataError instanceof Error 
-              ? `${imageDataError.name}: ${imageDataError.message}` 
-              : String(imageDataError));
-            clearAllTimeouts();
-            setIsProcessing(false);
-          }
-        }
-      } catch (error) {
-        if (isMounted && currentAttempt === processingAttemptRef.current) {
-          console.error('Error in transformation process:', error);
-          setError("Transformation error");
-          setErrorDetails(error instanceof Error 
-            ? `${error.name}: ${error.message}` 
-            : String(error));
-          clearAllTimeouts();
+          
           setIsProcessing(false);
+          setProcessingSucceeded(true);
+        }
+      } catch (err) {
+        if (!abortControllerRef.current.signal.aborted) {
+          console.error('Error processing image:', err);
+          setIsProcessing(false);
+          setError('Processing failed');
+          setErrorDetails(err instanceof Error ? err.message : String(err));
+          setProcessingSucceeded(false);
+        }
+      } finally {
+        if (processingTimeoutRef.current) {
+          window.clearTimeout(processingTimeoutRef.current);
+          processingTimeoutRef.current = null;
         }
       }
     };
     
-    // Start the image processing outside the React rendering cycle
-    // to avoid unwanted re-renders during state updates
-    const triggerProcessing = () => {
-      if (!isProcessing) {
-        doImageProcessing().catch(error => {
-          console.error('Unhandled error in image processing:', error);
-          if (isMounted) {
-            setError("Unhandled processing error");
-            setErrorDetails(String(error));
-            setIsProcessing(false);
-          }
-        });
-      }
-    };
-    
-    console.log(`Node ${id}: Checking if processing is needed`);
-    
-    // Always run processing check when dependencies change
-    const timeoutId = setTimeout(triggerProcessing, 0);
+    doImageProcessing();
     
     // Cleanup function
     return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-      // Cancel any ongoing processing
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      clearAllTimeouts();
-      // Do not update state here as the component could be unmounted
+      if (processingTimeoutRef.current) {
+        window.clearTimeout(processingTimeoutRef.current);
+      }
     };
-  }, [
-    transformation,
-    parameters,
-    processedImages,
-    id,
-    setProcessedImage,
-    processingSucceeded,
-    hasInputChanged,
-    clearAllTimeouts,
-    edges,
-    // Remove isProcessing from the dependency array to break potential loops
-    // The processing function has its own check for isProcessing
-    expanded
-  ]);
+  }, [processedImages, transformation, id, setProcessedImage, processingSucceeded]);
+  
+  // Update parameters when transformation changes
+  useEffect(() => {
+    setParameters(transformation.parameters || []);
+  }, [transformation]);
 
-  // Get transformation-specific colors
+  const triggerProcessing = () => {
+    processingAttemptRef.current += 1;
+    setProcessingSucceeded(false);
+    invalidateDownstreamNodes(id);
+  };
+
+  // Get node colors based on transformation type
   const getTransformationColors = () => {
     switch (transformation.type) {
       case 'grayscale':
         return {
-          border: 'border-gray-300',
-          background: 'bg-gradient-to-br from-gray-50 to-white',
-          header: 'bg-gray-700',
+          border: 'border-purple-200',
+          background: 'bg-gradient-to-br from-purple-50 to-white',
+          header: 'bg-purple-600',
           headerText: 'text-white',
-          accentColor: 'bg-gray-500',
-          accentLight: 'bg-gray-200',
-          textAccent: 'text-gray-700'
+          accentColor: 'rgb(147, 51, 234)',
+          accentLight: 'bg-purple-100',
+          textAccent: 'text-purple-600'
         };
       case 'blur':
         return {
-          border: 'border-blue-300',
+          border: 'border-blue-200',
           background: 'bg-gradient-to-br from-blue-50 to-white',
-          header: 'bg-blue-700',
+          header: 'bg-blue-600',
           headerText: 'text-white',
-          accentColor: 'bg-blue-500',
+          accentColor: 'rgb(37, 99, 235)',
           accentLight: 'bg-blue-100',
-          textAccent: 'text-blue-700'
+          textAccent: 'text-blue-600'
         };
       case 'threshold':
         return {
-          border: 'border-purple-300',
-          background: 'bg-gradient-to-br from-purple-50 to-white',
-          header: 'bg-purple-700',
+          border: 'border-indigo-200',
+          background: 'bg-gradient-to-br from-indigo-50 to-white',
+          header: 'bg-indigo-600',
           headerText: 'text-white',
-          accentColor: 'bg-purple-500',
-          accentLight: 'bg-purple-100',
-          textAccent: 'text-purple-700'
+          accentColor: 'rgb(79, 70, 229)',
+          accentLight: 'bg-indigo-100',
+          textAccent: 'text-indigo-600'
         };
       case 'laplacian':
-        return {
-          border: 'border-emerald-300',
-          background: 'bg-gradient-to-br from-emerald-50 to-white',
-          header: 'bg-emerald-700',
-          headerText: 'text-white',
-          accentColor: 'bg-emerald-500',
-          accentLight: 'bg-emerald-100',
-          textAccent: 'text-emerald-700'
-        };
       case 'sobel':
-        return {
-          border: 'border-amber-300',
-          background: 'bg-gradient-to-br from-amber-50 to-white',
-          header: 'bg-amber-700',
-          headerText: 'text-white',
-          accentColor: 'bg-amber-500',
-          accentLight: 'bg-amber-100',
-          textAccent: 'text-amber-700'
-        };
       case 'canny':
         return {
-          border: 'border-red-300',
-          background: 'bg-gradient-to-br from-red-50 to-white',
-          header: 'bg-red-700',
+          border: 'border-amber-200',
+          background: 'bg-gradient-to-br from-amber-50 to-white',
+          header: 'bg-amber-600',
           headerText: 'text-white',
-          accentColor: 'bg-red-500',
-          accentLight: 'bg-red-100',
-          textAccent: 'text-red-700'
+          accentColor: 'rgb(217, 119, 6)',
+          accentLight: 'bg-amber-100',
+          textAccent: 'text-amber-600'
         };
       default:
         return {
-          border: 'border-indigo-300',
-          background: 'bg-gradient-to-br from-indigo-50 to-white',
-          header: 'bg-indigo-700',
+          border: 'border-gray-200',
+          background: 'bg-gradient-to-br from-gray-50 to-white',
+          header: 'bg-gray-700',
           headerText: 'text-white',
-          accentColor: 'bg-indigo-500',
-          accentLight: 'bg-indigo-100',
-          textAccent: 'text-indigo-700'
+          accentColor: 'rgb(75, 85, 99)',
+          accentLight: 'bg-gray-100',
+          textAccent: 'text-gray-600'
         };
     }
   };
@@ -463,11 +355,9 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     setDetailedErrorShown(!detailedErrorShown);
   };
 
-  // Manually retry processing
+  // Retry processing after error
   const handleRetryProcessing = () => {
-    setProcessingSucceeded(false);
-    processingAttemptRef.current += 1;
-    setDetailedErrorShown(false);
+    triggerProcessing();
   };
 
   // Render parameter controls based on parameter type
@@ -501,7 +391,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                   }%, #e5e7eb)`
                 }}
               />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
                 <span>{param.min}</span>
                 <span>{param.max}</span>
               </div>
@@ -576,156 +466,220 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const colors = getTransformationColors();
 
   return (
-    <BaseNode
-      id={id}
-      type="transformation"
-      selected={selected}
-      title={transformation.name}
-      color={{
-        border: colors.border,
-        background: colors.background,
-        header: colors.header,
-        headerText: colors.headerText
-      }}
-      width="w-72"
-    >
-      <div>
-        {/* Parameters Section */}
-        {parameters.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center">
-                <AdjustmentsHorizontalIcon className="h-4 w-4 mr-1.5 text-gray-500" />
-                <h4 className="text-sm font-medium text-gray-700">Parameters</h4>
-              </div>
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className={`p-1 rounded-full hover:bg-gray-100 transition-colors ${colors.textAccent}`}
-                title={expanded ? "Collapse" : "Expand"}
-              >
-                {expanded ? (
-                  <ArrowsPointingInIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowsPointingOutIcon className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-            <div className={`${colors.accentLight} bg-opacity-30 p-2.5 rounded-md`}>
-              {parameters.map(renderParameterControl)}
-            </div>
-          </div>
-        )}
-        
-        {/* Processing Status */}
-        {isProcessing && (
-          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent mr-2"></div>
-              <p className="text-xs text-blue-700 font-medium">Processing image...</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Error Display */}
-        {error && !isProcessing && (
-          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1.5 flex-shrink-0" />
-                <p className="text-xs text-red-600 font-medium">{error}</p>
-              </div>
-              <div className="flex space-x-2">
-                {errorDetails && (
-                  <button
-                    onClick={toggleErrorDetails}
-                    className="text-xs text-gray-500 hover:text-gray-700 p-1"
-                    title="Toggle details"
-                  >
-                    <InformationCircleIcon className="h-4 w-4" />
-                  </button>
-                )}
-                <button
-                  onClick={handleRetryProcessing}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium p-1"
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-            
-            {detailedErrorShown && errorDetails && (
-              <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200 max-h-24 overflow-auto">
-                <pre className="whitespace-pre-wrap break-words">{errorDetails}</pre>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Preview Section */}
-        {processedImageUrl && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-700 flex items-center">
-                <SparklesIcon className="h-4 w-4 mr-1.5 text-gray-500" />
-                Preview
-              </h4>
-              {intermediateResults.length > 0 && (
-                <button 
-                  onClick={toggleIntermediates}
-                  className={`flex items-center text-xs ${colors.textAccent} hover:underline font-medium`}
-                >
-                  {showIntermediates ? (
-                    <>
-                      <EyeSlashIcon className="h-3 w-3 mr-0.5" />
-                      Hide Steps
-                    </>
-                  ) : (
-                    <>
-                      <EyeIcon className="h-3 w-3 mr-0.5" />
-                      Show Steps ({intermediateResults.length})
-                    </>
+    <>
+      <BaseNode
+        id={id}
+        type="transformation"
+        selected={selected}
+        title={transformation.name}
+        color={{
+          border: colors.border,
+          background: colors.background,
+          header: colors.header,
+          headerText: colors.headerText
+        }}
+        width="w-72"
+      >
+        <div>
+          {/* Parameters Section */}
+          {parameters.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                  <AdjustmentsHorizontalIcon className="h-4 w-4 mr-1.5 text-gray-500" />
+                  <h4 className="text-sm font-medium text-gray-700">Parameters</h4>
+                </div>
+                <div className="flex">
+                  {/* Advanced Config Button */}
+                  {transformation.type === 'blur' && (
+                    <button
+                      onClick={openAdvancedConfig}
+                      className={`p-1 mr-1 rounded-full hover:bg-gray-100 transition-colors ${colors.textAccent}`}
+                      title="Advanced Configuration"
+                    >
+                      <Cog6ToothIcon className="h-4 w-4" />
+                    </button>
                   )}
-                </button>
+                  <button
+                    onClick={() => setExpanded(!expanded)}
+                    className={`p-1 rounded-full hover:bg-gray-100 transition-colors ${colors.textAccent}`}
+                    title={expanded ? "Collapse" : "Expand"}
+                  >
+                    {expanded ? (
+                      <ArrowsPointingInIcon className="h-4 w-4" />
+                    ) : (
+                      <ArrowsPointingOutIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className={`${colors.accentLight} bg-opacity-30 p-2.5 rounded-md`}>
+                {parameters.map(renderParameterControl)}
+
+                {/* Show indicator if advanced configuration is active */}
+                {transformation.metadata?.advancedParameters && (
+                  <div className="mt-1 pt-2 border-t border-gray-200 flex items-center text-xs text-blue-600">
+                    <SparklesIcon className="h-3 w-3 mr-1" />
+                    <span>Advanced configuration is active</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Processing Status */}
+          {isProcessing && (
+            <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                <p className="text-xs text-blue-700 font-medium">Processing image...</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Error Display */}
+          {error && (
+            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1.5" />
+                  <p className="text-xs text-red-700 font-medium">{error}</p>
+                </div>
+                <div className="flex space-x-1">
+                  {errorDetails && (
+                    <button
+                      onClick={toggleErrorDetails}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      {detailedErrorShown ? 'Hide Details' : 'Details'}
+                    </button>
+                  )}
+                  <button
+                    onClick={handleRetryProcessing}
+                    className="text-xs text-red-600 hover:text-red-800"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+              {detailedErrorShown && errorDetails && (
+                <div className="mt-2 p-2 bg-red-100 rounded overflow-auto max-h-24 text-xs text-red-800">
+                  <pre className="whitespace-pre-wrap">{errorDetails}</pre>
+                </div>
               )}
             </div>
-
-            <div className="bg-gray-900 rounded-md overflow-hidden mb-1">
-              <img 
-                src={processedImageUrl} 
-                alt="Processed" 
-                className="max-h-40 w-full object-contain mx-auto"
-              />
-            </div>
-            
-            {/* Show intermediate results if available and expanded */}
-            {showIntermediates && intermediateResults.length > 0 && (
-              <div className="mt-4 space-y-3 bg-gray-50 p-2 rounded-md border border-gray-200">
-                <h5 className="text-xs font-medium text-gray-700">Processing Steps</h5>
-                
-                <div className="space-y-3">
+          )}
+          
+          {/* Output Preview */}
+          {processedImageUrl && (
+            <div>
+              <div className="mb-2 flex justify-between items-center">
+                <h4 className="text-sm font-medium text-gray-700 flex items-center">
+                  <EyeIcon className="h-4 w-4 mr-1.5 text-gray-500" />
+                  Preview
+                </h4>
+                {intermediateResults.length > 0 && (
+                  <button
+                    onClick={() => setShowIntermediates(!showIntermediates)}
+                    className={`text-xs ${colors.textAccent} hover:underline flex items-center`}
+                  >
+                    {showIntermediates ? (
+                      <>
+                        <EyeSlashIcon className="h-3 w-3 mr-1" />
+                        Hide Steps
+                      </>
+                    ) : (
+                      <>
+                        <EyeIcon className="h-3 w-3 mr-1" />
+                        Show Steps
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <div className="bg-slate-800 rounded-md overflow-hidden">
+                <img
+                  src={processedImageUrl}
+                  alt="Processed"
+                  className="max-h-40 w-full object-contain"
+                />
+              </div>
+              
+              {/* Intermediate steps display */}
+              {showIntermediates && intermediateResults.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  <h5 className="text-xs font-medium text-gray-700">Processing Steps:</h5>
                   {intermediateResults.map((result, index) => (
-                    <div key={index} className="bg-white rounded-md shadow-sm overflow-hidden border border-gray-100">
-                      <div className="bg-gray-100 py-1 px-2">
-                        <h6 className="text-xs font-medium text-gray-700">{result.description}</h6>
-                      </div>
-                      <div className="p-1 bg-gray-900">
-                        <img 
+                    <div key={index} className="space-y-1">
+                      <p className="text-xs text-gray-600">{result.description}</p>
+                      <div className="bg-slate-800 rounded-md overflow-hidden">
+                        <img
                           src={getIntermediateImageUrl(result.imageData)}
                           alt={`Step ${index + 1}`}
-                          className="max-h-24 w-full object-contain mx-auto"
+                          className="max-h-28 w-full object-contain"
                         />
                       </div>
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+        </div>
+      </BaseNode>
+      
+      {/* Advanced Configuration Modal */}
+      <TransformConfigModal
+        isOpen={isAdvancedConfigOpen}
+        onClose={() => setIsAdvancedConfigOpen(false)}
+        transformation={transformation}
+        onSave={handleSaveAdvancedConfig}
+        onReset={handleResetAdvancedConfig}
+      />
+
+      {/* Kernel Size Change Warning Modal */}
+      {isKernelSizeChanging && (
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white p-6 max-w-md rounded-lg shadow-lg">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
               </div>
-            )}
+              <h3 className="ml-3 text-lg font-medium leading-6 text-gray-900">
+                Reset Advanced Configuration?
+              </h3>
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-4">
+              Changing the kernel size will reset all advanced configuration parameters.
+              Do you want to proceed?
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={cancelKernelSizeChange}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                onClick={() => {
+                  // Find the kernel size parameter and get its value
+                  const kernelSizeParam = parameters.find(p => p.name === 'kernelSize');
+                  if (kernelSizeParam) {
+                    confirmKernelSizeChange(kernelSizeParam.name, kernelSizeParam.value as number);
+                  }
+                }}
+              >
+                Reset and Continue
+              </button>
+            </div>
           </div>
-        )}
-        
-        {/* Hidden canvas for processing */}
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-      </div>
-    </BaseNode>
+        </div>
+      )}
+    </>
   );
 } 

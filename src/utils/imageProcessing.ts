@@ -417,7 +417,7 @@ export const applyGrayscale = (src: any): any => {
 };
 
 // Apply blur transformation
-export const applyBlur = (src: any, ksize: number): any => {
+export const applyBlur = (src: any, ksize: number, advancedParams?: Record<string, any>): any => {
   const opencv = getOpenCV();
   
   // Handle fallback Mat
@@ -471,7 +471,51 @@ export const applyBlur = (src: any, ksize: number): any => {
     // Ensure ksize is odd
     ksize = ksize % 2 === 0 ? ksize + 1 : ksize;
     const ksize_obj = new opencv.Size(ksize, ksize);
-    opencv.GaussianBlur(src, dst, ksize_obj, 0, 0, opencv.BORDER_DEFAULT);
+    
+    // Extract advanced parameters if provided
+    const sigmaX = advancedParams?.sigmaX ?? 0;
+    const sigmaY = advancedParams?.sigmaY ?? 0;
+    
+    // Determine border type
+    let borderType = opencv.BORDER_DEFAULT;
+    if (advancedParams?.borderType) {
+      switch (advancedParams.borderType) {
+        case 'BORDER_CONSTANT':
+          borderType = opencv.BORDER_CONSTANT;
+          break;
+        case 'BORDER_REPLICATE':
+          borderType = opencv.BORDER_REPLICATE;
+          break;
+        case 'BORDER_REFLECT':
+          borderType = opencv.BORDER_REFLECT;
+          break;
+        case 'BORDER_WRAP':
+          borderType = opencv.BORDER_WRAP;
+          break;
+        default:
+          borderType = opencv.BORDER_DEFAULT;
+      }
+    }
+    
+    // Handle custom kernel if provided
+    if (advancedParams?.useCustomKernel && advancedParams?.customKernel) {
+      try {
+        // Create a custom kernel from the provided values
+        const kernelSize = Math.sqrt(advancedParams.customKernel.length);
+        if (kernelSize === Math.floor(kernelSize)) { // Check if it's a perfect square
+          const kernel = opencv.matFromArray(kernelSize, kernelSize, opencv.CV_32F, advancedParams.customKernel);
+          opencv.filter2D(src, dst, -1, kernel, new opencv.Point(-1, -1), 0, borderType);
+          kernel.delete();
+          return dst;
+        }
+      } catch (error) {
+        console.warn('Error applying custom kernel, falling back to GaussianBlur:', error);
+        // Fall through to default GaussianBlur
+      }
+    }
+    
+    // Apply standard Gaussian blur with the provided parameters
+    opencv.GaussianBlur(src, dst, ksize_obj, sigmaX, sigmaY, borderType);
     return dst;
   } catch (error) {
     dst.delete();
@@ -1029,7 +1073,9 @@ export const processImage = async (
             
             diagnosticInfo.steps.push({ name: 'apply_blur', startTime: Date.now() });
             const blurSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 3;
-            result = applyBlur(gray, blurSize);
+            // Get advanced parameters from metadata if available
+            const advancedParams = transformation.metadata?.advancedParameters;
+            result = applyBlur(gray, blurSize, advancedParams);
             diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
             
             // Free memory from intermediate step

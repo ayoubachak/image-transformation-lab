@@ -29,6 +29,13 @@ export interface Transformation {
   showPreprocessingSteps?: boolean;
   dependsOn?: string[]; // IDs of transformations this one depends on
   outputToDisplay?: 'final' | 'intermediate' | 'all'; // What to display in the preview
+  
+  // Advanced configuration and metadata
+  metadata?: {
+    advancedParameters?: Record<string, any>;
+    notes?: string;
+    [key: string]: any;
+  };
 }
 
 export interface ImageProcessingNode {

@@ -59,7 +59,7 @@ const OpenCVLoader: React.FC<OpenCVLoaderProps> = ({ onInitialized }) => {
 
   if (status === 'loading') {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-white bg-opacity-90 z-50">
+      <div className="fixed inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm z-50">
         <div className="p-6 rounded-lg shadow-lg bg-white max-w-md">
           <div className="flex items-center mb-4">
             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mr-3"></div>
@@ -77,7 +77,7 @@ const OpenCVLoader: React.FC<OpenCVLoaderProps> = ({ onInitialized }) => {
 
   if (status === 'error') {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-white bg-opacity-90 z-50">
+      <div className="fixed inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm z-50">
         <div className="p-6 rounded-lg shadow-lg bg-white max-w-md">
           <div className="flex items-center mb-4 text-red-500">
             <svg className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,7 +88,7 @@ const OpenCVLoader: React.FC<OpenCVLoaderProps> = ({ onInitialized }) => {
           <p className="text-gray-600 mb-4">{message}</p>
           <button 
             onClick={handleRetry}
-            className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded transition duration-200"
+            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded transition duration-200"
           >
             Try Again
           </button>
