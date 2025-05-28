@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { ExclamationTriangleIcon, XMarkIcon, DocumentTextIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import type { Transformation, TransformationParameter } from '../../utils/types';
+import { ExclamationTriangleIcon, XMarkIcon, DocumentTextIcon, InformationCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import type { Transformation, TransformationParameter, KernelValue } from '../../utils/types';
 
 interface TransformConfigModalProps {
   isOpen: boolean;
@@ -18,11 +18,28 @@ export default function TransformConfigModal({
   onSave,
   onReset
 }: TransformConfigModalProps) {
-  // Create a deep copy of the transformation to work with
-  const [localTransformation, setLocalTransformation] = useState<Transformation>({
-    ...transformation,
-    parameters: [...(transformation.parameters || [])].map(param => ({ ...param }))
+  const [editedTransformation, setEditedTransformation] = useState<Transformation>(
+    JSON.parse(JSON.stringify(transformation))
+  );
+  
+  // Clone the current kernel for custom blur editing
+  const [kernelValues, setKernelValues] = useState<number[][]>(() => {
+    const kernel = transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue;
+    return kernel?.values || [
+      [1/9, 1/9, 1/9],
+      [1/9, 1/9, 1/9],
+      [1/9, 1/9, 1/9]
+    ];
   });
+  
+  const [kernelSize, setKernelSize] = useState({
+    width: (transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue)?.width || 3,
+    height: (transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue)?.height || 3
+  });
+  
+  const [normalize, setNormalize] = useState(
+    (transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue)?.normalize !== false
+  );
 
   // Additional advanced parameters for different transformation types
   const [advancedParameters, setAdvancedParameters] = useState<Record<string, any>>({});
@@ -45,7 +62,7 @@ export default function TransformConfigModal({
 
   // Update when the source transformation changes
   useEffect(() => {
-    setLocalTransformation({
+    setEditedTransformation({
       ...transformation,
       parameters: [...(transformation.parameters || [])].map(param => ({ ...param }))
     });
@@ -67,12 +84,12 @@ export default function TransformConfigModal({
 
   // Handle parameter changes
   const handleParameterChange = (name: string, value: number | string | boolean) => {
-    const updatedParams = localTransformation.parameters.map(param => 
+    const updatedParams = editedTransformation.parameters.map(param => 
       param.name === name ? validateParameter({ ...param, value }) : param
     );
     
-    setLocalTransformation({
-      ...localTransformation,
+    setEditedTransformation({
+      ...editedTransformation,
       parameters: updatedParams
     });
     
@@ -89,17 +106,28 @@ export default function TransformConfigModal({
     setHasChanges(true);
   };
 
-  // Save changes
+  // Handle saving the configuration
   const handleSave = () => {
-    // Create updated transformation with both basic and advanced parameters
-    const updatedTransformation = {
-      ...localTransformation,
-      // Store advanced parameters in a special metadata field
-      metadata: {
-        ...localTransformation.metadata,
-        advancedParameters: advancedParameters
+    // Update kernel values in the edited transformation
+    const updatedTransformation = { ...editedTransformation };
+    
+    if (transformation.type === 'customBlur') {
+      const kernelParam = updatedTransformation.parameters.find(p => p.name === 'customKernel');
+      if (kernelParam) {
+        kernelParam.value = {
+          width: kernelSize.width,
+          height: kernelSize.height,
+          values: kernelValues,
+          normalize
+        };
       }
-    };
+      
+      // Add advanced parameters metadata
+      updatedTransformation.metadata = {
+        ...updatedTransformation.metadata,
+        advancedParameters: true
+      };
+    }
     
     onSave(updatedTransformation);
     onClose();
@@ -135,6 +163,8 @@ export default function TransformConfigModal({
         return <div className="p-4 text-gray-500 italic">Advanced configuration for Sobel not yet implemented</div>;
       case 'laplacian':
         return <div className="p-4 text-gray-500 italic">Advanced configuration for Laplacian not yet implemented</div>;
+      case 'customBlur':
+        return renderKernelEditor();
       default:
         return <div className="p-4 text-gray-500 italic">No advanced configuration available for this transformation type</div>;
     }
@@ -142,7 +172,7 @@ export default function TransformConfigModal({
 
   // Render Gaussian blur specific configuration
   const renderGaussianBlurConfig = () => {
-    const kernelSizeParam = localTransformation.parameters.find(p => p.name === 'kernelSize');
+    const kernelSizeParam = editedTransformation.parameters.find(p => p.name === 'kernelSize');
     
     return (
       <div className="space-y-6">
@@ -334,6 +364,168 @@ export default function TransformConfigModal({
         </div>
       </div>
     );
+  };
+
+  // Render custom kernel editor
+  const renderKernelEditor = () => {
+    return (
+      <div className="mt-4">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Custom Kernel</h3>
+        
+        <div className="flex items-center space-x-4 mb-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Width</label>
+            <input
+              type="number"
+              min="1"
+              max="9"
+              value={kernelSize.width}
+              onChange={(e) => setKernelSize({ ...kernelSize, width: parseInt(e.target.value) || 3 })}
+              className="w-16 p-1 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Height</label>
+            <input
+              type="number"
+              min="1"
+              max="9"
+              value={kernelSize.height}
+              onChange={(e) => setKernelSize({ ...kernelSize, height: parseInt(e.target.value) || 3 })}
+              className="w-16 p-1 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <button
+            onClick={() => setKernelValues([
+              [1/9, 1/9, 1/9],
+              [1/9, 1/9, 1/9],
+              [1/9, 1/9, 1/9]
+            ])}
+            className="mt-4 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+          >
+            Box Blur
+          </button>
+          <button
+            onClick={() => setKernelValues([
+              [0.0625, 0.125, 0.0625],
+              [0.125, 0.25, 0.125],
+              [0.0625, 0.125, 0.0625]
+            ])}
+            className="mt-4 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+          >
+            Gaussian
+          </button>
+          <button
+            onClick={() => setKernelValues([
+              [-1, -1, -1],
+              [-1, 9, -1],
+              [-1, -1, -1]
+            ])}
+            className="mt-4 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+          >
+            Sharpen
+          </button>
+          <button
+            onClick={() => setKernelValues([
+              [-1, -1, -1],
+              [-1, 8, -1],
+              [-1, -1, -1]
+            ])}
+            className="mt-4 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+          >
+            Edge Detect
+          </button>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="border-collapse">
+            <tbody>
+              {kernelValues.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, colIndex) => (
+                    <td key={colIndex} className="p-1">
+                      <input
+                        type="number"
+                        value={cell}
+                        step="0.1"
+                        onChange={(e) => handleKernelValueChange(rowIndex, colIndex, parseFloat(e.target.value) || 0)}
+                        className="w-16 p-1 border border-gray-300 rounded-md text-sm"
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        <div className="mt-3 flex items-center">
+          <input
+            type="checkbox"
+            id="normalize-kernel"
+            checked={normalize}
+            onChange={(e) => setNormalize(e.target.checked)}
+            className="mr-2"
+          />
+          <label htmlFor="normalize-kernel" className="text-sm text-gray-700">
+            Normalize kernel (sum to 1)
+          </label>
+        </div>
+        
+        <div className="mt-4">
+          <h4 className="text-xs font-medium text-gray-500 mb-1">Presets</h4>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setKernelValues([
+                [1/9, 1/9, 1/9],
+                [1/9, 1/9, 1/9],
+                [1/9, 1/9, 1/9]
+              ])}
+              className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+            >
+              Box Blur
+            </button>
+            <button
+              onClick={() => setKernelValues([
+                [0.0625, 0.125, 0.0625],
+                [0.125, 0.25, 0.125],
+                [0.0625, 0.125, 0.0625]
+              ])}
+              className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+            >
+              Gaussian
+            </button>
+            <button
+              onClick={() => setKernelValues([
+                [-1, -1, -1],
+                [-1, 9, -1],
+                [-1, -1, -1]
+              ])}
+              className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+            >
+              Sharpen
+            </button>
+            <button
+              onClick={() => setKernelValues([
+                [-1, -1, -1],
+                [-1, 8, -1],
+                [-1, -1, -1]
+              ])}
+              className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs hover:bg-gray-200"
+            >
+              Edge Detect
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Handle changing kernel value
+  const handleKernelValueChange = (row: number, col: number, value: number) => {
+    const newValues = [...kernelValues];
+    newValues[row][col] = value;
+    setKernelValues(newValues);
   };
 
   return (

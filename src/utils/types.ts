@@ -1,20 +1,81 @@
 export type TransformationType = 
   | 'grayscale'
   | 'blur'
+  | 'customBlur'
   | 'threshold'
+  | 'adaptiveThreshold'
   | 'laplacian'
   | 'sobel'
   | 'canny'
+  | 'dilate'
+  | 'erode'
+  | 'morphology'
+  | 'colorAdjust'
+  | 'sharpen'
+  | 'median'
+  | 'bilateral'
+  | 'histogram'
+  | 'rotate'
+  | 'resize'
+  | 'flip'
+  | 'crop'
+  | 'perspective'
   | 'custom';
+
+export type ParameterType = 
+  | 'number' 
+  | 'string' 
+  | 'boolean' 
+  | 'select'
+  | 'color'
+  | 'kernel'
+  | 'point'
+  | 'range'
+  | 'matrix'
+  | 'vector';
+
+export interface KernelValue {
+  width: number;
+  height: number;
+  values: number[][];
+  normalize?: boolean;
+}
+
+export interface MatrixValue {
+  width: number;
+  height: number;
+  values: number[][];
+}
+
+export interface PointValue {
+  x: number;
+  y: number;
+}
+
+export interface VectorValue {
+  values: number[];
+}
+
+export interface RangeValue {
+  min: number;
+  max: number;
+}
 
 export interface TransformationParameter {
   name: string;
-  type: 'number' | 'string' | 'boolean' | 'select';
-  value: number | string | boolean;
+  type: ParameterType;
+  value: number | string | boolean | KernelValue | PointValue | MatrixValue | VectorValue | RangeValue;
+  label?: string;
+  description?: string;
   min?: number;
   max?: number;
   step?: number;
   options?: string[];
+  advanced?: boolean;
+  group?: string;
+  dependsOn?: string;
+  showIf?: (params: Record<string, any>) => boolean;
+  validate?: (value: any, params: Record<string, any>) => boolean | string;
 }
 
 export interface Transformation {

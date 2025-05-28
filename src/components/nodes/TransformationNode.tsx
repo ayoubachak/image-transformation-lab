@@ -7,6 +7,7 @@ import { AdjustmentsHorizontalIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon,
 import type { IntermediateResult } from '../../utils/imageProcessing';
 import BaseNode from './BaseNode';
 import TransformConfigModal from '../modals/TransformConfigModal';
+import ParameterControl from '../parameters/ParameterControl';
 
 interface TransformationNodeProps {
   id: string;
@@ -51,7 +52,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const processingTimeoutRef = useRef<number | null>(null);
 
   // Function to update parameter value
-  const handleUpdateParameterValue = (name: string, value: number | string | boolean) => {
+  const handleUpdateParameterValue = (name: string, value: any) => {
     // Check if the parameter is kernel size and show warning if needed
     const isKernelSize = name === 'kernelSize';
     
@@ -59,6 +60,12 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       setIsKernelSizeChanging(true);
       return;
     }
+
+    // Get a map of all parameter values for conditional rendering
+    const paramMap: Record<string, any> = {};
+    parameters.forEach(p => {
+      paramMap[p.name] = p.name === name ? value : p.value;
+    });
 
     // Update the local state
     const updatedParams = parameters?.length 
@@ -185,6 +192,8 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const getTransformationColors = () => {
     switch (transformation.type) {
       case 'grayscale':
+      case 'threshold':
+      case 'adaptiveThreshold':
         return {
           border: 'border-purple-200',
           background: 'bg-gradient-to-br from-purple-50 to-white',
@@ -195,6 +204,10 @@ export default function TransformationNode({ id, data, selected }: Transformatio
           textAccent: 'text-purple-600'
         };
       case 'blur':
+      case 'customBlur':
+      case 'median':
+      case 'bilateral':
+      case 'sharpen':
         return {
           border: 'border-blue-200',
           background: 'bg-gradient-to-br from-blue-50 to-white',
@@ -204,15 +217,16 @@ export default function TransformationNode({ id, data, selected }: Transformatio
           accentLight: 'bg-blue-100',
           textAccent: 'text-blue-600'
         };
-      case 'threshold':
+      case 'colorAdjust':
+      case 'histogram':
         return {
-          border: 'border-indigo-200',
-          background: 'bg-gradient-to-br from-indigo-50 to-white',
-          header: 'bg-indigo-600',
+          border: 'border-rose-200',
+          background: 'bg-gradient-to-br from-rose-50 to-white',
+          header: 'bg-rose-600',
           headerText: 'text-white',
-          accentColor: 'rgb(79, 70, 229)',
-          accentLight: 'bg-indigo-100',
-          textAccent: 'text-indigo-600'
+          accentColor: 'rgb(225, 29, 72)',
+          accentLight: 'bg-rose-100',
+          textAccent: 'text-rose-600'
         };
       case 'laplacian':
       case 'sobel':
@@ -225,6 +239,32 @@ export default function TransformationNode({ id, data, selected }: Transformatio
           accentColor: 'rgb(217, 119, 6)',
           accentLight: 'bg-amber-100',
           textAccent: 'text-amber-600'
+        };
+      case 'dilate':
+      case 'erode':
+      case 'morphology':
+        return {
+          border: 'border-fuchsia-200',
+          background: 'bg-gradient-to-br from-fuchsia-50 to-white',
+          header: 'bg-fuchsia-600',
+          headerText: 'text-white',
+          accentColor: 'rgb(192, 38, 211)',
+          accentLight: 'bg-fuchsia-100',
+          textAccent: 'text-fuchsia-600'
+        };
+      case 'resize':
+      case 'rotate':
+      case 'flip':
+      case 'crop':
+      case 'perspective':
+        return {
+          border: 'border-emerald-200',
+          background: 'bg-gradient-to-br from-emerald-50 to-white',
+          header: 'bg-emerald-600',
+          headerText: 'text-white',
+          accentColor: 'rgb(16, 185, 129)',
+          accentLight: 'bg-emerald-100',
+          textAccent: 'text-emerald-600'
         };
       default:
         return {
@@ -261,110 +301,14 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     });
   };
 
-  // Render parameter controls based on parameter type
-  const renderParameterControl = (param: TransformationParameter) => {
-    const colors = getTransformationColors();
-    
-    switch (param.type) {
-      case 'number':
-        return (
-          <div key={param.name} className="mb-3">
-            <div className="flex justify-between items-center">
-              <label className="block text-sm font-medium text-gray-700">
-                {param.name}
-              </label>
-              <span className="text-sm font-medium text-gray-600">{param.value}</span>
-            </div>
-            <div className="mt-1.5 relative">
-              <input
-                type="range"
-                min={param.min || 0}
-                max={param.max || 100}
-                step={param.step || 1}
-                value={param.value as number}
-                onChange={(e) => handleUpdateParameterValue(param.name, Number(e.target.value))}
-                className="w-full h-2 appearance-none rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-300 [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-200"
-                style={{
-                  background: `linear-gradient(to right, ${colors.accentColor}, ${colors.accentColor} ${
-                    ((Number(param.value) - (param.min || 0)) / ((param.max || 100) - (param.min || 0))) * 100
-                  }%, #e5e7eb ${
-                    ((Number(param.value) - (param.min || 0)) / ((param.max || 100) - (param.min || 0))) * 100
-                  }%, #e5e7eb)`
-                }}
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>{param.min}</span>
-                <span>{param.max}</span>
-              </div>
-            </div>
-          </div>
-        );
-      case 'select':
-        return (
-          <div key={param.name} className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {param.name}
-            </label>
-            <select
-              value={param.value as string}
-              onChange={(e) => handleUpdateParameterValue(param.name, e.target.value)}
-              className={`w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-${colors.textAccent}`}
-            >
-              {param.options?.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-        );
-      case 'boolean':
-        return (
-          <div key={param.name} className="mb-3 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">{param.name}</label>
-            <div className="relative inline-block w-10 mr-2 align-middle select-none">
-              <input
-                type="checkbox"
-                id={`toggle-${param.name}-${id}`}
-                checked={param.value as boolean}
-                onChange={(e) => handleUpdateParameterValue(param.name, e.target.checked)}
-                className="sr-only"
-              />
-              <label
-                htmlFor={`toggle-${param.name}-${id}`}
-                className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                  (param.value as boolean) ? colors.accentColor : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`block h-6 w-6 rounded-full bg-white border border-gray-300 shadow transform transition-transform duration-200 ease-in ${
-                    (param.value as boolean) ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
-              </label>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Create a function to create data URLs for intermediate results
-  const getIntermediateImageUrl = (imageData: ImageData): string => {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imageData.width;
-    tempCanvas.height = imageData.height;
-    const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
-    if (ctx) {
-      ctx.putImageData(imageData, 0, 0);
-      return tempCanvas.toDataURL();
-    }
-    return '';
-  };
-
   // Get node colors based on transformation type
   const colors = getTransformationColors();
+
+  // Get a map of all parameter values for conditional rendering
+  const parameterValues: Record<string, any> = {};
+  parameters.forEach(param => {
+    parameterValues[param.name] = param.value;
+  });
 
   return (
     <>
@@ -415,7 +359,19 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 </div>
               </div>
               <div className={`${colors.accentLight} bg-opacity-30 p-2.5 rounded-md`}>
-                {parameters?.map(renderParameterControl)}
+                {parameters.map((param) => (
+                  <ParameterControl
+                    key={param.name}
+                    parameter={param}
+                    onChange={handleUpdateParameterValue}
+                    allParameters={parameterValues}
+                    themeColor={{
+                      accentColor: colors.accentColor,
+                      accentLight: colors.accentLight,
+                      textAccent: colors.textAccent
+                    }}
+                  />
+                ))}
 
                 {/* Show indicator if advanced configuration is active */}
                 {transformation.metadata?.advancedParameters && (
@@ -583,4 +539,17 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       )}
     </>
   );
-} 
+}
+
+// Create a function to create data URLs for intermediate results
+const getIntermediateImageUrl = (imageData: ImageData): string => {
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = imageData.width;
+  tempCanvas.height = imageData.height;
+  const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+  if (ctx) {
+    ctx.putImageData(imageData, 0, 0);
+    return tempCanvas.toDataURL();
+  }
+  return '';
+}; 
