@@ -17,7 +17,7 @@ import ReactFlow, {
   ConnectionLineType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { useImageProcessing } from '../contexts/ImageProcessingContext';
+import { usePipeline } from '../contexts/PipelineContext';
 import InputNode from './nodes/InputNode';
 import TransformationNode from './nodes/TransformationNode';
 import OutputNode from './nodes/OutputNode';
@@ -105,7 +105,7 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
     removeEdge: removeContextEdge,
     updateNode: updateContextNode,
     selectNode,
-  } = useImageProcessing();
+  } = usePipeline();
 
   // Convert context nodes to ReactFlow nodes
   const initialNodes: Node[] = useMemo(() => contextNodes.map(node => ({

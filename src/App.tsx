@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ImageProcessingProvider } from './contexts/ImageProcessingContext';
+import { PipelineProvider } from './contexts/PipelineContext';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import LessonsPage from './pages/LessonsPage';
@@ -10,7 +10,7 @@ import OpenCVInitializer from './components/OpenCVInitializer';
 function App() {
   return (
     <Router>
-      <ImageProcessingProvider>
+      <PipelineProvider>
         <div className="min-h-screen flex flex-col">
           <Navbar />
           <main className="flex-1">
@@ -29,7 +29,7 @@ function App() {
           {/* Initialize OpenCV and show status notifications */}
           <OpenCVInitializer />
         </div>
-      </ImageProcessingProvider>
+      </PipelineProvider>
     </Router>
   );
 }

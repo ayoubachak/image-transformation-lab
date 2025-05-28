@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCallback } from 'react';
 import { Handle, Position } from 'reactflow';
-import { useImageProcessing } from '../../contexts/ImageProcessingContext';
+import { usePipeline } from '../../contexts/PipelineContext';
 
 export interface BaseNodeProps {
   id: string;

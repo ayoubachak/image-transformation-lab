@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useImageProcessing } from '../contexts/ImageProcessingContext';
+import { usePipeline } from '../contexts/PipelineContext';
 import { v4 as uuidv4 } from 'uuid';
 import type { TransformationType, Transformation, ImageProcessingNode } from '../utils/types';
 import { 
@@ -112,7 +112,7 @@ const transformationTemplates: Record<TransformationType, Omit<Transformation, '
 };
 
 // Group transformations by category
-const transformationCategories = {
+const transformationCategories: Record<string, string[]> = {
   'Basic': ['grayscale', 'threshold'],
   'Filters': ['blur'],
   'Edge Detection': ['laplacian', 'sobel', 'canny'],
@@ -131,7 +131,7 @@ export default function TransformationManager({ onClose }: TransformationManager
     removeNode, 
     addEdge, 
     removeEdge 
-  } = useImageProcessing();
+  } = usePipeline();
   
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
@@ -141,25 +141,30 @@ export default function TransformationManager({ onClose }: TransformationManager
   const getAvailableTransformations = () => {
     if (!selectedCategory) return [];
     
-    return transformationCategories[selectedCategory]?.map(type => ({
-      type,
-      ...transformationTemplates[type as TransformationType]
-    })) || [];
+    interface TransformWithType {
+      transformType: TransformationType;
+      name: string;
+      description: string;
+      parameters: any[];
+    }
+    
+    return (transformationCategories[selectedCategory] || []).map(typeKey => {
+      const transformType = typeKey as TransformationType;
+      const template = transformationTemplates[transformType];
+      
+      return {
+        transformType,
+        name: template.name,
+        description: template.description,
+        parameters: template.parameters
+      } as TransformWithType;
+    });
   };
   
   // Add a new transformation node to the pipeline
   const handleAddTransformation = (type: TransformationType) => {
     const template = transformationTemplates[type];
-    const id = uuidv4();
-    
-    // Create transformation with the template
-    const transformation: Transformation = {
-      ...template,
-      id,
-      inputNodes: [],
-    };
-    
-    addNode('transformation', transformation);
+    addNode('transformation', template);
   };
   
   // Remove a node from the pipeline
@@ -257,8 +262,8 @@ export default function TransformationManager({ onClose }: TransformationManager
           <div className="grid grid-cols-2 gap-3 mb-4">
             {getAvailableTransformations().map(transformation => (
               <button
-                key={transformation.type}
-                onClick={() => handleAddTransformation(transformation.type as TransformationType)}
+                key={transformation.transformType}
+                onClick={() => handleAddTransformation(transformation.transformType)}
                 className="flex items-center py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md transition-colors"
               >
                 <PlusIcon className="h-4 w-4 mr-2" />

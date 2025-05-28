@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import LessonCard from '../components/LessonCard';
-import { useImageProcessing } from '../contexts/ImageProcessingContext';
+import { usePipeline } from '../contexts/PipelineContext';
 import { sampleLessons } from '../utils/sampleData';
 import type { Lesson } from '../utils/types';
 
@@ -37,11 +37,11 @@ const groupLessonsByCategory = (lessons: Lesson[]) => {
 };
 
 export default function LessonsPage() {
-  const { lessons } = useImageProcessing();
+  // Get available lessons from sample data since the PipelineContext doesn't have lessons
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   
-  // If no lessons are loaded, use the sample lessons
-  const allLessons = lessons.length > 0 ? lessons : sampleLessons;
+  // Use sample lessons directly
+  const allLessons = sampleLessons;
   const categories = groupLessonsByCategory(allLessons);
   
   // Filter lessons by active category, or show all if no category is selected

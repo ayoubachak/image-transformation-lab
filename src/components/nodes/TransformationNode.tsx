@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Position } from 'reactflow';
-import { useImageProcessing } from '../../contexts/ImageProcessingContext';
+import { usePipeline } from '../../contexts/PipelineContext';
 import { processImage } from '../../utils/imageProcessing';
 import type { Transformation, TransformationParameter } from '../../utils/types';
 import { AdjustmentsHorizontalIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, ExclamationTriangleIcon, InformationCircleIcon, EyeIcon, EyeSlashIcon, SparklesIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
@@ -21,7 +21,14 @@ interface TransformationNodeProps {
 
 export default function TransformationNode({ id, data, selected }: TransformationNodeProps) {
   const { transformation } = data.node;
-  const { processedImages, setProcessedImage, updateNode, invalidateDownstreamNodes, edges } = useImageProcessing();
+  const { 
+    updateNode, 
+    updateParameter,
+    invalidateNode,
+    getProcessedCanvas,
+    results
+  } = usePipeline();
+  
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
   const [parameters, setParameters] = useState<TransformationParameter[]>(
     transformation.parameters
@@ -43,7 +50,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const processingTimeoutRef = useRef<number | null>(null);
 
   // Function to update parameter value
-  const updateParameterValue = (name: string, value: number | string | boolean) => {
+  const handleUpdateParameterValue = (name: string, value: number | string | boolean) => {
     // Check if the parameter is kernel size and show warning if needed
     const isKernelSize = name === 'kernelSize';
     
@@ -58,17 +65,8 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     );
     setParameters(updatedParams);
     
-    // Update the transformation in the context
-    const updatedTransformation = {
-      ...transformation,
-      parameters: updatedParams
-    };
-    updateNode(id, { 
-      transformation: updatedTransformation 
-    });
-    
-    // Explicitly invalidate downstream nodes to ensure they reprocess
-    invalidateDownstreamNodes(id);
+    // Update the parameter through the pipeline context
+    updateParameter(id, name, value);
     
     // Reset processing state to force re-processing
     setProcessingSucceeded(false);
@@ -92,15 +90,11 @@ export default function TransformationNode({ id, data, selected }: Transformatio
         advancedParameters: undefined // Remove advanced parameters
       }
     };
-    updateNode(id, { 
-      transformation: updatedTransformation 
-    });
+    
+    updateNode(id, { transformation: updatedTransformation });
     
     // Reset kernel size changing state
     setIsKernelSizeChanging(false);
-    
-    // Explicitly invalidate downstream nodes to ensure they reprocess
-    invalidateDownstreamNodes(id);
     
     // Reset processing state to force re-processing
     setProcessingSucceeded(false);
@@ -120,9 +114,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   // Handle saving advanced configuration
   const handleSaveAdvancedConfig = (updatedTransformation: Transformation) => {
     // Update the transformation in the context
-    updateNode(id, { 
-      transformation: updatedTransformation 
-    });
+    updateNode(id, { transformation: updatedTransformation });
     
     // Update local state
     setParameters(updatedTransformation.parameters);
@@ -131,8 +123,8 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     setProcessingSucceeded(false);
     processingAttemptRef.current += 1;
     
-    // Invalidate downstream nodes
-    invalidateDownstreamNodes(id);
+    // Close the modal
+    setIsAdvancedConfigOpen(false);
   };
 
   // Handle resetting advanced configuration
@@ -147,139 +139,35 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     };
     
     // Update the transformation in the context
-    updateNode(id, { 
-      transformation: updatedTransformation 
-    });
+    updateNode(id, { transformation: updatedTransformation });
   };
 
-  // Process the image whenever parameters or inputs change
+  // Update the processedImageUrl whenever the result canvas changes
   useEffect(() => {
-    // Find connected input nodes
-    const doImageProcessing = async () => {
-      // Skip processing if no transformation or no input nodes
-      if (!transformation || transformation.inputNodes.length === 0) {
-        return;
-      }
-      
-      // Get the first input node
-      const inputNodeId = transformation.inputNodes[0];
-      const inputCanvas = processedImages[inputNodeId];
-      
-      // Skip if no input is available
-      if (!inputCanvas) {
-        return;
-      }
-      
-      // Check if input has changed since last time
-      const inputSignature = `${inputNodeId}-${processingAttemptRef.current}`;
-      if (lastInputRef.current === inputSignature && processingSucceeded) {
-        return; // Input hasn't changed, no need to reprocess
-      }
-      lastInputRef.current = inputSignature;
-      
-      // Cancel any in-progress processing
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      
-      // Reset error state
-      setError(null);
-      setErrorDetails(null);
-      
-      // Start processing
-      setIsProcessing(true);
-      setProcessingSucceeded(false);
-      
-      // Create a processing timeout
-      if (processingTimeoutRef.current) {
-        window.clearTimeout(processingTimeoutRef.current);
-      }
-      processingTimeoutRef.current = window.setTimeout(() => {
-        // If still processing after timeout, show error
-        if (isProcessing) {
-          setIsProcessing(false);
-          setError('Processing timed out');
-          setProcessingSucceeded(false);
-        }
-      }, 10000); // 10 second timeout
-      
-      // Get image data from input canvas
-      const ctx = inputCanvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) {
-        setIsProcessing(false);
-        setError('Could not get context from input canvas');
-        return;
-      }
-      
-      const imageData = ctx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
-      
-      try {
-        // Get advanced parameters if they exist
-        const advancedParams = transformation.metadata?.advancedParameters;
-        
-        // Process the image with the current parameters
-        const result = await processImage(
-          imageData,
-          {
-            ...transformation,
-            // No need for extra parameters as they're already in metadata
-          },
-          true // Include intermediate results
-        );
-        
-        // Processing completed successfully
-        if (!abortControllerRef.current.signal.aborted) {
-          if (result.intermediates) {
-            setIntermediateResults(result.intermediates);
-          }
-          
-          // Create a canvas with the result
-          const resultCanvas = document.createElement('canvas');
-          resultCanvas.width = result.result.width;
-          resultCanvas.height = result.result.height;
-          const resultCtx = resultCanvas.getContext('2d', { willReadFrequently: true });
-          if (resultCtx) {
-            resultCtx.putImageData(result.result, 0, 0);
-            
-            // Store the result canvas in context for downstream nodes
-            setProcessedImage(id, resultCanvas);
-            
-            // Convert to data URL for display
-            setProcessedImageUrl(resultCanvas.toDataURL());
-          }
-          
-          setIsProcessing(false);
-          setProcessingSucceeded(true);
-        }
-      } catch (err) {
-        if (!abortControllerRef.current.signal.aborted) {
-          console.error('Error processing image:', err);
-          setIsProcessing(false);
-          setError('Processing failed');
-          setErrorDetails(err instanceof Error ? err.message : String(err));
-          setProcessingSucceeded(false);
-        }
-      } finally {
-        if (processingTimeoutRef.current) {
-          window.clearTimeout(processingTimeoutRef.current);
-          processingTimeoutRef.current = null;
-        }
-      }
-    };
+    const nodeResult = results.get(id);
     
-    doImageProcessing();
-    
-    // Cleanup function
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+    if (nodeResult) {
+      // Update processing state
+      setIsProcessing(nodeResult.status === 'pending');
+      setProcessingSucceeded(nodeResult.status === 'success');
+      
+      // Handle error
+      if (nodeResult.status === 'error' && nodeResult.error) {
+        setError('Processing failed');
+        setErrorDetails(nodeResult.error.message);
+      } else {
+        setError(null);
+        setErrorDetails(null);
       }
-      if (processingTimeoutRef.current) {
-        window.clearTimeout(processingTimeoutRef.current);
+      
+      // Update image URL
+      if (nodeResult.canvas) {
+        setProcessedImageUrl(nodeResult.canvas.toDataURL());
+      } else {
+        setProcessedImageUrl(null);
       }
-    };
-  }, [processedImages, transformation, id, setProcessedImage, processingSucceeded]);
+    }
+  }, [id, results]);
   
   // Update parameters when transformation changes
   useEffect(() => {
@@ -289,7 +177,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const triggerProcessing = () => {
     processingAttemptRef.current += 1;
     setProcessingSucceeded(false);
-    invalidateDownstreamNodes(id);
+    invalidateNode(id);
   };
 
   // Get node colors based on transformation type
@@ -381,7 +269,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 max={param.max || 100}
                 step={param.step || 1}
                 value={param.value as number}
-                onChange={(e) => updateParameterValue(param.name, Number(e.target.value))}
+                onChange={(e) => handleUpdateParameterValue(param.name, Number(e.target.value))}
                 className="w-full h-2 appearance-none rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-300 [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-200"
                 style={{
                   background: `linear-gradient(to right, ${colors.accentColor}, ${colors.accentColor} ${
@@ -406,7 +294,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
             </label>
             <select
               value={param.value as string}
-              onChange={(e) => updateParameterValue(param.name, e.target.value)}
+              onChange={(e) => handleUpdateParameterValue(param.name, e.target.value)}
               className={`w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-${colors.textAccent}`}
             >
               {param.options?.map((option) => (
@@ -426,7 +314,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 type="checkbox"
                 id={`toggle-${param.name}-${id}`}
                 checked={param.value as boolean}
-                onChange={(e) => updateParameterValue(param.name, e.target.checked)}
+                onChange={(e) => handleUpdateParameterValue(param.name, e.target.checked)}
                 className="sr-only"
               />
               <label

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useImageProcessing } from '../contexts/ImageProcessingContext';
+import { usePipeline } from '../contexts/PipelineContext';
 import ImageProcessingPipeline from '../components/ImageProcessingPipeline';
 import TransformationManager from '../components/TransformationManager';
 import LabToolbar from '../components/LabToolbar';
@@ -11,7 +11,6 @@ import {
   WrenchScrewdriverIcon 
 } from '@heroicons/react/24/outline';
 import type { Transformation, TransformationType } from '../utils/types';
-import { v4 as uuidv4 } from 'uuid';
 
 // Transformation templates
 const transformationTemplates: Record<TransformationType, Omit<Transformation, 'id' | 'inputNodes'>> = {
@@ -113,7 +112,7 @@ const transformationTemplates: Record<TransformationType, Omit<Transformation, '
 };
 
 export default function LabPage() {
-  const { addNode, nodes, selectedNodeId, clearPipeline } = useImageProcessing();
+  const { addNode, nodes, selectedNodeId, clearPipeline } = usePipeline();
   const [showTransformationManager, setShowTransformationManager] = useState(false);
 
   // Check if there's already an input node
@@ -134,17 +133,8 @@ export default function LabPage() {
   };
 
   const handleAddTransformation = (type: TransformationType) => {
-    const template = transformationTemplates[type];
-    const id = uuidv4();
-    
-    // Create transformation with the template
-    const transformation: Transformation = {
-      ...template,
-      id,
-      inputNodes: [],
-    };
-    
-    addNode('transformation', transformation);
+    // Pass the template directly - the pipeline context will handle adding id and inputNodes
+    addNode('transformation', transformationTemplates[type]);
     setShowTransformationManager(false);
   };
 

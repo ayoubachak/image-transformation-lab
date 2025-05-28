@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useImageProcessing } from '../contexts/ImageProcessingContext';
+import { usePipeline } from '../contexts/PipelineContext';
 import { v4 as uuidv4 } from 'uuid';
 import type { Transformation, TransformationType } from '../utils/types';
 import {
@@ -134,7 +134,7 @@ const transformationCategories = {
 };
 
 export default function LabToolbar({ onOpenTransformationManager }: LabToolbarProps) {
-  const { addNode, nodes, clearPipeline } = useImageProcessing();
+  const { addNode, nodes, clearPipeline } = usePipeline();
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -159,16 +159,8 @@ export default function LabToolbar({ onOpenTransformationManager }: LabToolbarPr
   };
 
   const handleAddTransformation = (transformTemplate: any) => {
-    const id = uuidv4();
-    
-    // Create transformation with the template
-    const transformation: Transformation = {
-      ...transformTemplate,
-      id,
-      inputNodes: [],
-    };
-    
-    addNode('transformation', transformation);
+    // Create transformation with the template - no need to handle IDs separately
+    addNode('transformation', transformTemplate);
     setShowAddMenu(false);
   };
   

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Position } from 'reactflow';
-import { useImageProcessing } from '../../contexts/ImageProcessingContext';
+import { usePipeline } from '../../contexts/PipelineContext';
 import { PhotoIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline';
 import BaseNode from './BaseNode';
 
@@ -14,8 +14,20 @@ export default function InputNode({ id, data, selected }: InputNodeProps) {
   const [image, setImage] = useState<string | null>(null);
   const [imageSize, setImageSize] = useState<{width: number, height: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { setProcessedImage } = useImageProcessing();
+  const { setInputImage, results } = usePipeline();
+
+  // Update the display when the node result changes
+  useEffect(() => {
+    const nodeResult = results.get(id);
+    if (nodeResult && nodeResult.canvas) {
+      // If we have a processed canvas from the pipeline, use it
+      setImage(nodeResult.canvas.toDataURL());
+      setImageSize({
+        width: nodeResult.canvas.width,
+        height: nodeResult.canvas.height
+      });
+    }
+  }, [id, results]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -33,17 +45,8 @@ export default function InputNode({ id, data, selected }: InputNodeProps) {
           // Display the image
           setImage(img.src);
           
-          // Create a canvas with the image data
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            
-            // Store the canvas in the context for further processing
-            setProcessedImage(id, canvas);
-          }
+          // Use the pipeline manager to set the input image
+          setInputImage(id, img);
         };
         img.src = e.target?.result as string;
       };

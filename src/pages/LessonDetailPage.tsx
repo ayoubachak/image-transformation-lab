@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useImageProcessing } from '../contexts/ImageProcessingContext';
+import { usePipeline } from '../contexts/PipelineContext';
 import { sampleLessons } from '../utils/sampleData';
 import ImageProcessingPipeline from '../components/ImageProcessingPipeline';
 
@@ -16,7 +16,7 @@ const Formula = ({ formula }: { formula: string }) => {
 
 export default function LessonDetailPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
-  const { loadLesson, currentLessonId, nodes } = useImageProcessing();
+  const { nodes, addNode, removeNode, addEdge, removeEdge, clearPipeline } = usePipeline();
   const [lesson, setLesson] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const hasInitialized = useRef(false);
@@ -31,15 +31,33 @@ export default function LessonDetailPage() {
       if (foundLesson) {
         setLesson(foundLesson);
         
-        // Only load the lesson if it's not already loaded
-        if (currentLessonId !== lessonId) {
-          loadLesson(lessonId);
-        }
+        // Load the lesson pipeline
+        clearPipeline(); // Clear existing nodes
+        
+        // Add all nodes from the lesson
+        foundLesson.pipeline.nodes.forEach(node => {
+          if (node.type === 'input') {
+            addNode('input', undefined, node.position);
+          } else if (node.type === 'output') {
+            addNode('output', undefined, node.position);
+          } else if (node.type === 'transformation' && node.transformation) {
+            // We need to omit id and inputNodes from the transformation
+            const { id, inputNodes, ...transformData } = node.transformation;
+            addNode('transformation', transformData, node.position);
+          }
+        });
+        
+        // Add all edges
+        setTimeout(() => {
+          foundLesson.pipeline.edges.forEach(edge => {
+            addEdge(edge.source, edge.target);
+          });
+        }, 100);
       }
       
       setLoading(false);
     }
-  }, [lessonId, loadLesson, currentLessonId]);
+  }, [lessonId, addNode, addEdge, removeNode, removeEdge, clearPipeline]);
 
   // Get the mathematical explanation based on lesson ID
   const getLessonMathFormulas = () => {
@@ -94,7 +112,7 @@ export default function LessonDetailPage() {
 
   const handleReloadPipeline = () => {
     if (lessonId) {
-      loadLesson(lessonId);
+      clearPipeline();
     }
   };
 
