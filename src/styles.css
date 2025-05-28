@@ -52,6 +52,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 288px; /* Corresponds to w-72 (18rem) */
 }
 
 /* Ensure React Flow nodes properly contain their content */

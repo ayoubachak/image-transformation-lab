@@ -120,6 +120,7 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
     style: {
       width: 'auto',
       height: 'auto',
+      minWidth: '18rem', // 18rem = w-72
     }
   })), [contextNodes, readOnly]);
 

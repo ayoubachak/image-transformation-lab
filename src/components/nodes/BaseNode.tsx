@@ -46,7 +46,7 @@ export default function BaseNode({
     inputPosition: Position.Left,
     outputPosition: Position.Right,
   },
-  width = 'w-64',
+  width = 'w-72',
 }: BaseNodeProps) {
   return (
     <div className={`rounded-lg shadow-lg ${color.background} ${width} overflow-hidden 
