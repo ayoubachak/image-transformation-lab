@@ -138,7 +138,7 @@ export default function ParameterControl({
             type="text"
             value={parameter.value as string}
             onChange={(e) => onChange(parameter.name, e.target.value)}
-            className={`w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:${themeColor.textAccent}`}
+            className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={disabled}
           />
         );
@@ -150,11 +150,11 @@ export default function ParameterControl({
   return (
     <div className={`mb-3 ${parameter.advanced ? 'opacity-80' : ''}`}>
       <div className="flex justify-between items-center mb-1">
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-gray-800">
           {displayName}
           {parameter.description && (
             <span
-              className="ml-1 inline-block text-gray-400 hover:text-gray-600 cursor-help"
+              className="ml-1 inline-block text-gray-500 hover:text-gray-700 cursor-help"
               title={parameter.description}
             >
               <svg
@@ -175,7 +175,7 @@ export default function ParameterControl({
           )}
         </label>
         {parameter.advanced && (
-          <span className="text-xs text-gray-500">Advanced</span>
+          <span className="text-xs text-gray-600">Advanced</span>
         )}
       </div>
       {renderControl()}

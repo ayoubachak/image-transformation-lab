@@ -69,7 +69,7 @@ export default function NumberParameterControl({
           step={step}
           value={value}
           onChange={handleInputChange}
-          className="w-16 p-1 text-right border border-gray-300 rounded-md text-sm"
+          className="w-16 p-1 text-right border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           disabled={disabled}
         />
       </div>

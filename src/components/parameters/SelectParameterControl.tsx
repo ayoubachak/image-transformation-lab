@@ -29,13 +29,13 @@ export default function SelectParameterControl({
     <select
       value={value}
       onChange={handleChange}
-      className={`w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:${themeColor.textAccent} ${
+      className={`w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       }`}
       disabled={disabled}
     >
       {options.map((option) => (
-        <option key={option} value={option}>
+        <option key={option} value={option} className="text-gray-900 bg-white">
           {option}
         </option>
       ))}

@@ -148,6 +148,11 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     
     // Update the transformation in the context
     updateNode(id, { transformation: updatedTransformation });
+    
+    // Reset processing state to force re-processing
+    setProcessingSucceeded(false);
+    processingAttemptRef.current += 1;
+    invalidateNode(id);
   };
 
   // Update the processedImageUrl whenever the result canvas changes
@@ -336,18 +341,16 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 </div>
                 <div className="flex">
                   {/* Advanced Config Button */}
-                  {transformation.type === 'blur' && (
-                    <button
-                      onClick={openAdvancedConfig}
-                      className={`p-1 mr-1 rounded-full hover:bg-gray-100 transition-colors ${colors.textAccent}`}
-                      title="Advanced Configuration"
-                    >
-                      <Cog6ToothIcon className="h-4 w-4" />
-                    </button>
-                  )}
+                  <button
+                    onClick={openAdvancedConfig}
+                    className={`p-1 mr-1 rounded-full hover:bg-gray-100 transition-colors text-gray-800`}
+                    title="Advanced Configuration"
+                  >
+                    <Cog6ToothIcon className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => setExpanded(!expanded)}
-                    className={`p-1 rounded-full hover:bg-gray-100 transition-colors ${colors.textAccent}`}
+                    className={`p-1 rounded-full hover:bg-gray-100 transition-colors text-gray-800`}
                     title={expanded ? "Collapse" : "Expand"}
                   >
                     {expanded ? (
@@ -406,14 +409,14 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                   {errorDetails && (
                     <button
                       onClick={toggleErrorDetails}
-                      className="text-xs text-red-600 hover:text-red-800"
+                      className="text-xs text-red-700 hover:text-red-800"
                     >
                       {detailedErrorShown ? 'Hide Details' : 'Details'}
                     </button>
                   )}
                   <button
                     onClick={handleRetryProcessing}
-                    className="text-xs text-red-600 hover:text-red-800"
+                    className="text-xs text-red-700 hover:text-red-800"
                   >
                     Retry
                   </button>
@@ -438,7 +441,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 {intermediateResults.length > 0 && (
                   <button
                     onClick={() => setShowIntermediates(!showIntermediates)}
-                    className={`text-xs ${colors.textAccent} hover:underline flex items-center`}
+                    className={`text-xs text-gray-800 hover:underline flex items-center`}
                   >
                     {showIntermediates ? (
                       <>
