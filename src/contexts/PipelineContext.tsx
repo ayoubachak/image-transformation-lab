@@ -26,6 +26,7 @@ interface PipelineContextType {
   invalidateNode: (nodeId: string) => void;
   clearPipeline: () => void;
   getProcessedCanvas: (nodeId: string) => HTMLCanvasElement | null;
+  duplicateNode: (nodeId: string) => string | null;
 }
 
 const PipelineContext = createContext<PipelineContextType | null>(null);
@@ -227,6 +228,29 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
     };
   };
   
+  // Duplicate a node with its configuration
+  const duplicateNode = useCallback((nodeId: string): string | null => {
+    const node = pipelineManager.getNode(nodeId);
+    if (!node) return null;
+    
+    // Calculate a position offset for the new node
+    const offsetPosition = {
+      x: node.position.x + 50,
+      y: node.position.y + 50
+    };
+    
+    // Create a new node based on the type
+    if (node.type === 'input' || node.type === 'output') {
+      return pipelineManager.addNode(node.type, offsetPosition);
+    } else if (node.type === 'transformation' && node.transformation) {
+      // Deep clone the transformation, removing id and inputNodes
+      const { id, inputNodes, ...transformationData } = node.transformation;
+      return pipelineManager.addNode('transformation', offsetPosition, transformationData as Omit<Transformation, 'id' | 'inputNodes'>);
+    }
+    
+    return null;
+  }, []);
+  
   const contextValue: PipelineContextType = {
     nodes,
     edges,
@@ -243,6 +267,7 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
     invalidateNode,
     clearPipeline,
     getProcessedCanvas,
+    duplicateNode
   };
   
   return (

@@ -1,5 +1,6 @@
 @import "tailwindcss"; 
 
+/* Flow animations */
 @keyframes flow {
   from {
     stroke-dashoffset: 10;
@@ -9,30 +10,72 @@
   }
 }
 
+/* Edge styling */
 .react-flow__edge-path-bg {
   fill: none;
   stroke-linecap: round;
 }
 
+/* Handle styling with better visual feedback */
+.react-flow__handle {
+  transition: all 0.2s ease;
+  opacity: 0.75;
+}
+
+.react-flow__handle:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+/* Improved node handle styling */
 .node-input .react-flow__handle {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: #3b82f6;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
 }
 
 .node-output .react-flow__handle {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: #22c55e;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.5);
 }
 
 .node-transformation .react-flow__handle {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: #a855f7;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.5);
+}
+
+/* Node hover/select effects */
+.react-flow__node {
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.react-flow__node.selected {
+  filter: drop-shadow(0 4px 6px rgba(59, 130, 246, 0.3));
+  z-index: 10;
+}
+
+.react-flow__node:hover {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+  z-index: 5;
+}
+
+/* Connection line styling */
+.react-flow__connectionline {
+  stroke: #64748b;
+  stroke-width: 2;
+  stroke-dasharray: 5,3;
+  animation: flow 1s linear infinite;
 }
 
 /* Improve minimap visibility */
@@ -47,12 +90,11 @@
 /* Fix for node positioning - ensures node content aligns with React Flow positioning */
 .react-flow__node {
   pointer-events: all;
-  /* Remove any transform that might interfere with ReactFlow's positioning */
   transform-origin: center center !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 288px; /* Corresponds to w-72 (18rem) */
+  min-width: 256px; /* Reduced from 288px */
 }
 
 /* Ensure React Flow nodes properly contain their content */

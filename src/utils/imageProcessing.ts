@@ -987,7 +987,7 @@ export const processImage = async (
         complexityFactor = 2; // Edge detection is more complex
         break;
       case 'blur':
-        const kernelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 3;
+        const kernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
         complexityFactor = Math.max(1, kernelSize / 10); // Larger kernel = more time
         break;
     }
@@ -1072,7 +1072,7 @@ export const processImage = async (
             }
             
             diagnosticInfo.steps.push({ name: 'apply_blur', startTime: Date.now() });
-            const blurSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const blurSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
             // Get advanced parameters from metadata if available
             const advancedParams = transformation.metadata?.advancedParameters;
             result = applyBlur(gray, blurSize, advancedParams);
@@ -1093,7 +1093,7 @@ export const processImage = async (
             
           case 'threshold': {
             diagnosticInfo.steps.push({ name: 'apply_threshold', startTime: Date.now() });
-            const thresholdValue = transformation.parameters.find(p => p.name === 'threshold')?.value as number || 128;
+            const thresholdValue = transformation.parameters?.find(p => p.name === 'threshold')?.value as number || 128;
             result = applyThreshold(src, thresholdValue);
             diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
             
@@ -1145,7 +1145,7 @@ export const processImage = async (
             }
             
             diagnosticInfo.steps.push({ name: 'apply_laplacian', startTime: Date.now() });
-            const laplacianSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const laplacianSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
             
             // Check if we have real OpenCV or fallback
             if (blurred.isFallback) {
@@ -1178,7 +1178,7 @@ export const processImage = async (
             
           case 'sobel': {
             diagnosticInfo.steps.push({ name: 'apply_sobel', startTime: Date.now() });
-            const sobelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const sobelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
             result = applySobel(src, sobelSize);
             diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
             
@@ -1194,8 +1194,8 @@ export const processImage = async (
             
           case 'canny': {
             diagnosticInfo.steps.push({ name: 'apply_canny', startTime: Date.now() });
-            const threshold1 = transformation.parameters.find(p => p.name === 'threshold1')?.value as number || 50;
-            const threshold2 = transformation.parameters.find(p => p.name === 'threshold2')?.value as number || 150;
+            const threshold1 = transformation.parameters?.find(p => p.name === 'threshold1')?.value as number || 50;
+            const threshold2 = transformation.parameters?.find(p => p.name === 'threshold2')?.value as number || 150;
             result = applyCanny(src, threshold1, threshold2);
             diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
             

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { usePipeline } from '../contexts/PipelineContext';
 import ImageProcessingPipeline from '../components/ImageProcessingPipeline';
@@ -13,7 +13,7 @@ import {
 import type { Transformation, TransformationType } from '../utils/types';
 
 // Transformation templates
-const transformationTemplates: Record<TransformationType, Omit<Transformation, 'id' | 'inputNodes'>> = {
+export const transformationTemplates: Record<TransformationType, Omit<Transformation, 'id' | 'inputNodes'>> = {
   grayscale: {
     type: 'grayscale',
     name: 'Grayscale',
@@ -112,8 +112,72 @@ const transformationTemplates: Record<TransformationType, Omit<Transformation, '
 };
 
 export default function LabPage() {
-  const { addNode, nodes, selectedNodeId, clearPipeline } = usePipeline();
+  const { 
+    addNode, 
+    nodes, 
+    selectedNodeId, 
+    clearPipeline, 
+    removeNode, 
+    addEdge, 
+    removeEdge, 
+    duplicateNode
+  } = usePipeline();
   const [showTransformationManager, setShowTransformationManager] = useState(false);
+  const [operationMode, setOperationMode] = useState<'select' | 'connect' | 'disconnect' | null>(null);
+  const [connectStartNodeId, setConnectStartNodeId] = useState<string | null>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  
+  // Function to handle keyboard shortcuts
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Skip if modifiers are pressed except for the specific combinations we want
+    if (event.altKey || event.metaKey || 
+        (event.ctrlKey && !['c', 'v', 'x'].includes(event.key.toLowerCase())) || 
+        event.target instanceof HTMLInputElement || 
+        event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    // Delete selected node with Delete key
+    if (event.key === 'Delete' && selectedNodeId) {
+      removeNode(selectedNodeId);
+      event.preventDefault();
+    }
+
+    // Connect mode with C key
+    if (event.key.toLowerCase() === 'c' && !event.ctrlKey) {
+      setOperationMode(prev => prev === 'connect' ? null : 'connect');
+      setConnectStartNodeId(null);
+      event.preventDefault();
+    }
+
+    // Disconnect mode with D key
+    if (event.key.toLowerCase() === 'd') {
+      setOperationMode(prev => prev === 'disconnect' ? null : 'disconnect');
+      event.preventDefault();
+    }
+
+    // Copy/cut/paste with Ctrl+C, Ctrl+X, Ctrl+V
+    if (event.ctrlKey && selectedNodeId) {
+      if (event.key.toLowerCase() === 'c') {
+        // Copy node to clipboard
+        duplicateNode(selectedNodeId);
+        event.preventDefault();
+      } else if (event.key.toLowerCase() === 'x') {
+        // Cut node (copy then delete)
+        duplicateNode(selectedNodeId);
+        removeNode(selectedNodeId);
+        event.preventDefault();
+      }
+    }
+  }, [selectedNodeId, removeNode, duplicateNode, setOperationMode]);
+
+  // Register and clean up keyboard event listeners
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   // Check if there's already an input node
   const hasInputNode = nodes.some((node) => node.type === 'input');
@@ -142,14 +206,46 @@ export default function LabPage() {
     setShowTransformationManager(!showTransformationManager);
   };
 
+  // Handle node clicks based on current operation mode
+  const handleNodeClick = (nodeId: string) => {
+    if (operationMode === 'connect') {
+      if (!connectStartNodeId) {
+        // First node in connection process
+        setConnectStartNodeId(nodeId);
+      } else if (connectStartNodeId !== nodeId) {
+        // Second node - create the connection
+        addEdge(connectStartNodeId, nodeId);
+        setConnectStartNodeId(null);
+        setOperationMode(null);
+      }
+    }
+  };
+
+  // Handle edge click for disconnect mode
+  const handleEdgeClick = (edgeId: string) => {
+    if (operationMode === 'disconnect') {
+      removeEdge(edgeId);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <LabToolbar onOpenTransformationManager={toggleTransformationManager} />
+    <div className="flex flex-col h-screen bg-gray-50" ref={pageRef}>
+      <LabToolbar 
+        onOpenTransformationManager={toggleTransformationManager} 
+        operationMode={operationMode}
+        onChangeOperationMode={setOperationMode}
+      />
       
       <div className="flex-grow flex relative p-4">
         {/* Main pipeline area */}
         <div className="flex-grow rounded-lg overflow-hidden shadow-md">
-          <ImageProcessingPipeline />
+          <ImageProcessingPipeline 
+            readOnly={false} 
+            onNodeClick={handleNodeClick}
+            onEdgeClick={handleEdgeClick}
+            highlightNodeId={connectStartNodeId}
+            operationMode={operationMode}
+          />
         </div>
         
         {/* Transformation manager panel */}
@@ -165,6 +261,13 @@ export default function LabPage() {
           </motion.div>
         )}
       </div>
+
+      {/* Status indicator for connect mode */}
+      {connectStartNodeId && operationMode === 'connect' && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-full shadow-lg">
+          Now select a target node to complete the connection
+        </div>
+      )}
     </div>
   );
 } 

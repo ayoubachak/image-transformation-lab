@@ -765,6 +765,46 @@ export class PipelineManager {
     
     return result.reverse(); // Reverse to get correct order
   }
+
+  // Add the method to the PipelineManager class
+  public duplicateNode(nodeId: string): string | null {
+    const sourceNode = this.nodes.get(nodeId);
+    if (!sourceNode) return null;
+    
+    // Create a new position slightly offset from the original
+    const newPosition = {
+      x: sourceNode.position.x + 50,
+      y: sourceNode.position.y + 50
+    };
+    
+    let newNodeId: string | null = null;
+    
+    if (sourceNode.type === 'input' || sourceNode.type === 'output') {
+      // For input and output nodes, just create a new node of the same type
+      newNodeId = this.addNode(sourceNode.type, newPosition);
+    } else if (sourceNode.type === 'transformation' && sourceNode.transformation) {
+      // For transformation nodes, clone the transformation without id and inputNodes
+      const { id, inputNodes, ...transformationData } = sourceNode.transformation;
+      
+      // Create a new transformation node with the cloned data
+      newNodeId = this.addNode(
+        'transformation',
+        newPosition,
+        transformationData as Omit<Transformation, 'id' | 'inputNodes'>
+      );
+    }
+    
+    // Notify observers
+    if (newNodeId) {
+      this.notifyObservers({
+        type: PipelineEventType.NODE_ADDED,
+        payload: { nodeId: newNodeId },
+        timestamp: Date.now()
+      });
+    }
+    
+    return newNodeId;
+  }
 }
 
 // Create a singleton instance

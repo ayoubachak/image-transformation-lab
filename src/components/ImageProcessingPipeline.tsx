@@ -95,9 +95,19 @@ const edgeOptions = {
 
 interface ImageProcessingPipelineProps {
   readOnly?: boolean;
+  onNodeClick?: (nodeId: string) => void;
+  onEdgeClick?: (edgeId: string) => void;
+  highlightNodeId?: string | null;
+  operationMode?: 'select' | 'connect' | 'disconnect' | null;
 }
 
-export default function ImageProcessingPipeline({ readOnly = false }: ImageProcessingPipelineProps) {
+export default function ImageProcessingPipeline({ 
+  readOnly = false,
+  onNodeClick,
+  onEdgeClick,
+  highlightNodeId,
+  operationMode
+}: ImageProcessingPipelineProps) {
   const { 
     nodes: contextNodes, 
     edges: contextEdges, 
@@ -115,14 +125,18 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
     data: { node },
     draggable: !readOnly,
     // Add specific class names for node types to enable custom styling
-    className: `node-${node.type}`,
+    className: `node-${node.type} ${
+      highlightNodeId === node.id ? 'ring-2 ring-green-500' : ''
+    } ${
+      operationMode === 'connect' ? 'cursor-pointer' : ''
+    }`,
     // Ensure nodes have appropriate size behavior
     style: {
       width: 'auto',
       height: 'auto',
       minWidth: '18rem', // 18rem = w-72
     }
-  })), [contextNodes, readOnly]);
+  })), [contextNodes, readOnly, highlightNodeId, operationMode]);
 
   // Convert context edges to ReactFlow edges
   const initialEdges: Edge[] = useMemo(() => contextEdges.map(edge => ({
@@ -131,9 +145,18 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
     target: edge.target,
     type: 'animated',
     animated: true,
-    style: edgeOptions.style,
+    style: {
+      ...edgeOptions.style,
+      // Change cursor to pointer in disconnect mode
+      cursor: operationMode === 'disconnect' ? 'pointer' : 'default',
+      // Highlight edge that would be created in connect mode
+      stroke: (highlightNodeId && 
+              (edge.source === highlightNodeId || edge.target === highlightNodeId)) 
+              ? '#10b981' // green-500
+              : edgeOptions.style.stroke
+    },
     markerEnd: edgeOptions.markerEnd,
-  })), [contextEdges]);
+  })), [contextEdges, highlightNodeId, operationMode]);
 
   // Use ReactFlow's state management hooks
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -161,20 +184,30 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
     [addContextEdge, setEdges]
   );
 
-  // Handle node click to select it
-  const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      selectNode(node.id);
+  // Handle node click to select it or for connection mode
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      // If we have a custom click handler and are in a special mode, use that
+      if (onNodeClick && operationMode === 'connect') {
+        onNodeClick(node.id);
+      } else {
+        // Default behavior: select the node
+        selectNode(node.id);
+      }
     },
-    [selectNode]
+    [selectNode, onNodeClick, operationMode]
   );
 
-  // Handle edge removal
-  const onEdgeDelete = useCallback(
-    (edge: Edge) => {
-      removeContextEdge(edge.id);
+  // Handle edge click for removal or custom handling
+  const handleEdgeClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      if (operationMode === 'disconnect' && onEdgeClick) {
+        onEdgeClick(edge.id);
+      } else if (!readOnly) {
+        removeContextEdge(edge.id);
+      }
     },
-    [removeContextEdge]
+    [removeContextEdge, readOnly, operationMode, onEdgeClick]
   );
 
   // Update ReactFlow nodes and edges when context changes
@@ -191,8 +224,8 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        onEdgeClick={readOnly ? undefined : (_, edge) => onEdgeDelete(edge)}
+        onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -202,7 +235,7 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
         maxZoom={2}
         attributionPosition="bottom-right"
         nodesDraggable={!readOnly}
-        nodesConnectable={!readOnly}
+        nodesConnectable={!readOnly && operationMode !== 'connect'}
         elementsSelectable={!readOnly}
         zoomOnDoubleClick={!readOnly}
         snapToGrid={true}
@@ -240,6 +273,18 @@ export default function ImageProcessingPipeline({ readOnly = false }: ImageProce
         <Panel position="top-right" className="bg-white bg-opacity-80 p-2 rounded-md text-xs text-slate-500">
           {nodes.length} nodes | {edges.length} connections
         </Panel>
+
+        {/* Operation mode indicators */}
+        {operationMode === 'connect' && !highlightNodeId && (
+          <Panel position="top-center" className="bg-green-50 text-green-700 p-2 rounded-md border border-green-200">
+            Select a source node to start connecting
+          </Panel>
+        )}
+        {operationMode === 'disconnect' && (
+          <Panel position="top-center" className="bg-amber-50 text-amber-700 p-2 rounded-md border border-amber-200">
+            Click on a connection to remove it
+          </Panel>
+        )}
       </ReactFlow>
     </div>
   );

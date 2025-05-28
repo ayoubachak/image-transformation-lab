@@ -7,142 +7,42 @@ import {
   DocumentArrowDownIcon,
   ArrowPathIcon,
   TrashIcon,
-  Bars3Icon,
   PlusIcon,
   AdjustmentsHorizontalIcon,
   QuestionMarkCircleIcon,
-  ArrowDownOnSquareIcon,
-  ChevronUpDownIcon,
+  LinkIcon,
+  NoSymbolIcon,
+  ScissorsIcon,
+  ClipboardIcon,
+  DocumentDuplicateIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
   SwatchIcon,
-  CubeTransparentIcon,
+  CubeTransparentIcon
 } from '@heroicons/react/24/outline';
 import { Tooltip } from 'react-tooltip';
 
+// Import transformation templates
+import { transformationTemplates } from '../pages/LabPage';
+
 interface LabToolbarProps {
   onOpenTransformationManager?: () => void;
+  operationMode?: 'select' | 'connect' | 'disconnect' | null;
+  onChangeOperationMode?: (mode: 'select' | 'connect' | 'disconnect' | null) => void;
 }
 
-// Transformation templates grouped by category
-const transformationCategories = {
-  'Basic': [
-    {
-      type: 'grayscale' as TransformationType,
-      name: 'Grayscale',
-      icon: <SwatchIcon className="w-4 h-4" />,
-      description: 'Convert image to grayscale',
-      parameters: [],
-    },
-    {
-      type: 'threshold' as TransformationType,
-      name: 'Threshold',
-      icon: <ChevronUpDownIcon className="w-4 h-4" />,
-      description: 'Apply binary threshold to the image',
-      parameters: [
-        {
-          name: 'threshold',
-          type: 'number',
-          value: 128,
-          min: 0,
-          max: 255,
-          step: 1,
-        },
-      ],
-    }
-  ],
-  'Filters': [
-    {
-      type: 'blur' as TransformationType,
-      name: 'Gaussian Blur',
-      icon: <CubeTransparentIcon className="w-4 h-4" />,
-      description: 'Apply Gaussian blur to the image',
-      parameters: [
-        {
-          name: 'kernelSize',
-          type: 'number',
-          value: 3,
-          min: 1,
-          max: 31,
-          step: 2,
-        },
-      ],
-    }
-  ],
-  'Edge Detection': [
-    {
-      type: 'laplacian' as TransformationType,
-      name: 'Laplacian',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
-      </svg>,
-      description: 'Detect edges using Laplacian operator',
-      parameters: [
-        {
-          name: 'kernelSize',
-          type: 'number',
-          value: 3,
-          min: 1,
-          max: 31,
-          step: 2,
-        },
-      ],
-    },
-    {
-      type: 'sobel' as TransformationType,
-      name: 'Sobel',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 6v12m3-12v12m3-12v12M4 9h16M4 12h16M4 15h16" />
-      </svg>,
-      description: 'Detect edges using Sobel operator',
-      parameters: [
-        {
-          name: 'kernelSize',
-          type: 'number',
-          value: 3,
-          min: 1,
-          max: 31,
-          step: 2,
-        },
-      ],
-    },
-    {
-      type: 'canny' as TransformationType,
-      name: 'Canny',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4v16a1 1 0 001 1h14a1 1 0 001-1V4" />
-      </svg>,
-      description: 'Detect edges using Canny algorithm',
-      parameters: [
-        {
-          name: 'threshold1',
-          type: 'number',
-          value: 50,
-          min: 0,
-          max: 255,
-          step: 1,
-        },
-        {
-          name: 'threshold2',
-          type: 'number',
-          value: 150,
-          min: 0,
-          max: 255,
-          step: 1,
-        },
-      ],
-    }
-  ],
-};
-
-export default function LabToolbar({ onOpenTransformationManager }: LabToolbarProps) {
-  const { addNode, nodes, clearPipeline } = usePipeline();
+export default function LabToolbar({ onOpenTransformationManager, operationMode, onChangeOperationMode }: LabToolbarProps) {
+  const { addNode, nodes, clearPipeline, removeNode, selectedNodeId, duplicateNode } = usePipeline();
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
+  
   // Check if there's already an input node
   const hasInputNode = nodes.some((node) => node.type === 'input');
   
   // Check if there's already an output node
   const hasOutputNode = nodes.some((node) => node.type === 'output');
+
+  // Get the selected node if one exists
+  const selectedNode = selectedNodeId ? nodes.find(node => node.id === selectedNodeId) : null;
 
   const handleAddInputNode = () => {
     if (!hasInputNode) {
@@ -158,167 +58,299 @@ export default function LabToolbar({ onOpenTransformationManager }: LabToolbarPr
     setShowAddMenu(false);
   };
 
-  const handleAddTransformation = (transformTemplate: any) => {
-    // Create transformation with the template - no need to handle IDs separately
-    addNode('transformation', transformTemplate);
+  const handleAddTransformation = (transformType: TransformationType | string) => {
+    // Convert to TransformationType if needed
+    const type = transformType as TransformationType;
+    
+    // Use the transformation template from transformationTemplates
+    if (transformationTemplates[type]) {
+      addNode('transformation', transformationTemplates[type]);
+    }
     setShowAddMenu(false);
   };
   
-  const handleCategorySelect = (category: string) => {
-    if (selectedCategory === category) {
-      setSelectedCategory(null);
-    } else {
-      setSelectedCategory(category);
+  const handleDeleteSelectedNode = () => {
+    if (selectedNodeId) {
+      removeNode(selectedNodeId);
     }
   };
+
+  const handleDuplicateSelectedNode = () => {
+    if (selectedNodeId) {
+      duplicateNode(selectedNodeId);
+    }
+  };
+
+  const handleChangeOperationMode = (mode: 'select' | 'connect' | 'disconnect' | null) => {
+    if (onChangeOperationMode) {
+      // If the mode is already active, turn it off
+      if (operationMode === mode) {
+        onChangeOperationMode(null);
+      } else {
+        onChangeOperationMode(mode);
+      }
+    }
+  };
+
+  // Button style for toolbar buttons
+  const buttonClass = "p-2 rounded-md transition-colors text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500";
+  const activeButtonClass = "p-2 rounded-md transition-colors bg-blue-50 text-blue-600 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500";
+  
+  // Button style for action buttons
+  const actionButtonClass = (isActive?: boolean) => 
+    `p-2 rounded-md transition-colors ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`;
 
   return (
     <div className="bg-white border-b border-gray-200 shadow-sm">
       {/* Main toolbar */}
-      <div className="px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* Logo & title */}
-          <div className="flex items-center mr-4">
-            <h1 className="text-lg font-semibold text-slate-800">Image Processing Lab</h1>
-          </div>
-          
-          {/* Primary buttons */}
-          <div className="flex items-center gap-1">
+      <div className="px-3 py-1 flex items-center justify-between">
+        <div className="flex items-center space-x-1">
+          {/* Add node button */}
+          <div className="relative">
             <button
               onClick={() => setShowAddMenu(!showAddMenu)}
-              className="flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors"
+              className={actionButtonClass(showAddMenu)}
               id="add-node-btn"
               data-tooltip-id="add-node-tooltip"
             >
-              <PlusIcon className="h-4 w-4 mr-1.5" />
-              Add Node
+              <PlusIcon className="h-5 w-5" />
             </button>
             <Tooltip id="add-node-tooltip" place="bottom">
-              Add input, output, or transformation nodes
+              Add Node
             </Tooltip>
             
-            <button
-              onClick={onOpenTransformationManager}
-              className="flex items-center px-3 py-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-md text-sm font-medium transition-colors"
-              id="manage-pipeline-btn"
-              data-tooltip-id="manage-pipeline-tooltip"
-            >
-              <AdjustmentsHorizontalIcon className="h-4 w-4 mr-1.5" />
-              Manage Pipeline
-            </button>
-            <Tooltip id="manage-pipeline-tooltip" place="bottom">
-              Edit connections and configure the pipeline
-            </Tooltip>
+            {/* Add node dropdown menu */}
+            {showAddMenu && (
+              <div className="absolute top-full left-0 z-50 mt-1 bg-white rounded-md shadow-lg border border-gray-200 w-56 py-2">
+                <div className="px-3 py-1 border-b border-gray-100 mb-1">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Nodes</h3>
+                </div>
+                
+                <div className="px-1.5 py-1">
+                  <button
+                    className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-blue-50 text-blue-700 ${hasInputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={handleAddInputNode}
+                    disabled={hasInputNode}
+                  >
+                    <PhotoIcon className="h-5 w-5 mr-2 text-blue-500" />
+                    Input Node
+                    {hasInputNode && (
+                      <span className="ml-auto text-xs text-gray-500">(Added)</span>
+                    )}
+                  </button>
+                  
+                  <button
+                    className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-green-50 text-green-700 ${hasOutputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={handleAddOutputNode}
+                    disabled={hasOutputNode}
+                  >
+                    <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-green-500" />
+                    Output Node
+                    {hasOutputNode && (
+                      <span className="ml-auto text-xs text-gray-500">(Added)</span>
+                    )}
+                  </button>
+                </div>
+                
+                {/* Transformations section - simplified */}
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <div className="px-3 py-1">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Transformations</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1 px-1.5">
+                    <button
+                      onClick={() => handleAddTransformation('grayscale')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-purple-50 text-purple-700 rounded-md"
+                    >
+                      <SwatchIcon className="h-6 w-6 mb-1" />
+                      <span className="text-xs">Grayscale</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('blur')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-blue-50 text-blue-700 rounded-md"
+                    >
+                      <CubeTransparentIcon className="h-6 w-6 mb-1" />
+                      <span className="text-xs">Blur</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('threshold')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-indigo-50 text-indigo-700 rounded-md"
+                    >
+                      <AdjustmentsHorizontalIcon className="h-6 w-6 mb-1" />
+                      <span className="text-xs">Threshold</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('canny')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-amber-50 text-amber-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4v16a1 1 0 001 1h14a1 1 0 001-1V4" />
+                      </svg>
+                      <span className="text-xs">Canny</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('laplacian')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-amber-50 text-amber-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                      </svg>
+                      <span className="text-xs">Laplacian</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('sobel')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-amber-50 text-amber-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 6v12m3-12v12m3-12v12M4 9h16M4 12h16M4 15h16" />
+                      </svg>
+                      <span className="text-xs">Sobel</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+          
+          {/* Manage Pipeline button */}
+          <button
+            onClick={onOpenTransformationManager}
+            className={buttonClass}
+            id="manage-pipeline-btn"
+            data-tooltip-id="manage-pipeline-tooltip"
+          >
+            <AdjustmentsHorizontalIcon className="h-5 w-5" />
+          </button>
+          <Tooltip id="manage-pipeline-tooltip" place="bottom">
+            Manage Pipeline
+          </Tooltip>
+          
+          {/* Connection mode button */}
+          <button
+            onClick={() => handleChangeOperationMode('connect')}
+            className={operationMode === 'connect' ? activeButtonClass : buttonClass}
+            id="connect-mode-btn"
+            data-tooltip-id="connect-mode-tooltip"
+          >
+            <LinkIcon className="h-5 w-5" />
+          </button>
+          <Tooltip id="connect-mode-tooltip" place="bottom">
+            Connect Nodes (C)
+          </Tooltip>
+          
+          {/* Disconnect mode button */}
+          <button
+            onClick={() => handleChangeOperationMode('disconnect')}
+            className={operationMode === 'disconnect' ? activeButtonClass : buttonClass}
+            id="disconnect-mode-btn"
+            data-tooltip-id="disconnect-mode-tooltip"
+          >
+            <NoSymbolIcon className="h-5 w-5" />
+          </button>
+          <Tooltip id="disconnect-mode-tooltip" place="bottom">
+            Disconnect Nodes (D)
+          </Tooltip>
+          
+          {/* Node action buttons - only shown when a node is selected */}
+          {selectedNode && (
+            <>
+              <div className="h-6 mx-1 border-r border-gray-200"></div>
+              
+              {/* Duplicate button */}
+              <button
+                onClick={handleDuplicateSelectedNode}
+                className={buttonClass}
+                id="duplicate-node-btn"
+                data-tooltip-id="duplicate-node-tooltip"
+              >
+                <DocumentDuplicateIcon className="h-5 w-5" />
+              </button>
+              <Tooltip id="duplicate-node-tooltip" place="bottom">
+                Duplicate Node (Ctrl+C)
+              </Tooltip>
+              
+              {/* Delete button */}
+              <button
+                onClick={handleDeleteSelectedNode}
+                className="p-2 rounded-md transition-colors text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                id="delete-node-btn"
+                data-tooltip-id="delete-node-tooltip"
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+              <Tooltip id="delete-node-tooltip" place="bottom">
+                Delete Node (Delete)
+              </Tooltip>
+            </>
+          )}
         </div>
         
-        {/* Secondary buttons */}
-        <div className="flex items-center gap-1">
+        {/* Right side controls */}
+        <div className="flex items-center space-x-1">
+          {/* Clear pipeline button */}
           <button
             onClick={() => clearPipeline()}
-            className="flex items-center px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-md text-sm font-medium transition-colors"
+            className="p-2 rounded-md transition-colors text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
             id="clear-btn"
             data-tooltip-id="clear-tooltip"
           >
-            <TrashIcon className="h-4 w-4 mr-1.5" />
-            Clear
+            <TrashIcon className="h-5 w-5" />
           </button>
           <Tooltip id="clear-tooltip" place="bottom">
-            Clear all nodes and connections
+            Clear All
           </Tooltip>
           
+          {/* Help button */}
           <button
             onClick={() => {}}
-            className="flex items-center px-3 py-1.5 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium transition-colors"
+            className={buttonClass}
             id="help-btn"
             data-tooltip-id="help-tooltip"
           >
-            <QuestionMarkCircleIcon className="h-4 w-4" />
+            <QuestionMarkCircleIcon className="h-5 w-5" />
           </button>
           <Tooltip id="help-tooltip" place="bottom">
-            View help documentation
+            Help
           </Tooltip>
         </div>
       </div>
       
-      {/* Add node dropdown menu */}
-      {showAddMenu && (
-        <div className="absolute top-14 left-4 z-50 bg-white rounded-md shadow-lg border border-gray-200 w-64 py-2">
-          <div className="px-3 py-1.5 border-b border-gray-100 mb-1">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Nodes</h3>
-          </div>
-          
-          <div className="px-1.5 py-1">
-            <button
-              className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-blue-50 text-blue-700 ${hasInputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={handleAddInputNode}
-              disabled={hasInputNode}
-            >
-              <PhotoIcon className="h-5 w-5 mr-2 text-blue-500" />
-              Input Node
-              {hasInputNode && (
-                <span className="ml-auto text-xs text-gray-500">(Already added)</span>
-              )}
-            </button>
-            
-            <button
-              className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-green-50 text-green-700 ${hasOutputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={handleAddOutputNode}
-              disabled={hasOutputNode}
-            >
-              <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-green-500" />
-              Output Node
-              {hasOutputNode && (
-                <span className="ml-auto text-xs text-gray-500">(Already added)</span>
-              )}
-            </button>
-          </div>
-          
-          <div className="border-t border-gray-100 mt-1 pt-1">
-            <div className="px-3 py-1.5">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Transformations</h3>
+      {/* Operation mode indicator - simplified */}
+      {operationMode && (
+        <div className={`px-3 py-1 text-xs font-medium ${
+          operationMode === 'connect' 
+            ? 'bg-green-50 text-green-700 border-t border-green-100' 
+            : operationMode === 'disconnect'
+              ? 'bg-amber-50 text-amber-700 border-t border-amber-100'
+              : 'bg-blue-50 text-blue-700 border-t border-blue-100'
+        }`}>
+          {operationMode === 'connect' && (
+            <div className="flex items-center">
+              <LinkIcon className="h-3 w-3 mr-1" />
+              <span>Select source node, then target node</span>
+              <button 
+                className="ml-auto text-green-700 hover:text-green-900" 
+                onClick={() => handleChangeOperationMode(null)}
+              >
+                <span className="sr-only">Cancel</span>
+                ✕
+              </button>
             </div>
-            
-            {/* Transformation categories */}
-            <div className="max-h-64 overflow-y-auto px-1.5">
-              {Object.keys(transformationCategories).map((category) => (
-                <div key={category} className="mb-1">
-                  <button
-                    className="flex items-center justify-between w-full px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md"
-                    onClick={() => handleCategorySelect(category)}
-                  >
-                    <span>{category}</span>
-                    <svg 
-                      className={`w-4 h-4 transition-transform ${selectedCategory === category ? 'transform rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  
-                  {/* Transformation options */}
-                  {selectedCategory === category && (
-                    <div className="pl-2 py-1">
-                      {transformationCategories[category as keyof typeof transformationCategories].map((transform) => (
-                        <button
-                          key={transform.type}
-                          className="flex items-center px-3 py-1.5 text-sm w-full text-left hover:bg-indigo-50 text-indigo-700 rounded-md mb-0.5"
-                          onClick={() => handleAddTransformation(transform)}
-                        >
-                          <div className="h-5 w-5 mr-2 text-indigo-500 flex items-center justify-center">
-                            {transform.icon}
-                          </div>
-                          <span>{transform.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+          )}
+          {operationMode === 'disconnect' && (
+            <div className="flex items-center">
+              <NoSymbolIcon className="h-3 w-3 mr-1" />
+              <span>Click on a connection to remove it</span>
+              <button 
+                className="ml-auto text-amber-700 hover:text-amber-900" 
+                onClick={() => handleChangeOperationMode(null)}
+              >
+                <span className="sr-only">Cancel</span>
+                ✕
+              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

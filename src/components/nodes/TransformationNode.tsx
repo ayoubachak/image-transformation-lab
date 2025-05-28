@@ -31,7 +31,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
   const [parameters, setParameters] = useState<TransformationParameter[]>(
-    transformation.parameters
+    transformation.parameters || []
   );
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +60,9 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     }
 
     // Update the local state
-    const updatedParams = parameters.map(param => 
-      param.name === name ? { ...param, value } : param
-    );
+    const updatedParams = parameters?.length 
+      ? parameters.map(param => param.name === name ? { ...param, value } : param)
+      : [];
     setParameters(updatedParams);
     
     // Update the parameter through the pipeline context
@@ -76,9 +76,9 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   // Handle the slider change when user confirmed they want to overwrite advanced configs
   const confirmKernelSizeChange = (name: string, value: number) => {
     // Update the local state
-    const updatedParams = parameters.map(param => 
-      param.name === name ? { ...param, value } : param
-    );
+    const updatedParams = parameters?.length
+      ? parameters.map(param => param.name === name ? { ...param, value } : param)
+      : [];
     setParameters(updatedParams);
     
     // Update the transformation in the context, removing any advanced config
@@ -370,7 +370,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       >
         <div>
           {/* Parameters Section */}
-          {parameters.length > 0 && (
+          {parameters?.length > 0 && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
@@ -402,7 +402,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 </div>
               </div>
               <div className={`${colors.accentLight} bg-opacity-30 p-2.5 rounded-md`}>
-                {parameters.map(renderParameterControl)}
+                {parameters?.map(renderParameterControl)}
 
                 {/* Show indicator if advanced configuration is active */}
                 {transformation.metadata?.advancedParameters && (
@@ -556,7 +556,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 onClick={() => {
                   // Find the kernel size parameter and get its value
-                  const kernelSizeParam = parameters.find(p => p.name === 'kernelSize');
+                  const kernelSizeParam = parameters?.find(p => p.name === 'kernelSize');
                   if (kernelSizeParam) {
                     confirmKernelSizeChange(kernelSizeParam.name, kernelSizeParam.value as number);
                   }
