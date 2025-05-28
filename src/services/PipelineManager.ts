@@ -261,9 +261,9 @@ export class PipelineManager {
     }
     
     // Find and update the parameter
-    const updatedParameters = node.transformation.parameters.map(param => 
+    const updatedParameters = node.transformation.parameters?.map(param => 
       param.name === paramName ? { ...param, value } : param
-    );
+    ) || [];
     
     // Update the node's transformation
     const updatedTransformation = {
@@ -271,7 +271,19 @@ export class PipelineManager {
       parameters: updatedParameters
     };
     
-    return this.updateNode(nodeId, { transformation: updatedTransformation });
+    // Update the node
+    this.updateNode(nodeId, { transformation: updatedTransformation });
+    
+    // Invalidate this node and all downstream nodes
+    this.invalidateNodeAndDownstream(nodeId);
+    
+    // Start processing this node immediately
+    // This will also trigger processing of downstream nodes due to the improved processNode method
+    setTimeout(() => {
+      this.processNode(nodeId);
+    }, 0);
+    
+    return true;
   }
 
   /**
@@ -509,24 +521,39 @@ export class PipelineManager {
    * Invalidate a node and all its downstream nodes
    */
   public invalidateNodeAndDownstream(nodeId: string): void {
-    // Mark the node itself as invalidated
+    const node = this.nodes.get(nodeId);
+    if (!node) return;
+    
+    // Reset the processing result for this node
     const currentResult = this.processingResults.get(nodeId);
     if (currentResult) {
       this.processingResults.set(nodeId, {
         ...currentResult,
-        status: 'idle'
+        status: 'idle',
+        error: null
       });
     }
     
-    // Invalidate all downstream nodes
+    // Notify that the node has been invalidated
+    this.notifyObservers({
+      type: PipelineEventType.PIPELINE_INVALIDATED,
+      payload: { nodeId },
+      timestamp: Date.now()
+    });
+    
+    // Invalidate all downstream nodes recursively
     this.invalidateDownstreamNodes(nodeId);
     
-    // Trigger processing of the node
-    this.processNode(nodeId);
+    // Process the node if it's not an input node (input nodes need to be processed manually)
+    if (node.type !== 'input') {
+      setTimeout(() => {
+        this.processNode(nodeId);
+      }, 0);
+    }
   }
 
   /**
-   * Invalidate all nodes downstream of the given node
+   * Invalidate all downstream nodes of a given node
    */
   private invalidateDownstreamNodes(nodeId: string): void {
     const downstreamNodes = this.getAllDownstreamNodes(nodeId);
@@ -537,20 +564,17 @@ export class PipelineManager {
       if (result) {
         this.processingResults.set(id, {
           ...result,
-          status: 'idle'
+          status: 'idle',
+          error: null
+        });
+        
+        // Notify that this downstream node has been invalidated
+        this.notifyObservers({
+          type: PipelineEventType.PIPELINE_INVALIDATED,
+          payload: { nodeId: id },
+          timestamp: Date.now()
         });
       }
-    });
-    
-    this.notifyObservers({
-      type: PipelineEventType.PIPELINE_INVALIDATED,
-      payload: { sourceNodeId: nodeId, invalidatedNodes: downstreamNodes },
-      timestamp: Date.now()
-    });
-    
-    // Process downstream nodes
-    downstreamNodes.forEach(id => {
-      this.processNode(id);
     });
   }
 
@@ -561,9 +585,52 @@ export class PipelineManager {
     const node = this.nodes.get(nodeId);
     if (!node) return null;
     
-    // Skip if the node is already in the processing queue
+    // If the node is already in the processing queue, mark it for reprocessing
+    // but don't start a new processing operation yet
     if (this.processingQueue.has(nodeId)) {
+      // Mark the node as needing reprocessing once the current processing is done
+      const currentResult = this.processingResults.get(nodeId);
+      if (currentResult && currentResult.status === 'pending') {
+        this.processingResults.set(nodeId, {
+          ...currentResult,
+          status: 'idle'  // Will be picked up for reprocessing once current processing completes
+        });
+      }
       return null;
+    }
+    
+    // For transformation nodes, ensure all input nodes are processed first
+    if (node.type === 'transformation' && node.transformation) {
+      const inputNodeIds = node.transformation.inputNodes;
+      
+      // Check if any input nodes are still processing
+      const pendingInputs = inputNodeIds.filter(id => {
+        const inputResult = this.processingResults.get(id);
+        return !inputResult || inputResult.status === 'pending' || inputResult.status === 'idle';
+      });
+      
+      if (pendingInputs.length > 0) {
+        // Mark this node as idle so it will be processed once inputs are done
+        const currentResult = this.processingResults.get(nodeId) || {
+          nodeId,
+          canvas: null,
+          error: null,
+          processingTime: 0,
+          status: 'idle'
+        };
+        
+        this.processingResults.set(nodeId, {
+          ...currentResult,
+          status: 'idle'
+        });
+        
+        // Schedule this node to be processed again after a short delay
+        setTimeout(() => {
+          this.processNode(nodeId);
+        }, 50);
+        
+        return null;
+      }
     }
     
     // Add the node to the processing queue
@@ -612,6 +679,7 @@ export class PipelineManager {
         const inputNodeId = inputNodeIds[0];
         const inputResult = this.processingResults.get(inputNodeId);
         
+        // Double-check that input is successful
         if (!inputResult || inputResult.status !== 'success' || !inputResult.canvas) {
           throw new Error('Input node has not been successfully processed');
         }
@@ -655,7 +723,22 @@ export class PipelineManager {
           const inputResult = this.processingResults.get(inputNodeId);
           
           if (inputResult && inputResult.status === 'success' && inputResult.canvas) {
-            canvas = inputResult.canvas;
+            // Create a new canvas instead of using the reference directly
+            canvas = document.createElement('canvas');
+            canvas.width = inputResult.canvas.width;
+            canvas.height = inputResult.canvas.height;
+            
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              // Draw the input canvas onto the new canvas
+              ctx.drawImage(inputResult.canvas, 0, 0);
+            }
+          } else {
+            // If input isn't ready, schedule this node to be processed later
+            setTimeout(() => {
+              this.processNode(nodeId);
+            }, 50);
+            throw new Error('Input node not yet processed, retrying later');
           }
         }
       }
@@ -671,6 +754,7 @@ export class PipelineManager {
         status: canvas ? 'success' : 'error'
       });
       
+      // Notify that processing completed successfully
       this.notifyObservers({
         type: PipelineEventType.PROCESSING_COMPLETED,
         payload: { 
@@ -680,31 +764,54 @@ export class PipelineManager {
         },
         timestamp: Date.now()
       });
+      
+      // Process downstream nodes immediately after successful processing
+      const downstreamNodes = this.getDirectDependents(nodeId);
+      if (downstreamNodes.length > 0) {
+        // Use a small timeout to prevent stack overflow with deep pipelines
+        setTimeout(() => {
+          downstreamNodes.forEach(dependentId => {
+            this.processNode(dependentId);
+          });
+        }, 0);
+      }
     } 
     catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       
-      // Update the processing result with the error
-      this.processingResults.set(nodeId, {
-        nodeId,
-        canvas: null,
-        error,
-        processingTime: 0,
-        status: 'error'
-      });
-      
-      this.notifyObservers({
-        type: PipelineEventType.PROCESSING_FAILED,
-        payload: { 
-          nodeId, 
-          error: error.message
-        },
-        timestamp: Date.now()
-      });
+      // Only update as error if it's not a retry-able error
+      if (error.message !== 'Input node not yet processed, retrying later') {
+        // Update the processing result with the error
+        this.processingResults.set(nodeId, {
+          nodeId,
+          canvas: null,
+          error,
+          processingTime: 0,
+          status: 'error'
+        });
+        
+        this.notifyObservers({
+          type: PipelineEventType.PROCESSING_FAILED,
+          payload: { 
+            nodeId, 
+            error: error.message
+          },
+          timestamp: Date.now()
+        });
+      }
     }
     finally {
       // Remove the node from the processing queue
       this.processingQueue.delete(nodeId);
+      
+      // Check if the node needs to be reprocessed (marked as idle during processing)
+      const currentResult = this.processingResults.get(nodeId);
+      if (currentResult && currentResult.status === 'idle') {
+        // Schedule reprocessing in the next tick to avoid recursion
+        setTimeout(() => {
+          this.processNode(nodeId);
+        }, 0);
+      }
     }
     
     return this.processingResults.get(nodeId) || null;

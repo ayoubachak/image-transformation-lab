@@ -27,6 +27,7 @@ interface PipelineContextType {
   clearPipeline: () => void;
   getProcessedCanvas: (nodeId: string) => HTMLCanvasElement | null;
   duplicateNode: (nodeId: string) => string | null;
+  getDirectDownstreamNodes: (nodeId: string) => string[];
 }
 
 const PipelineContext = createContext<PipelineContextType | null>(null);
@@ -251,6 +252,14 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
     return null;
   }, []);
   
+  // Get direct downstream nodes
+  const getDirectDownstreamNodes = useCallback((nodeId: string): string[] => {
+    // Find all edges where this node is the source
+    return edges
+      .filter(edge => edge.source === nodeId)
+      .map(edge => edge.target);
+  }, [edges]);
+  
   const contextValue: PipelineContextType = {
     nodes,
     edges,
@@ -267,7 +276,8 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
     invalidateNode,
     clearPipeline,
     getProcessedCanvas,
-    duplicateNode
+    duplicateNode,
+    getDirectDownstreamNodes
   };
   
   return (

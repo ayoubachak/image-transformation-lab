@@ -11,11 +11,13 @@ interface OutputNodeProps {
 }
 
 export default function OutputNode({ id, data, selected }: OutputNodeProps) {
-  const { edges, results } = usePipeline();
+  const { edges, results, invalidateNode } = usePipeline();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const lastProcessedInputRef = useRef<string | null>(null);
-  const lastSourceNodeRef = useRef<string | null>(null);
+  const [isWaitingForInput, setIsWaitingForInput] = useState(false);
+  const [inputCheckAttempt, setInputCheckAttempt] = useState(0);
+  const sourceNodeRef = useRef<string | null>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   // Find connected nodes to get the image
   useEffect(() => {
@@ -25,22 +27,53 @@ export default function OutputNode({ id, data, selected }: OutputNodeProps) {
     if (inputEdges.length > 0) {
       // Get the source node ID (there should only be one input to an output node)
       const sourceNodeId = inputEdges[0].source;
-      lastSourceNodeRef.current = sourceNodeId;
+      sourceNodeRef.current = sourceNodeId;
       
-      // Get the result from the pipeline
+      // Get the result from the pipeline for this node
       const nodeResult = results.get(id);
+      
+      // Get the source node result
+      const sourceResult = results.get(sourceNodeId);
+      
+      // If source is still processing, show waiting state
+      if (sourceResult && (sourceResult.status === 'pending' || sourceResult.status === 'idle')) {
+        setIsWaitingForInput(true);
+        
+        // Set a retry timeout if not already set
+        if (timeoutRef.current === null) {
+          timeoutRef.current = window.setTimeout(() => {
+            setInputCheckAttempt(prev => prev + 1);
+            invalidateNode(id);
+            timeoutRef.current = null;
+          }, 500);
+        }
+      } else {
+        setIsWaitingForInput(false);
+      }
       
       // If we have a result with a canvas, display it
       if (nodeResult && nodeResult.canvas && nodeResult.status === 'success') {
         setImageUrl(nodeResult.canvas.toDataURL());
+      } else if (sourceResult && sourceResult.status === 'success' && sourceResult.canvas) {
+        // If our node doesn't have a result but source does, try to invalidate this node
+        invalidateNode(id);
       } else {
         setImageUrl(null);
       }
     } else {
       // No input connected
       setImageUrl(null);
+      setIsWaitingForInput(false);
     }
-  }, [id, edges, results]);
+    
+    // Clean up timeout on unmount
+    return () => {
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [id, edges, results, invalidateNode, inputCheckAttempt]);
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -100,7 +133,16 @@ export default function OutputNode({ id, data, selected }: OutputNodeProps) {
           <div className="p-6 border-2 border-dashed border-green-200 rounded-lg bg-green-50/50 flex flex-col items-center justify-center h-[160px]">
             <PhotoIcon className="h-10 w-10 text-green-300 mb-2" />
             <p className="text-sm text-green-600 font-medium text-center">
-              Connect a transformation<br />to see the output
+              {isWaitingForInput ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-600 mx-auto mb-2"></div>
+                  Waiting for input node<br />to finish processing...
+                </>
+              ) : (
+                <>
+                  Connect a transformation<br />to see the output
+                </>
+              )}
             </p>
           </div>
         )}

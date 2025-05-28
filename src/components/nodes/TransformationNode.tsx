@@ -26,7 +26,8 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     updateParameter,
     invalidateNode,
     getProcessedCanvas,
-    results
+    results,
+    getDirectDownstreamNodes
   } = usePipeline();
   
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
@@ -245,7 +246,19 @@ export default function TransformationNode({ id, data, selected }: Transformatio
 
   // Retry processing after error
   const handleRetryProcessing = () => {
-    triggerProcessing();
+    setError(null);
+    setErrorDetails(null);
+    setIsProcessing(true);
+    processingAttemptRef.current += 1;
+    
+    // Use the pipeline context to invalidate and reprocess this node
+    invalidateNode(id);
+    
+    // Reset UI state for downstream nodes via context
+    const downstream = getDirectDownstreamNodes(id);
+    downstream.forEach((downstreamNodeId: string) => {
+      invalidateNode(downstreamNodeId);
+    });
   };
 
   // Render parameter controls based on parameter type
