@@ -12,7 +12,10 @@
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
+    "@react-three/drei": "^10.0.8",
+    "@react-three/fiber": "^9.1.2",
     "@tailwindcss/vite": "^4.1.7",
+    "@types/three": "^0.176.0",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
     "framer-motion": "^12.15.0",
@@ -24,6 +27,7 @@
     "react-tooltip": "^5.28.1",
     "reactflow": "^11.11.4",
     "tailwindcss": "^4.1.7",
+    "three": "^0.176.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

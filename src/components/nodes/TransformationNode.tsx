@@ -377,6 +377,38 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     parameterValues[param.name] = param.value;
   });
 
+  // Filter out parameters that shouldn't be shown in the main UI
+  const visibleParameters = parameters.filter(param => {
+    // Hide kernel size and type for specific transformations
+    if (transformation.type === 'colorAdjust' && 
+        (param.name === 'kernelSize' || param.name === 'kernelType')) {
+      return false;
+    }
+    
+    // Hide deprecated or redundant parameters for other transformations
+    if (['histogram', 'sharpen', 'bilateral', 'median'].includes(transformation.type) &&
+        (param.name === 'kernelSize' || param.name === 'kernelType')) {
+      return false;
+    }
+    
+    // Hide certain parameters if they depend on another parameter's value
+    if (param.dependsOn) {
+      const dependentParam = parameters.find(p => p.name === param.dependsOn);
+      if (dependentParam && param.showIf && !param.showIf(parameterValues)) {
+        return false;
+      }
+    }
+    
+    // For customBlur, only show kernelType and kernelSize if not in custom mode
+    if (transformation.type === 'customBlur' && 
+        parameterValues.kernelType === 'custom' && 
+        param.name === 'kernelSize') {
+      return false;
+    }
+    
+    return true;
+  });
+
   return (
     <>
       <BaseNode
@@ -394,7 +426,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       >
         <div>
           {/* Parameters Section */}
-          {parameters?.length > 0 && (
+          {visibleParameters?.length > 0 && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
@@ -424,7 +456,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 </div>
               </div>
               <div className={`${colors.accentLight} bg-opacity-30 p-2.5 rounded-md`}>
-                {parameters.map((param) => (
+                {visibleParameters.map((param) => (
                   <ParameterControl
                     key={param.name}
                     parameter={param}
