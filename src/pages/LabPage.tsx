@@ -59,58 +59,18 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         description: 'Size of the convolution kernel',
         dependsOn: 'kernelType',
         showIf: (params) => params.kernelType !== 'custom'
-      },
-      {
-        name: 'borderType',
-        type: 'select',
-        value: 'reflect',
-        options: ['constant', 'reflect', 'replicate', 'wrap'],
-        label: 'Border Type',
-        description: 'How to handle pixels at the border of the image'
-      },
-      {
-        name: 'sigmaX',
-        type: 'number',
-        value: 0,
-        min: 0,
-        max: 20,
-        step: 0.1,
-        label: 'Sigma X',
-        description: 'Standard deviation in X direction (0 = auto)',
-        dependsOn: 'kernelType',
-        showIf: (params) => params.kernelType === 'gaussian'
-      },
-      {
-        name: 'sigmaY',
-        type: 'number',
-        value: 0,
-        min: 0,
-        max: 20,
-        step: 0.1,
-        label: 'Sigma Y',
-        description: 'Standard deviation in Y direction (0 = auto)',
-        dependsOn: 'kernelType',
-        showIf: (params) => params.kernelType === 'gaussian'
-      },
-      {
-        name: 'customKernel',
-        type: 'kernel',
-        value: {
-          width: 3,
-          height: 3,
-          values: [
-            [1/9, 1/9, 1/9],
-            [1/9, 1/9, 1/9],
-            [1/9, 1/9, 1/9]
-          ],
-          normalize: true
-        },
-        label: 'Custom Kernel',
-        description: 'Edit your own convolution kernel',
-        dependsOn: 'kernelType',
-        showIf: (params) => params.kernelType === 'custom'
       }
-    ]
+    ],
+    metadata: {
+      advancedParameters: {
+        borderType: 'reflect',
+        sigmaX: 0,
+        sigmaY: 0,
+        useCustomKernel: false,
+        customKernel: null,
+        normalize: true
+      }
+    }
   },
   threshold: {
     type: 'threshold',

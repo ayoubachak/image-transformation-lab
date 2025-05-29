@@ -120,7 +120,7 @@ export default function TransformConfigModal({
         setAdvancedParameters(defaultAdvancedParams);
       } else {
         // Use the stored advanced parameters, with defaults as fallback
-        setAdvancedParameters({
+      setAdvancedParameters({
           ...defaultAdvancedParams,
           ...transformation.metadata.advancedParameters
         });
@@ -164,13 +164,35 @@ export default function TransformConfigModal({
     
     // Handle specific parameter updates based on transformation type
     if (transformation.type === 'customBlur') {
+      // Find the customKernel parameter or create one if it doesn't exist
       const kernelParam = updatedTransformation.parameters.find(p => p.name === 'customKernel');
-      if (kernelParam) {
-        kernelParam.value = {
+      
+      if (transformation.parameters.find(p => p.name === 'kernelType')?.value === 'custom') {
+        // For custom kernel type, we need to save the full kernel matrix
+        const kernelData = {
           width: kernelSize.width,
           height: kernelSize.height,
           values: kernelValues,
           normalize
+        };
+        
+        if (kernelParam) {
+          // Update existing parameter
+          kernelParam.value = kernelData;
+        } else {
+          // Add new parameter
+          updatedTransformation.parameters.push({
+            name: 'customKernel',
+            type: 'kernel',
+            value: kernelData
+          });
+        }
+      } else if (advancedParameters.useCustomKernel && advancedParameters.customKernel) {
+        // For Gaussian/Box with custom override
+        // Store the custom kernel in advanced parameters
+        advancedParameters.customKernelData = {
+          values: advancedParameters.customKernel,
+          normalize: true
         };
       }
     }
@@ -211,15 +233,15 @@ export default function TransformConfigModal({
   // Render configuration UI based on transformation type
   const renderConfigurationUI = () => {
     switch (transformation.type) {
-      case 'blur':
-        return renderGaussianBlurConfig();
-      case 'customBlur':
-        return renderKernelEditor();
-      case 'sobel':
       case 'laplacian':
+      case 'sobel':
         return renderEdgeDetectionConfig();
       case 'canny':
         return renderCannyConfig();
+      case 'blur':
+        return renderGaussianBlurConfig();
+      case 'customBlur':
+        return renderCustomBlurConfig();
       case 'threshold':
       case 'adaptiveThreshold':
         return renderThresholdConfig();
@@ -227,30 +249,23 @@ export default function TransformConfigModal({
         return renderColorAdjustConfig();
       case 'histogram':
         return renderHistogramConfig();
-      case 'rotate':
       case 'resize':
+      case 'rotate':
       case 'perspective':
         return renderGeometryConfig();
-      case 'morphology':
       case 'dilate':
       case 'erode':
+      case 'morphology':
         return renderMorphologyConfig();
       default:
         return (
           <div className="p-4">
-            <p className="text-gray-500 mb-4">Basic configuration for {transformation.name}</p>
-            {transformation.parameters.length > 0 ? (
-              <div className="space-y-4">
-                {transformation.parameters.map(param => renderParameterControl(param))}
-              </div>
-            ) : (
-              <p className="text-gray-400 italic">No configurable parameters available</p>
-            )}
+            <p className="text-gray-700">No advanced configuration available for this transformation.</p>
           </div>
         );
     }
   };
-
+  
   // Generic parameter control renderer
   const renderParameterControl = (param: TransformationParameter) => {
     switch (param.type) {
@@ -409,7 +424,7 @@ export default function TransformConfigModal({
               </div>
               <p className="mt-1 text-xs text-gray-500 flex items-center">
                 <InformationCircleIcon className="h-3 w-3 mr-1" />
-                Value added to the computed derivatives
+                Value added to the results before storing them.
               </p>
             </div>
             
@@ -587,7 +602,7 @@ export default function TransformConfigModal({
                     step={kernelSizeParam.step || 2}
                     value={kernelSizeParam.value as number}
                     onChange={(e) => handleParameterChange(kernelSizeParam.name, Number(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-300"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
                     <span>{kernelSizeParam.min}</span>
@@ -751,6 +766,250 @@ export default function TransformConfigModal({
             <p>
               <strong>Border Type:</strong> Specifies how to handle pixels near the image boundaries.
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Custom Blur configuration
+  const renderCustomBlurConfig = () => {
+    const kernelTypeParam = editedTransformation.parameters.find(p => p.name === 'kernelType');
+    const kernelSizeParam = editedTransformation.parameters.find(p => p.name === 'kernelSize');
+    const customKernelParam = editedTransformation.parameters.find(p => p.name === 'customKernel');
+    const isCustomKernelType = kernelTypeParam?.value === 'custom';
+    
+    // If kernel type changes to/from custom, update the UI state
+    useEffect(() => {
+      // Initialize kernel values from existing custom kernel parameter if available
+      if (isCustomKernelType && customKernelParam) {
+        const kernel = customKernelParam.value as KernelValue;
+        if (kernel && kernel.values) {
+          setKernelValues(kernel.values);
+          setKernelSize({
+            width: kernel.width || 3,
+            height: kernel.height || 3
+          });
+          setNormalize(kernel.normalize !== false);
+        }
+      }
+    }, [isCustomKernelType]);
+    
+    return (
+      <div className="space-y-6">
+        {/* Basic parameters section */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900">Basic Parameters</h3>
+          <div className="mt-2 bg-gray-50 p-4 rounded-md">
+            {kernelTypeParam && renderParameterControl(kernelTypeParam)}
+            {kernelSizeParam && !isCustomKernelType && (
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-800">
+                    Kernel Size
+                  </label>
+                  <span className="text-sm font-medium text-gray-600">{kernelSizeParam ? String(kernelSizeParam.value) : ''}</span>
+                </div>
+                <div className="mt-1">
+                  <input
+                    type="range"
+                    min={kernelSizeParam.min || 1}
+                    max={kernelSizeParam.max || 31}
+                    step={kernelSizeParam.step || 2}
+                    value={kernelSizeParam.value as number}
+                    onChange={(e) => handleParameterChange(kernelSizeParam.name, Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-300"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>{kernelSizeParam.min}</span>
+                    <span>{kernelSizeParam.max}</span>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-amber-600 flex items-center">
+                  <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
+                  Changing this value will reset advanced configuration
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Advanced parameters section */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900">Advanced Parameters</h3>
+          <div className="mt-2 bg-gray-50 p-4 rounded-md space-y-4">
+            {/* Border Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-1">
+                Border Type
+              </label>
+              <select
+                value={advancedParameters.borderType || 'reflect'}
+                onChange={(e) => handleAdvancedParamChange('borderType', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="constant" className="text-gray-900 bg-white">Constant</option>
+                <option value="reflect" className="text-gray-900 bg-white">Reflect</option>
+                <option value="replicate" className="text-gray-900 bg-white">Replicate</option>
+                <option value="wrap" className="text-gray-900 bg-white">Wrap</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500 flex items-center">
+                <InformationCircleIcon className="h-3 w-3 mr-1" />
+                Method for handling pixels at the border of the image
+              </p>
+            </div>
+            
+            {/* Gaussian specific parameters */}
+            {kernelTypeParam?.value === 'gaussian' && (
+              <>
+                {/* Sigma X */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-gray-800">
+                      Sigma X
+                    </label>
+                    <span className="text-sm font-medium text-gray-600">{advancedParameters.sigmaX || 0}</span>
+                  </div>
+                  <div className="mt-1">
+                    <input
+                      type="range"
+                      min={0}
+                      max={20}
+                      step={0.1}
+                      value={advancedParameters.sigmaX || 0}
+                      onChange={(e) => handleAdvancedParamChange('sigmaX', Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-300"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0 (Auto)</span>
+                      <span>20</span>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 flex items-center">
+                    <InformationCircleIcon className="h-3 w-3 mr-1" />
+                    Standard deviation in X direction (0 = auto-calculated based on kernel size)
+                  </p>
+                </div>
+                
+                {/* Sigma Y */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-gray-800">
+                      Sigma Y
+                    </label>
+                    <span className="text-sm font-medium text-gray-600">{advancedParameters.sigmaY || 0}</span>
+                  </div>
+                  <div className="mt-1">
+                    <input
+                      type="range"
+                      min={0}
+                      max={20}
+                      step={0.1}
+                      value={advancedParameters.sigmaY || 0}
+                      onChange={(e) => handleAdvancedParamChange('sigmaY', Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-300"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0 (Same as X)</span>
+                      <span>20</span>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 flex items-center">
+                    <InformationCircleIcon className="h-3 w-3 mr-1" />
+                    Standard deviation in Y direction (0 = same as sigmaX)
+                  </p>
+                </div>
+              </>
+            )}
+            
+            {/* Custom Kernel section */}
+            {isCustomKernelType && (
+              <>
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center mb-2">
+                    <h4 className="text-sm font-medium text-gray-800">Custom Kernel Editor</h4>
+                  </div>
+                  {renderKernelEditor()}
+                </div>
+              </>
+            )}
+            
+            {/* Additional options for standard kernels */}
+            {!isCustomKernelType && (
+              <div>
+                <div className="flex items-center mb-2">
+                  <input
+                    type="checkbox"
+                    id="useCustomKernel"
+                    checked={advancedParameters.useCustomKernel || false}
+                    onChange={(e) => handleAdvancedParamChange('useCustomKernel', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded bg-white"
+                  />
+                  <label htmlFor="useCustomKernel" className="ml-2 block text-sm text-gray-800">
+                    Override with Custom Kernel
+                  </label>
+                </div>
+                
+                {advancedParameters.useCustomKernel && (
+                  <div className="mt-2 p-3 border border-gray-200 rounded-md">
+                    <p className="text-sm text-gray-700 mb-2">Define custom kernel matrix:</p>
+                    {/* Simple 3x3 matrix editor for demo purposes */}
+                    <div className="grid grid-cols-3 gap-1">
+                      {[...Array(9)].map((_, i) => (
+                        <input
+                          key={i}
+                          type="number"
+                          className="w-16 p-1 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          defaultValue={(i === 4) ? 1 : 0} // Center value defaults to 1
+                          onChange={(e) => {
+                            const newKernel = advancedParameters.customKernel || Array(9).fill(0);
+                            newKernel[i] = parseFloat(e.target.value);
+                            handleAdvancedParamChange('customKernel', newKernel);
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500 flex items-center">
+                      <InformationCircleIcon className="h-3 w-3 mr-1" />
+                      Values should sum to 1 for proper normalization
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Documentation section */}
+        <div>
+          <div className="flex items-center text-blue-600 mb-2">
+            <DocumentTextIcon className="h-5 w-5 mr-1" />
+            <h3 className="text-lg font-medium">Documentation</h3>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-md text-sm text-gray-800">
+            <p className="mb-2">
+              <strong>Custom Blur</strong> provides advanced control over image blurring with different kernel types and customization options.
+            </p>
+            <p className="mb-2">
+              <strong>Kernel Type:</strong> 
+              <ul className="list-disc ml-5 mt-1">
+                <li>Box - Simple averaging kernel for uniform blurring</li>
+                <li>Gaussian - Bell-shaped kernel, more natural blurring</li>
+                <li>Custom - Design your own convolution kernel</li>
+              </ul>
+            </p>
+            <p className="mb-2">
+              <strong>Kernel Size:</strong> Controls the blur intensity. Must be odd number. Larger values give stronger blur.
+            </p>
+            <p className="mb-2">
+              <strong>Border Type:</strong> Specifies how to handle pixels near the image boundaries.
+            </p>
+            {kernelTypeParam?.value === 'gaussian' && (
+              <p className="mb-2">
+                <strong>Sigma:</strong> Standard deviation of the Gaussian kernel. Controls how weight decreases from center.
+                Setting to 0 will auto-calculate based on kernel size.
+              </p>
+            )}
           </div>
         </div>
       </div>

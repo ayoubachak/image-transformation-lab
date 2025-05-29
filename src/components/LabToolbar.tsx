@@ -34,7 +34,7 @@ interface LabToolbarProps {
 export default function LabToolbar({ onOpenTransformationManager, operationMode, onChangeOperationMode }: LabToolbarProps) {
   const { addNode, nodes, clearPipeline, removeNode, selectedNodeId, duplicateNode } = usePipeline();
   const [showAddMenu, setShowAddMenu] = useState(false);
-  
+
   // Check if there's already an input node
   const hasInputNode = nodes.some((node) => node.type === 'input');
   
@@ -86,7 +86,7 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
       // If the mode is already active, turn it off
       if (operationMode === mode) {
         onChangeOperationMode(null);
-      } else {
+    } else {
         onChangeOperationMode(mode);
       }
     }
@@ -118,42 +118,42 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
             <Tooltip id="add-node-tooltip" place="bottom">
               Add Node
             </Tooltip>
-            
-            {/* Add node dropdown menu */}
-            {showAddMenu && (
+      
+      {/* Add node dropdown menu */}
+      {showAddMenu && (
               <div className="absolute top-full left-0 z-50 mt-1 bg-white rounded-md shadow-lg border border-gray-200 w-56 py-2 max-h-[80vh] overflow-y-auto">
                 <div className="px-3 py-1 border-b border-gray-100 mb-1 sticky top-0 bg-white z-10">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Nodes</h3>
-                </div>
-                
-                <div className="px-1.5 py-1">
-                  <button
-                    className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-blue-50 text-blue-700 ${hasInputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    onClick={handleAddInputNode}
-                    disabled={hasInputNode}
-                  >
-                    <PhotoIcon className="h-5 w-5 mr-2 text-blue-500" />
-                    Input Node
-                    {hasInputNode && (
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Nodes</h3>
+          </div>
+          
+          <div className="px-1.5 py-1">
+            <button
+              className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-blue-50 text-blue-700 ${hasInputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={handleAddInputNode}
+              disabled={hasInputNode}
+            >
+              <PhotoIcon className="h-5 w-5 mr-2 text-blue-500" />
+              Input Node
+              {hasInputNode && (
                       <span className="ml-auto text-xs text-gray-500">(Added)</span>
-                    )}
-                  </button>
-                  
-                  <button
-                    className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-green-50 text-green-700 ${hasOutputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    onClick={handleAddOutputNode}
-                    disabled={hasOutputNode}
-                  >
-                    <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-green-500" />
-                    Output Node
-                    {hasOutputNode && (
+              )}
+            </button>
+            
+            <button
+              className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-green-50 text-green-700 ${hasOutputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={handleAddOutputNode}
+              disabled={hasOutputNode}
+            >
+              <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-green-500" />
+              Output Node
+              {hasOutputNode && (
                       <span className="ml-auto text-xs text-gray-500">(Added)</span>
-                    )}
-                  </button>
-                </div>
-                
+              )}
+            </button>
+          </div>
+          
                 {/* Transformations section - categorized */}
-                <div className="border-t border-gray-100 mt-1 pt-1">
+          <div className="border-t border-gray-100 mt-1 pt-1">
                   <div className="px-3 py-1">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Basic Transforms</h3>
                   </div>
@@ -218,8 +218,8 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
                   
                   <div className="px-3 py-1 mt-2">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Edge Detection</h3>
-                  </div>
-                  
+            </div>
+            
                   <div className="grid grid-cols-2 gap-1 px-1.5">
                     <button
                       onClick={() => handleAddTransformation('canny')}
@@ -230,7 +230,7 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
                       </svg>
                       <span className="text-xs">Canny</span>
                     </button>
-                    <button
+                  <button
                       onClick={() => handleAddTransformation('laplacian')}
                       className="flex flex-col items-center justify-center p-2 hover:bg-amber-50 text-amber-700 rounded-md"
                     >
@@ -245,9 +245,9 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
                     >
                       <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 6v12m3-12v12m3-12v12M4 9h16M4 12h16M4 15h16" />
-                      </svg>
+                    </svg>
                       <span className="text-xs">Sobel</span>
-                    </button>
+                  </button>
                   </div>
                   
                   <div className="px-3 py-1 mt-2">
@@ -264,7 +264,7 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
                       </svg>
                       <span className="text-xs">Color</span>
                     </button>
-                    <button
+                        <button
                       onClick={() => handleAddTransformation('histogram')}
                       className="flex flex-col items-center justify-center p-2 hover:bg-rose-50 text-rose-700 rounded-md"
                     >
@@ -277,7 +277,7 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
                   
                   <div className="px-3 py-1 mt-2">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Geometry</h3>
-                  </div>
+                          </div>
                   
                   <div className="grid grid-cols-2 gap-1 px-1.5 mb-2">
                     <button
@@ -315,12 +315,12 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                       </svg>
                       <span className="text-xs">Perspective</span>
-                    </button>
+                        </button>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+                    </div>
+                  )}
+                </div>
           
           {/* Manage Pipeline button */}
           <button
@@ -458,7 +458,7 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
                 <span className="sr-only">Cancel</span>
                 ✕
               </button>
-            </div>
+          </div>
           )}
         </div>
       )}

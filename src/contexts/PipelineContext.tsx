@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 interface PipelineContextType {
   // Pipeline state
   nodes: ImageProcessingNode[];
-  edges: ImageProcessingEdge[];ool
+  edges: ImageProcessingEdge[];
   selectedNodeId: string | null;
   results: Map<string, NodeProcessingResult>;
   

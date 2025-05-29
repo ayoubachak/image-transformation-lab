@@ -418,108 +418,112 @@ export const applyGrayscale = (src: any): any => {
 
 // Apply blur transformation
 export const applyBlur = (src: any, ksize: number, advancedParams?: Record<string, any>): any => {
-  const opencv = getOpenCV();
-  
-  // Handle fallback Mat
-  if (src.isFallback) {
-    const result = createFallbackMat(new ImageData(
-      new Uint8ClampedArray(src.data), 
-      src.cols, 
-      src.rows
-    ));
-    
-    // Ensure ksize is odd
-    ksize = ksize % 2 === 0 ? ksize + 1 : ksize;
-    const halfK = Math.floor(ksize / 2);
-    
-    // Simple box blur implementation
-    const tempData = new Uint8ClampedArray(result.data);
-    for (let i = 0; i < result.rows; i++) {
-      for (let j = 0; j < result.cols; j++) {
-        let rSum = 0, gSum = 0, bSum = 0, count = 0;
-        
-        // Apply kernel
-        for (let ki = -halfK; ki <= halfK; ki++) {
-          for (let kj = -halfK; kj <= halfK; kj++) {
-            const ni = i + ki;
-            const nj = j + kj;
-            
-            if (ni >= 0 && ni < result.rows && nj >= 0 && nj < result.cols) {
-              const offset = (ni * result.cols + nj) * 4;
-              rSum += tempData[offset];
-              gSum += tempData[offset + 1];
-              bSum += tempData[offset + 2];
-              count++;
-            }
-          }
-        }
-        
-        // Write blurred result
-        const offset = (i * result.cols + j) * 4;
-        result.data[offset] = Math.round(rSum / count);
-        result.data[offset + 1] = Math.round(gSum / count);
-        result.data[offset + 2] = Math.round(bSum / count);
-      }
-    }
-    
-    return result;
-  }
-  
-  // Use OpenCV if available
-  const dst = new opencv.Mat();
   try {
-    // Ensure ksize is odd
-    ksize = ksize % 2 === 0 ? ksize + 1 : ksize;
-    const ksize_obj = new opencv.Size(ksize, ksize);
+    const cv = getOpenCV();
+    if (!cv) throw new Error('OpenCV not available');
     
-    // Extract advanced parameters if provided
-    const sigmaX = advancedParams?.sigmaX ?? 0;
-    const sigmaY = advancedParams?.sigmaY ?? 0;
+    // Log debugging information for kernel size and advanced parameters
+    console.log(`Applying blur with kernel size: ${ksize}`, {
+      kernelType: advancedParams?.kernelType,
+      useCustomKernel: advancedParams?.useCustomKernel,
+      hasCustomKernel: advancedParams?.customKernel ? 'yes' : 'no',
+      sigmaX: advancedParams?.sigmaX,
+      sigmaY: advancedParams?.sigmaY,
+      borderType: advancedParams?.borderType
+    });
     
-    // Determine border type
-    let borderType = opencv.BORDER_DEFAULT;
+    // Create output matrix
+    const dst = new cv.Mat();
+    
+    // Get border type constant
+    let borderType = cv.BORDER_DEFAULT;
     if (advancedParams?.borderType) {
       switch (advancedParams.borderType) {
-        case 'BORDER_CONSTANT':
-          borderType = opencv.BORDER_CONSTANT;
-          break;
-        case 'BORDER_REPLICATE':
-          borderType = opencv.BORDER_REPLICATE;
-          break;
-        case 'BORDER_REFLECT':
-          borderType = opencv.BORDER_REFLECT;
-          break;
-        case 'BORDER_WRAP':
-          borderType = opencv.BORDER_WRAP;
-          break;
-        default:
-          borderType = opencv.BORDER_DEFAULT;
+        case 'constant': borderType = cv.BORDER_CONSTANT; break;
+        case 'replicate': borderType = cv.BORDER_REPLICATE; break;
+        case 'reflect': borderType = cv.BORDER_REFLECT; break;
+        case 'wrap': borderType = cv.BORDER_WRAP; break;
+        default: borderType = cv.BORDER_DEFAULT;
       }
     }
     
-    // Handle custom kernel if provided
+    // Check if we're using a custom kernel
     if (advancedParams?.useCustomKernel && advancedParams?.customKernel) {
-      try {
-        // Create a custom kernel from the provided values
-        const kernelSize = Math.sqrt(advancedParams.customKernel.length);
-        if (kernelSize === Math.floor(kernelSize)) { // Check if it's a perfect square
-          const kernel = opencv.matFromArray(kernelSize, kernelSize, opencv.CV_32F, advancedParams.customKernel);
-          opencv.filter2D(src, dst, -1, kernel, new opencv.Point(-1, -1), 0, borderType);
-          kernel.delete();
-          return dst;
-        }
-      } catch (error) {
-        console.warn('Error applying custom kernel, falling back to GaussianBlur:', error);
-        // Fall through to default GaussianBlur
+      // Create custom kernel matrix
+      let kernel;
+      
+      // Handle different formats of custom kernel data
+      if (Array.isArray(advancedParams.customKernel)) {
+        // Handle 1D array (3x3 flattened)
+        const size = Math.sqrt(advancedParams.customKernel.length);
+        kernel = cv.matFromArray(size, size, cv.CV_32FC1, advancedParams.customKernel);
+      } else if (advancedParams.customKernel.values) {
+        // Handle kernel value object with width, height, values
+        const { width, height, values } = advancedParams.customKernel;
+        // Flatten 2D array to 1D
+        const flatValues = values.flat();
+        kernel = cv.matFromArray(height, width, cv.CV_32FC1, flatValues);
+      } else {
+        throw new Error('Invalid custom kernel format');
       }
+      
+      // Apply custom kernel filter
+      cv.filter2D(src, dst, -1, kernel, new cv.Point(-1, -1), 0, borderType);
+      
+      // Clean up kernel matrix
+      kernel.delete();
+    } 
+    // If the kernel type is 'custom', we should use a provided custom kernel directly
+    else if (advancedParams?.kernelType === 'custom' && advancedParams?.customKernel) {
+      // Create custom kernel matrix
+      let kernel;
+      
+      // Handle different formats of custom kernel data
+      if (Array.isArray(advancedParams.customKernel)) {
+        // Handle 1D array (3x3 flattened)
+        const size = Math.sqrt(advancedParams.customKernel.length);
+        kernel = cv.matFromArray(size, size, cv.CV_32FC1, advancedParams.customKernel);
+      } else if (advancedParams.customKernel.values) {
+        // Handle kernel value object with width, height, values
+        const { width, height, values } = advancedParams.customKernel;
+        // Flatten 2D array to 1D
+        const flatValues = values.flat();
+        kernel = cv.matFromArray(height, width, cv.CV_32FC1, flatValues);
+      } else {
+        throw new Error('Invalid custom kernel format');
+      }
+      
+      // Apply custom kernel filter
+      cv.filter2D(src, dst, -1, kernel, new cv.Point(-1, -1), 0, borderType);
+      
+      // Clean up kernel matrix
+      kernel.delete();
+    }
+    // Use specific kernel types
+    else if (advancedParams?.kernelType === 'box') {
+      // Box blur uses a simple averaging kernel
+      const kernelSize = new cv.Size(ksize, ksize);
+      cv.boxFilter(src, dst, -1, kernelSize, new cv.Point(-1, -1), true, borderType);
+    }
+    // Default to Gaussian blur with optional sigma parameters
+    else {
+      // Create kernel size
+      const kernelSize = new cv.Size(ksize, ksize);
+      
+      // Get sigma values
+      const sigmaX = advancedParams?.sigmaX !== undefined ? advancedParams.sigmaX : 0;
+      const sigmaY = advancedParams?.sigmaY !== undefined ? advancedParams.sigmaY : 0;
+      
+      // Apply Gaussian blur
+      cv.GaussianBlur(src, dst, kernelSize, sigmaX, sigmaY, borderType);
     }
     
-    // Apply standard Gaussian blur with the provided parameters
-    opencv.GaussianBlur(src, dst, ksize_obj, sigmaX, sigmaY, borderType);
+    // Return result
     return dst;
+    
   } catch (error) {
-    dst.delete();
-    throw new Error(`Blur transformation failed: ${error}`);
+    console.error('Error in applyBlur:', error);
+    throw error;
   }
 };
 
@@ -1209,6 +1213,42 @@ export const processImage = async (
             break;
           }
             
+          case 'customBlur': {
+            diagnosticInfo.steps.push({ name: 'apply_custom_blur', startTime: Date.now() });
+            const kernelType = transformation.parameters?.find(p => p.name === 'kernelType')?.value as string;
+            const kernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const customKernel = transformation.parameters?.find(p => p.name === 'customKernel')?.value as any;
+            
+            // Set up advanced parameters
+            const advancedParams: Record<string, any> = {
+              ...(transformation.metadata?.advancedParameters || {}),
+              kernelType: kernelType
+            };
+            
+            // If it's custom kernel type, pass the custom kernel parameter
+            if (kernelType === 'custom' && customKernel) {
+              advancedParams.useCustomKernel = true;
+              advancedParams.customKernel = customKernel;
+            }
+            // Or if it's configured to use a custom kernel override
+            else if (advancedParams.useCustomKernel && advancedParams.customKernel) {
+              // Make sure we keep the custom kernel data
+            }
+            
+            // Apply blur with properly configured options
+            result = applyBlur(src, kernelSize, advancedParams);
+            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
+            
+            if (includeIntermediateResults) {
+              intermediates.push({
+                stage: 'customBlur',
+                imageData: matToImageData(result),
+                description: `Custom blur with ${kernelType} kernel (size: ${kernelSize})`
+              });
+            }
+            break;
+          }
+            
           default: {
             // For custom or unsupported transformations, return the original image
             if (src) {
@@ -1279,7 +1319,7 @@ export const processImage = async (
       }
     };
   }
-};
+}; 
 
 // Define a fallback function for when OpenCV isn't available
 function applyTransformationWithoutOpenCV(
@@ -1419,78 +1459,113 @@ export function applyTransformation(
   inputCanvas: HTMLCanvasElement | null,
   cv: any
 ): { canvas: HTMLCanvasElement | null; intermediates: IntermediateResult[] } {
-  if (!inputCanvas) {
-    throw new Error('Input canvas is required');
-  }
-
-  if (!cv) {
-    return applyTransformationWithoutOpenCV(transformation, inputCanvas);
-  }
-
+  if (!inputCanvas) return { canvas: null, intermediates: [] };
+  
   const intermediates: IntermediateResult[] = [];
-  let outputCanvas: HTMLCanvasElement | null = null;
-
+  let outputCanvas = document.createElement('canvas');
+  outputCanvas.width = inputCanvas.width;
+  outputCanvas.height = inputCanvas.height;
+  
   try {
-    // Convert input canvas to OpenCV format
-    const src = cv.imread(inputCanvas);
-    let dst = new cv.Mat();
+    // Get parameters for the transformation
+    const params = transformation.parameters || [];
+    const paramMap: Record<string, any> = {};
+    params.forEach(p => paramMap[p.name] = p.value);
     
-    // Apply transformation based on type
+    // Get image data from input canvas
+    const ctx = inputCanvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Could not get 2D context');
+    const imgData = ctx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
+    
+    // Convert to OpenCV matrix
+    const src = imageDataToMat(imgData);
+    let dst: any;
+    
+    // Apply the transformation based on type
     switch (transformation.type) {
       case 'grayscale':
-        // Convert to grayscale
-        cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
-        cv.cvtColor(dst, dst, cv.COLOR_GRAY2RGBA, 0); // Convert back to RGBA for display
+        dst = applyGrayscale(src);
         break;
-
+        
       case 'blur':
-        const kernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
-        const blurKernelSize = new cv.Size(kernelSize, kernelSize);
-        cv.GaussianBlur(src, dst, blurKernelSize, 0, 0, cv.BORDER_DEFAULT);
+        const blurKernelSize = paramMap.kernelSize as number;
+        // Pass advanced parameters from metadata if available
+        dst = applyBlur(src, blurKernelSize, transformation.metadata?.advancedParameters);
         break;
-
-      case 'customBlur':
-        handleCustomBlur(cv, src, dst, transformation, intermediates);
+        
+      case 'customBlur': {
+        const kernelType = paramMap.kernelType as string;
+        const kernelSize = paramMap.kernelSize as number || 3;
+        const customKernel = paramMap.customKernel;
+        
+        // Set up advanced parameters
+        const advancedParams: Record<string, any> = {
+          ...(transformation.metadata?.advancedParameters || {}),
+          kernelType: kernelType
+        };
+        
+        // If it's custom kernel type, pass the custom kernel parameter
+        if (kernelType === 'custom' && customKernel) {
+          advancedParams.useCustomKernel = true;
+          advancedParams.customKernel = customKernel;
+        }
+        // Or if it's configured to use a custom kernel override
+        else if (advancedParams.useCustomKernel && advancedParams.customKernel) {
+          // Make sure we keep the custom kernel data
+        }
+        
+        // Apply blur with properly configured options
+        dst = applyBlur(src, kernelSize, advancedParams);
         break;
-
-      case 'sharpen':
-        const strength = transformation.parameters?.find(p => p.name === 'strength')?.value as number || 0.5;
-        const radius = transformation.parameters?.find(p => p.name === 'radius')?.value as number || 1;
+      }
         
-        // Create a blurred version for unsharp masking
-        const blurred = new cv.Mat();
-        const sharpenKernelSize = new cv.Size(radius * 2 + 1, radius * 2 + 1);
-        cv.GaussianBlur(src, blurred, sharpenKernelSize, 0);
-        
-        // Apply unsharp mask formula: dst = src + strength * (src - blurred)
-        cv.addWeighted(src, 1 + strength, blurred, -strength, 0, dst);
-        
-        // Clean up
-        blurred.delete();
+      case 'threshold':
+        const thresholdValue = paramMap.threshold as number;
+        dst = applyThreshold(src, thresholdValue);
         break;
-
-      // [Rest of the switch cases remain unchanged]
-      
+        
+      case 'laplacian':
+        const laplaceKernelSize = paramMap.kernelSize as number;
+        dst = applyLaplacian(src, laplaceKernelSize);
+        break;
+        
+      case 'sobel':
+        const sobelKernelSize = paramMap.kernelSize as number;
+        dst = applySobel(src, sobelKernelSize);
+        break;
+        
+      case 'canny':
+        const threshold1 = paramMap.threshold1 as number;
+        const threshold2 = paramMap.threshold2 as number;
+        dst = applyCanny(src, threshold1, threshold2);
+        break;
+        
       default:
-        // For unsupported transformations, just copy the input
-        src.copyTo(dst);
-        break;
+        throw new Error(`Transformation type ${transformation.type} not implemented`);
     }
-
-    // Create output canvas
-    outputCanvas = document.createElement('canvas');
-    cv.imshow(outputCanvas, dst);
-
-    // Clean up
-    src.delete();
-    dst.delete();
-
+    
+    // Convert result back to canvas
+    const outputCtx = outputCanvas.getContext('2d', { willReadFrequently: true });
+    if (!outputCtx) throw new Error('Could not get 2D context for output');
+    
+    // Convert the OpenCV matrix to ImageData and draw it on the output canvas
+    if (dst) {
+      const imgData = matToImageData(dst);
+      outputCtx.putImageData(imgData, 0, 0);
+      
+      // Clean up OpenCV matrices
+      src.delete();
+      dst.delete();
+    } else {
+      throw new Error('Transformation did not produce a result');
+    }
+    
+    return { canvas: outputCanvas, intermediates };
+    
   } catch (error) {
-    console.error('Error applying transformation:', error);
-    throw error;
+    console.error('Error in applyTransformation:', error);
+    return { canvas: null, intermediates: [] };
   }
-
-  return { canvas: outputCanvas, intermediates };
 }
 
 // Helper function to adjust an image channel for color adjustments

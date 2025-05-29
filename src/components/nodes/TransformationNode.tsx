@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Position } from 'reactflow';
 import { usePipeline } from '../../contexts/PipelineContext';
 import { processImage } from '../../utils/imageProcessing';
-import type { Transformation, TransformationParameter } from '../../utils/types';
+import type { Transformation, TransformationParameter, ParameterType, KernelValue } from '../../utils/types';
 import { AdjustmentsHorizontalIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, ExclamationTriangleIcon, InformationCircleIcon, EyeIcon, EyeSlashIcon, SparklesIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import type { IntermediateResult } from '../../utils/imageProcessing';
 import BaseNode from './BaseNode';
@@ -55,10 +55,72 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const handleUpdateParameterValue = (name: string, value: any) => {
     // Check if the parameter is kernel size and show warning if needed
     const isKernelSize = name === 'kernelSize';
+    const isCustomBlur = transformation.type === 'customBlur';
+    const kernelTypeParam = parameters.find(p => p.name === 'kernelType');
+    const isCustomKernelType = kernelTypeParam?.value === 'custom';
     
-    if (isKernelSize && transformation.metadata?.advancedParameters) {
+    // For normal transformations (not customBlur), show warning when changing kernel size with advanced params
+    if (isKernelSize && transformation.metadata?.advancedParameters && !isCustomBlur) {
       setIsKernelSizeChanging(true);
       return;
+    }
+    
+    // For customBlur with custom kernel type, kernel size changes don't affect the custom kernel
+    // So we don't need to show the warning in that case
+    if (isCustomBlur && isKernelSize && isCustomKernelType) {
+      // No need to show warning, kernel size doesn't apply for custom kernel type
+    }
+    
+    // For customBlur with other kernel types (gaussian, box), show warning when changing kernel size
+    // if there are advanced parameters
+    if (isCustomBlur && isKernelSize && !isCustomKernelType && transformation.metadata?.advancedParameters) {
+      setIsKernelSizeChanging(true);
+      return;
+    }
+    
+    // Special handling for kernel type changes in customBlur
+    if (isCustomBlur && name === 'kernelType' && value === 'custom') {
+      // Switching to custom kernel type, make sure we have a customKernel parameter
+      const hasCustomKernelParam = parameters.some(p => p.name === 'customKernel');
+      
+      if (!hasCustomKernelParam) {
+        // Create a default custom kernel if none exists
+        const defaultKernel: KernelValue = {
+          width: 3,
+          height: 3,
+          values: [
+            [1/9, 1/9, 1/9],
+            [1/9, 1/9, 1/9],
+            [1/9, 1/9, 1/9]
+          ],
+          normalize: true
+        };
+        
+        // Create a new custom kernel parameter
+        const newKernelParam: TransformationParameter = {
+          name: 'customKernel',
+          type: 'kernel',
+          value: defaultKernel
+        };
+        
+        // Add the custom kernel parameter to the transformation
+        const updatedParams = [
+          ...parameters.map(param => param.name === name ? { ...param, value } : param),
+          newKernelParam
+        ];
+        
+        // Update the transformation with the new parameters
+        const updatedTransformation: Transformation = {
+          ...transformation,
+          parameters: updatedParams
+        };
+        
+        updateNode(id, { transformation: updatedTransformation });
+        setParameters(updatedParams);
+        setProcessingSucceeded(false);
+        processingAttemptRef.current += 1;
+        return;
+      }
     }
 
     // Get a map of all parameter values for conditional rendering
@@ -148,7 +210,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     
     // Update the transformation in the context
     updateNode(id, { transformation: updatedTransformation });
-    
+
     // Reset processing state to force re-processing
     setProcessingSucceeded(false);
     processingAttemptRef.current += 1;
@@ -169,8 +231,8 @@ export default function TransformationNode({ id, data, selected }: Transformatio
         setError('Processing failed');
         setErrorDetails(nodeResult.error.message);
       } else {
-        setError(null);
-        setErrorDetails(null);
+      setError(null);
+      setErrorDetails(null);
       }
       
       // Update image URL
@@ -341,13 +403,13 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                 </div>
                 <div className="flex">
                   {/* Advanced Config Button */}
-                  <button
-                    onClick={openAdvancedConfig}
+                    <button
+                      onClick={openAdvancedConfig}
                     className={`p-1 mr-1 rounded-full hover:bg-gray-100 transition-colors text-gray-800`}
-                    title="Advanced Configuration"
-                  >
-                    <Cog6ToothIcon className="h-4 w-4" />
-                  </button>
+                      title="Advanced Configuration"
+                    >
+                      <Cog6ToothIcon className="h-4 w-4" />
+                    </button>
                   <button
                     onClick={() => setExpanded(!expanded)}
                     className={`p-1 rounded-full hover:bg-gray-100 transition-colors text-gray-800`}
@@ -542,7 +604,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       )}
     </>
   );
-}
+} 
 
 // Create a function to create data URLs for intermediate results
 const getIntermediateImageUrl = (imageData: ImageData): string => {
