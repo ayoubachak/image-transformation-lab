@@ -1,0 +1,51 @@
+/* Tooltip styles for better spacing and positioning */
+.react-tooltip {
+  --rt-color-dark: rgba(30, 41, 59, 0.95) !important; /* Slate 800 with transparency */
+  --rt-opacity: 1 !important;
+  --rt-transition-show-delay: 150ms !important;
+  --rt-transition-closing-delay: 150ms !important;
+  
+  /* Fix padding for better appearance */
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  
+  /* Add margin to prevent cutoff */
+  margin-top: 8px !important;
+  
+  /* Ensure tooltips are above other elements */
+  z-index: 1000 !important;
+  
+  /* Rounded corners */
+  border-radius: 6px !important;
+  
+  /* Better typography */
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  
+  /* Add subtle shadow */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  
+  /* Fix for tooltip positioning with parent scroll containers */
+  position: fixed !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* Override arrow positioning to prevent cutoff */
+.react-tooltip-arrow {
+  margin-top: 2px !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* Fix for popup visibility issues */
+.tooltip-fixed {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+/* Ensure tooltips render correctly in all scenarios */
+[data-tooltip-id] {
+  position: relative;
+} 

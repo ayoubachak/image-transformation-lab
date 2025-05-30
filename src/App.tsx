@@ -6,6 +6,8 @@ import LessonsPage from './pages/LessonsPage';
 import LessonDetailPage from './pages/LessonDetailPage';
 import LabPage from './pages/LabPage';
 import OpenCVInitializer from './components/OpenCVInitializer';
+import './components/styles/tooltipStyles.css';
+import './components/styles/modalStyles.css';
 
 function App() {
   return (

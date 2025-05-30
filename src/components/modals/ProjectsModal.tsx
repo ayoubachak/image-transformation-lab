@@ -177,7 +177,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all modal-content">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
@@ -221,7 +221,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
                         type="button"
                         onClick={handleSaveProject}
                         className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={loading || !projectName.trim()}
+                        disabled={!projectName.trim() || loading}
                       >
                         {loading ? 'Saving...' : currentProjectId ? 'Update Project' : 'Save Project'}
                       </button>

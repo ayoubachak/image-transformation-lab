@@ -1,0 +1,47 @@
+/* Modal styles for proper visibility and color contrast */
+
+/* Ensure all inputs in modals have proper text color */
+.modal-content input[type="text"],
+.modal-content input[type="search"],
+.modal-content input[type="email"],
+.modal-content input[type="number"],
+.modal-content input[type="password"],
+.modal-content select,
+.modal-content textarea {
+  color: #111827 !important; /* gray-900 */
+  background-color: white !important;
+}
+
+/* Ensure all buttons have proper text color */
+.modal-content button.bg-blue-600 {
+  color: white !important;
+}
+
+.modal-content button.bg-white,
+.modal-content button.bg-gray-50 {
+  color: #374151 !important; /* gray-700 */
+}
+
+.modal-content button.bg-red-600 {
+  color: white !important;
+}
+
+.modal-content button.bg-blue-100 {
+  color: #1d4ed8 !important; /* blue-700 */
+}
+
+/* Improve the dialog overall */
+.modal-content {
+  color: #111827;
+  background-color: white;
+}
+
+/* Ensure all headings are visible */
+.modal-content h1,
+.modal-content h2,
+.modal-content h3,
+.modal-content h4,
+.modal-content h5,
+.modal-content h6 {
+  color: #111827 !important; /* gray-900 */
+} 

@@ -123,7 +123,14 @@ export default function LabToolbar({
             >
               <PlusIcon className="h-5 w-5" />
             </button>
-            <Tooltip id="add-node-tooltip" place="bottom" offset={10}>
+            <Tooltip 
+              id="add-node-tooltip" 
+              place="bottom" 
+              offset={10}
+              className="tooltip-fixed"
+              delayShow={300}
+              positionStrategy="fixed"
+            >
               Add Node
             </Tooltip>
       
@@ -339,7 +346,14 @@ export default function LabToolbar({
           >
             <AdjustmentsHorizontalIcon className="h-5 w-5" />
           </button>
-          <Tooltip id="manage-pipeline-tooltip" place="bottom" offset={10}>
+          <Tooltip 
+            id="manage-pipeline-tooltip" 
+            place="bottom" 
+            offset={10}
+            className="tooltip-fixed"
+            delayShow={300}
+            positionStrategy="fixed"
+          >
             Manage Pipeline
           </Tooltip>
           
@@ -352,7 +366,14 @@ export default function LabToolbar({
           >
             <LinkIcon className="h-5 w-5" />
           </button>
-          <Tooltip id="connect-mode-tooltip" place="bottom" offset={10}>
+          <Tooltip 
+            id="connect-mode-tooltip" 
+            place="bottom" 
+            offset={10}
+            className="tooltip-fixed"
+            delayShow={300}
+            positionStrategy="fixed"
+          >
             Connect Nodes (C)
           </Tooltip>
           
@@ -365,7 +386,14 @@ export default function LabToolbar({
           >
             <NoSymbolIcon className="h-5 w-5" />
           </button>
-          <Tooltip id="disconnect-mode-tooltip" place="bottom" offset={10}>
+          <Tooltip 
+            id="disconnect-mode-tooltip" 
+            place="bottom" 
+            offset={10}
+            className="tooltip-fixed"
+            delayShow={300}
+            positionStrategy="fixed"
+          >
             Disconnect Nodes (D)
           </Tooltip>
           
@@ -383,7 +411,14 @@ export default function LabToolbar({
               >
                 <DocumentDuplicateIcon className="h-5 w-5" />
               </button>
-              <Tooltip id="duplicate-node-tooltip" place="bottom" offset={10}>
+              <Tooltip 
+                id="duplicate-node-tooltip" 
+                place="bottom" 
+                offset={10}
+                className="tooltip-fixed"
+                delayShow={300}
+                positionStrategy="fixed"
+              >
                 Duplicate Node (Ctrl+C)
               </Tooltip>
               
@@ -396,7 +431,14 @@ export default function LabToolbar({
               >
                 <TrashIcon className="h-5 w-5" />
               </button>
-              <Tooltip id="delete-node-tooltip" place="bottom" offset={10}>
+              <Tooltip 
+                id="delete-node-tooltip" 
+                place="bottom" 
+                offset={10}
+                className="tooltip-fixed"
+                delayShow={300}
+                positionStrategy="fixed"
+              >
                 Delete Node (Delete)
               </Tooltip>
             </>
@@ -416,7 +458,14 @@ export default function LabToolbar({
               >
                 <FolderIcon className="h-5 w-5" />
               </button>
-              <Tooltip id="save-project-tooltip" place="bottom" offset={10}>
+              <Tooltip 
+                id="save-project-tooltip" 
+                place="bottom" 
+                offset={10}
+                className="tooltip-fixed"
+                delayShow={300}
+                positionStrategy="fixed"
+              >
                 Save Project
               </Tooltip>
             
@@ -429,7 +478,14 @@ export default function LabToolbar({
               >
                 <FolderOpenIcon className="h-5 w-5" />
               </button>
-              <Tooltip id="load-project-tooltip" place="bottom" offset={10}>
+              <Tooltip 
+                id="load-project-tooltip" 
+                place="bottom" 
+                offset={10}
+                className="tooltip-fixed"
+                delayShow={300}
+                positionStrategy="fixed"
+              >
                 Load Project
               </Tooltip>
             </>
@@ -444,7 +500,14 @@ export default function LabToolbar({
           >
             <TrashIcon className="h-5 w-5" />
           </button>
-          <Tooltip id="clear-tooltip" place="bottom" offset={10}>
+          <Tooltip 
+            id="clear-tooltip" 
+            place="bottom" 
+            offset={10}
+            className="tooltip-fixed"
+            delayShow={300}
+            positionStrategy="fixed"
+          >
             Clear All
           </Tooltip>
           
@@ -457,7 +520,14 @@ export default function LabToolbar({
           >
             <QuestionMarkCircleIcon className="h-5 w-5" />
           </button>
-          <Tooltip id="help-tooltip" place="bottom" offset={10}>
+          <Tooltip 
+            id="help-tooltip" 
+            place="bottom" 
+            offset={10}
+            className="tooltip-fixed"
+            delayShow={300}
+            positionStrategy="fixed"
+          >
             Help
           </Tooltip>
         </div>
