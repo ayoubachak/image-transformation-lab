@@ -215,20 +215,66 @@ export class PipelineManager {
     const node = this.nodes.get(nodeId);
     if (!node) return false;
     
+    // Create a deep copy of the transformation if one is provided
+    let transformationUpdate = updates.transformation;
+    
+    if (transformationUpdate) {
+      // Deep clone transformation to avoid reference issues
+      const deepClonedTransformation = {
+        ...transformationUpdate,
+        // Ensure ID is preserved
+        id: nodeId,
+        // Deep clone parameters
+        parameters: transformationUpdate.parameters ? 
+          transformationUpdate.parameters.map(param => {
+            // Special handling for kernel parameters which have nested arrays
+            if (param.type === 'kernel' && param.name === 'customKernel' && param.value) {
+              const kernelValue = param.value as any;
+              return {
+                ...param,
+                value: {
+                  ...kernelValue,
+                  // Deep clone values array
+                  values: kernelValue.values ? 
+                    kernelValue.values.map((row: any) => [...row]) : 
+                    []
+                }
+              };
+            }
+            // Default parameter handling
+            return {...param};
+          }) : 
+          (transformationUpdate.parameters || []),
+        // Deep clone metadata if it exists
+        metadata: transformationUpdate.metadata ? {
+          ...transformationUpdate.metadata,
+          // Deep clone advanced parameters if they exist
+          advancedParameters: transformationUpdate.metadata.advancedParameters ?
+            JSON.parse(JSON.stringify(transformationUpdate.metadata.advancedParameters)) :
+            undefined
+        } : undefined,
+        // Preserve input nodes
+        inputNodes: transformationUpdate.inputNodes || node.transformation?.inputNodes || []
+      };
+      
+      transformationUpdate = deepClonedTransformation;
+    }
+    
     // Apply updates to the node
     const updatedNode: ImageProcessingNode = {
       ...node,
       ...updates,
-      // Handle special case for transformation to ensure proper structure
-      transformation: updates.transformation ? {
-        ...node.transformation,
-        ...updates.transformation,
-        id: nodeId,
-      } : node.transformation
+      // Use the deeply cloned transformation
+      transformation: transformationUpdate || node.transformation
     };
     
+    // Store the updated node
     this.nodes.set(nodeId, updatedNode);
     
+    // Log the update for debugging
+    console.log(`Node ${nodeId} updated:`, updatedNode);
+    
+    // Notify observers
     this.notifyObservers({
       type: PipelineEventType.NODE_UPDATED,
       payload: { nodeId, updates, node: updatedNode },
@@ -253,37 +299,100 @@ export class PipelineManager {
   public updateParameter(
     nodeId: string, 
     paramName: string, 
-    value: number | string | boolean
+    value: number | string | boolean | object
   ): boolean {
     const node = this.nodes.get(nodeId);
     if (!node || node.type !== 'transformation' || !node.transformation) {
       return false;
     }
     
-    // Find and update the parameter
-    const updatedParameters = node.transformation.parameters?.map(param => 
-      param.name === paramName ? { ...param, value } : param
-    ) || [];
+    console.log(`Updating parameter ${paramName} for node ${nodeId}:`, value);
     
-    // Update the node's transformation
-    const updatedTransformation = {
-      ...node.transformation,
-      parameters: updatedParameters
-    };
+    // Deep clone the value if it's an object (like a kernel)
+    let clonedValue = value;
+    if (typeof value === 'object' && value !== null) {
+      // Handle kernel type specifically
+      if ('values' in (value as any) && Array.isArray((value as any).values)) {
+        const kernelValue = value as any;
+        clonedValue = {
+          ...kernelValue,
+          values: kernelValue.values.map((row: any[]) => [...row])
+        };
+      } else {
+        // Generic deep clone for other object types
+        clonedValue = JSON.parse(JSON.stringify(value));
+      }
+    }
     
-    // Update the node
-    this.updateNode(nodeId, { transformation: updatedTransformation });
+    // Find the parameter to update
+    const paramIndex = node.transformation.parameters.findIndex(p => p.name === paramName);
     
-    // Invalidate this node and all downstream nodes
-    this.invalidateNodeAndDownstream(nodeId);
-    
-    // Start processing this node immediately
-    // This will also trigger processing of downstream nodes due to the improved processNode method
-    setTimeout(() => {
-      this.processNode(nodeId);
-    }, 0);
-    
-    return true;
+    if (paramIndex >= 0) {
+      // Update existing parameter
+      const updatedParams = [...node.transformation.parameters];
+      updatedParams[paramIndex] = {
+        ...updatedParams[paramIndex],
+        value: clonedValue
+      };
+      
+      // Create a deep copy of the transformation
+      const updatedTransformation = {
+        ...node.transformation,
+        parameters: updatedParams
+      };
+      
+      // Update the node
+      this.nodes.set(nodeId, {
+        ...node,
+        transformation: updatedTransformation
+      });
+      
+      // Notify observers
+      this.notifyObservers({
+        type: PipelineEventType.NODE_UPDATED,
+        payload: { nodeId },
+        timestamp: Date.now()
+      });
+      
+      // Force invalidation of the node when parameters change
+      this.invalidateNodeAndDownstream(nodeId);
+      
+      return true;
+    } else {
+      // Parameter doesn't exist, add it
+      const updatedParams = [...node.transformation.parameters];
+      updatedParams.push({
+        name: paramName,
+        type: typeof clonedValue === 'object' ? 
+          ('values' in (clonedValue as any) ? 'kernel' : 'object') : 
+          typeof clonedValue as any,
+        value: clonedValue
+      });
+      
+      // Create a deep copy of the transformation
+      const updatedTransformation = {
+        ...node.transformation,
+        parameters: updatedParams
+      };
+      
+      // Update the node
+      this.nodes.set(nodeId, {
+        ...node,
+        transformation: updatedTransformation
+      });
+      
+      // Notify observers
+      this.notifyObservers({
+        type: PipelineEventType.NODE_UPDATED,
+        payload: { nodeId },
+        timestamp: Date.now()
+      });
+      
+      // Force invalidation of the node when parameters change
+      this.invalidateNodeAndDownstream(nodeId);
+      
+      return true;
+    }
   }
 
   /**
@@ -524,13 +633,20 @@ export class PipelineManager {
     const node = this.nodes.get(nodeId);
     if (!node) return;
     
+    console.log(`Invalidating node ${nodeId} and downstream nodes`);
+    
+    // Clear the processing queue for this node
+    this.processingQueue.delete(nodeId);
+    
     // Reset the processing result for this node
     const currentResult = this.processingResults.get(nodeId);
     if (currentResult) {
       this.processingResults.set(nodeId, {
         ...currentResult,
         status: 'idle',
-        error: null
+        error: null,
+        // Clear the canvas to force complete reprocessing
+        canvas: null
       });
     }
     
@@ -544,12 +660,10 @@ export class PipelineManager {
     // Invalidate all downstream nodes recursively
     this.invalidateDownstreamNodes(nodeId);
     
-    // Process the node if it's not an input node (input nodes need to be processed manually)
-    if (node.type !== 'input') {
-      setTimeout(() => {
-        this.processNode(nodeId);
-      }, 0);
-    }
+    // Automatically start processing the pipeline
+    setTimeout(() => {
+      this.processPipeline();
+    }, 50);
   }
 
   /**
@@ -558,14 +672,21 @@ export class PipelineManager {
   private invalidateDownstreamNodes(nodeId: string): void {
     const downstreamNodes = this.getAllDownstreamNodes(nodeId);
     
+    console.log(`Invalidating downstream nodes of ${nodeId}:`, downstreamNodes);
+    
     // Mark all downstream nodes as invalidated
     downstreamNodes.forEach(id => {
+      // Clear the processing queue for this node
+      this.processingQueue.delete(id);
+      
       const result = this.processingResults.get(id);
       if (result) {
         this.processingResults.set(id, {
           ...result,
           status: 'idle',
-          error: null
+          error: null,
+          // Clear the canvas to force complete reprocessing
+          canvas: null
         });
         
         // Notify that this downstream node has been invalidated

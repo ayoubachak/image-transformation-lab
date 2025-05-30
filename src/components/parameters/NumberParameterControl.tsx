@@ -30,24 +30,16 @@ export default function NumberParameterControl({
   
   // Handle direct input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value.trim();
-    if (inputValue === '') return;
-    
-    const numValue = Number(inputValue);
-    if (isNaN(numValue)) return;
-    
-    // Clamp value to min/max
-    const clampedValue = Math.min(Math.max(numValue, min), max);
-    onChange(parameter.name, clampedValue);
+    const newValue = parseFloat(e.target.value);
+    if (!isNaN(newValue)) {
+      onChange(parameter.name, newValue);
+    }
   };
   
-  // Calculate percentage for background gradient
-  const percentage = ((value - min) / (max - min)) * 100;
-  
   return (
-    <div>
+    <div className="mb-2">
       <div className="flex justify-between items-center">
-        <div className="flex-grow mr-2">
+        <div className="flex items-center space-x-2 w-full">
           <input
             type="range"
             min={min}
@@ -55,23 +47,23 @@ export default function NumberParameterControl({
             step={step}
             value={value}
             onChange={handleSliderChange}
-            className="w-full h-2 appearance-none rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-300 [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-200"
-            style={{
-              background: `linear-gradient(to right, ${themeColor.accentColor}, ${themeColor.accentColor} ${percentage}%, #e5e7eb ${percentage}%, #e5e7eb)`
-            }}
             disabled={disabled}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-blue-300"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${themeColor.accentColor} 0%, ${themeColor.accentColor} ${((value - min) / (max - min)) * 100}%, #e5e7eb ${((value - min) / (max - min)) * 100}%, #e5e7eb 100%)`
+            }}
+          />
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={handleInputChange}
+            disabled={disabled}
+            className="w-16 p-1 border border-gray-300 rounded-md text-sm text-center text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:bg-gray-100"
           />
         </div>
-        <input
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={handleInputChange}
-          className="w-16 p-1 text-right border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          disabled={disabled}
-        />
       </div>
       <div className="flex justify-between text-xs text-gray-500 mt-1">
         <span>{min}</span>

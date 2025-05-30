@@ -26,19 +26,21 @@ export default function SelectParameterControl({
   };
   
   return (
-    <select
-      value={value}
-      onChange={handleChange}
-      className={`w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`}
-      disabled={disabled}
-    >
-      {options.map((option) => (
-        <option key={option} value={option} className="text-gray-900 bg-white">
-          {option}
-        </option>
-      ))}
-    </select>
+    <div className="mb-2">
+      <select
+        value={value}
+        onChange={handleChange}
+        disabled={disabled}
+        className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:bg-gray-100"
+      >
+        {options.map(option => (
+          <option key={option} value={option} className="text-gray-900 bg-white">
+            {typeof option === 'string' 
+              ? option.charAt(0).toUpperCase() + option.slice(1) 
+              : option}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 } 

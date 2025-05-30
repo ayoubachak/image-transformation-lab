@@ -427,6 +427,7 @@ export const applyBlur = (src: any, ksize: number, advancedParams?: Record<strin
       kernelType: advancedParams?.kernelType,
       useCustomKernel: advancedParams?.useCustomKernel,
       hasCustomKernel: advancedParams?.customKernel ? 'yes' : 'no',
+      customKernelData: advancedParams?.customKernelData ? 'available' : 'not available',
       sigmaX: advancedParams?.sigmaX,
       sigmaY: advancedParams?.sigmaY,
       borderType: advancedParams?.borderType
@@ -449,6 +450,7 @@ export const applyBlur = (src: any, ksize: number, advancedParams?: Record<strin
     
     // Check if we're using a custom kernel
     if (advancedParams?.useCustomKernel && advancedParams?.customKernel) {
+      console.log('Using custom kernel:', advancedParams.customKernel);
       // Create custom kernel matrix
       let kernel;
       
@@ -462,6 +464,7 @@ export const applyBlur = (src: any, ksize: number, advancedParams?: Record<strin
         const { width, height, values } = advancedParams.customKernel;
         // Flatten 2D array to 1D
         const flatValues = values.flat();
+        console.log(`Creating kernel matrix: ${width}x${height}, values:`, flatValues);
         kernel = cv.matFromArray(height, width, cv.CV_32FC1, flatValues);
       } else {
         throw new Error('Invalid custom kernel format');
@@ -474,30 +477,39 @@ export const applyBlur = (src: any, ksize: number, advancedParams?: Record<strin
       kernel.delete();
     } 
     // If the kernel type is 'custom', we should use a provided custom kernel directly
-    else if (advancedParams?.kernelType === 'custom' && advancedParams?.customKernel) {
-      // Create custom kernel matrix
+    else if (advancedParams?.kernelType === 'custom') {
       let kernel;
+      let customKernelData = null;
       
-      // Handle different formats of custom kernel data
-      if (Array.isArray(advancedParams.customKernel)) {
-        // Handle 1D array (3x3 flattened)
-        const size = Math.sqrt(advancedParams.customKernel.length);
-        kernel = cv.matFromArray(size, size, cv.CV_32FC1, advancedParams.customKernel);
-      } else if (advancedParams.customKernel.values) {
-        // Handle kernel value object with width, height, values
-        const { width, height, values } = advancedParams.customKernel;
-        // Flatten 2D array to 1D
-        const flatValues = values.flat();
-        kernel = cv.matFromArray(height, width, cv.CV_32FC1, flatValues);
-      } else {
-        throw new Error('Invalid custom kernel format');
+      // First try to get from customKernel parameter
+      if (advancedParams.customKernel && advancedParams.customKernel.values) {
+        customKernelData = advancedParams.customKernel;
+        console.log('Using customKernel parameter for custom kernel');
+      } 
+      // Then try to get from customKernelData in advanced parameters
+      else if (advancedParams.customKernelData && advancedParams.customKernelData.values) {
+        customKernelData = advancedParams.customKernelData;
+        console.log('Using customKernelData from advanced parameters for custom kernel');
       }
       
-      // Apply custom kernel filter
-      cv.filter2D(src, dst, -1, kernel, new cv.Point(-1, -1), 0, borderType);
-      
-      // Clean up kernel matrix
-      kernel.delete();
+      if (customKernelData) {
+        const { width, height, values } = customKernelData;
+        // Flatten 2D array to 1D
+        const flatValues = values.flat();
+        console.log(`Creating kernel matrix: ${width}x${height}, values:`, flatValues);
+        kernel = cv.matFromArray(height, width, cv.CV_32FC1, flatValues);
+        
+        // Apply custom kernel filter
+        cv.filter2D(src, dst, -1, kernel, new cv.Point(-1, -1), 0, borderType);
+        
+        // Clean up kernel matrix
+        kernel.delete();
+      } else {
+        console.warn('No valid custom kernel data found, falling back to box blur');
+        // Fallback to box blur
+        const boxSize = new cv.Size(ksize, ksize);
+        cv.boxFilter(src, dst, -1, boxSize, new cv.Point(-1, -1), true, borderType);
+      }
     }
     // Use specific kernel types
     else if (advancedParams?.kernelType === 'box') {
@@ -1214,7 +1226,6 @@ export const processImage = async (
           }
             
           case 'customBlur': {
-            diagnosticInfo.steps.push({ name: 'apply_custom_blur', startTime: Date.now() });
             const kernelType = transformation.parameters?.find(p => p.name === 'kernelType')?.value as string;
             const kernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
             const customKernel = transformation.parameters?.find(p => p.name === 'customKernel')?.value as any;
@@ -1227,25 +1238,19 @@ export const processImage = async (
             
             // If it's custom kernel type, pass the custom kernel parameter
             if (kernelType === 'custom' && customKernel) {
+              console.log('Using custom kernel in processing:', customKernel);
               advancedParams.useCustomKernel = true;
               advancedParams.customKernel = customKernel;
             }
-            // Or if it's configured to use a custom kernel override
-            else if (advancedParams.useCustomKernel && advancedParams.customKernel) {
-              // Make sure we keep the custom kernel data
+            // Or if it's configured to use a custom kernel override from advanced parameters
+            else if (advancedParams.customKernelData) {
+              console.log('Using custom kernel data from advanced parameters:', advancedParams.customKernelData);
+              advancedParams.useCustomKernel = true;
+              advancedParams.customKernel = advancedParams.customKernelData;
             }
             
             // Apply blur with properly configured options
             result = applyBlur(src, kernelSize, advancedParams);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'customBlur',
-                imageData: matToImageData(result),
-                description: `Custom blur with ${kernelType} kernel (size: ${kernelSize})`
-              });
-            }
             break;
           }
             
@@ -1506,12 +1511,15 @@ export function applyTransformation(
         
         // If it's custom kernel type, pass the custom kernel parameter
         if (kernelType === 'custom' && customKernel) {
+          console.log('Using custom kernel in processing:', customKernel);
           advancedParams.useCustomKernel = true;
           advancedParams.customKernel = customKernel;
         }
-        // Or if it's configured to use a custom kernel override
-        else if (advancedParams.useCustomKernel && advancedParams.customKernel) {
-          // Make sure we keep the custom kernel data
+        // Or if it's configured to use a custom kernel override from advanced parameters
+        else if (advancedParams.customKernelData) {
+          console.log('Using custom kernel data from advanced parameters:', advancedParams.customKernelData);
+          advancedParams.useCustomKernel = true;
+          advancedParams.customKernel = advancedParams.customKernelData;
         }
         
         // Apply blur with properly configured options

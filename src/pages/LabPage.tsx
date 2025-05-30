@@ -43,7 +43,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
       {
         name: 'kernelType',
         type: 'select',
-        value: 'gaussian',
+        value: 'custom',
         options: ['box', 'gaussian', 'custom'],
         label: 'Kernel Type',
         description: 'Select the type of blur kernel to use'
@@ -59,6 +59,20 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         description: 'Size of the convolution kernel',
         dependsOn: 'kernelType',
         showIf: (params) => params.kernelType !== 'custom'
+      },
+      {
+        name: 'customKernel',
+        type: 'kernel',
+        value: {
+          width: 3,
+          height: 3,
+          values: [
+            [1/9, 1/9, 1/9],
+            [1/9, 1/9, 1/9],
+            [1/9, 1/9, 1/9]
+          ],
+          normalize: true
+        }
       }
     ],
     metadata: {

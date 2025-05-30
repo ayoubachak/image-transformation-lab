@@ -12,6 +12,46 @@ interface TransformConfigModalProps {
   onReset: () => void;
 }
 
+// Add a function to initialize kernel values from either transformation or advanced parameters
+const initializeKernelValues = (transformation: Transformation) => {
+  // Check for custom kernel in parameters
+  const customKernelParam = transformation.parameters?.find(p => p.name === 'customKernel');
+  
+  // If we have a custom kernel parameter, use it
+  if (customKernelParam?.value) {
+    const kernel = customKernelParam.value as KernelValue;
+    return {
+      values: kernel.values.map(row => [...row]), // Deep clone
+      width: kernel.width || 3,
+      height: kernel.height || 3,
+      normalize: kernel.normalize !== false
+    };
+  }
+  
+  // Check for custom kernel in advanced parameters
+  const advancedKernel = transformation.metadata?.advancedParameters?.customKernelData;
+  if (advancedKernel) {
+    return {
+      values: advancedKernel.values.map((row: number[]) => [...row]), // Deep clone
+      width: advancedKernel.width || 3, 
+      height: advancedKernel.height || 3,
+      normalize: advancedKernel.normalize !== false
+    };
+  }
+  
+  // Default values if no custom kernel is found
+  return {
+    values: [
+      [1/9, 1/9, 1/9],
+      [1/9, 1/9, 1/9],
+      [1/9, 1/9, 1/9]
+    ],
+    width: 3,
+    height: 3,
+    normalize: true
+  };
+};
+
 export default function TransformConfigModal({
   isOpen,
   onClose,
@@ -23,25 +63,17 @@ export default function TransformConfigModal({
     JSON.parse(JSON.stringify(transformation))
   );
   
-  // Clone the current kernel for custom blur editing
-  const [kernelValues, setKernelValues] = useState<number[][]>(() => {
-    const kernel = transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue;
-    return kernel?.values || [
-      [1/9, 1/9, 1/9],
-      [1/9, 1/9, 1/9],
-      [1/9, 1/9, 1/9]
-    ];
-  });
+  // Initialize kernel state from transformation or advanced parameters
+  const [kernelState, setKernelState] = useState(() => initializeKernelValues(transformation));
   
+  // Extract values for convenience
+  const [kernelValues, setKernelValues] = useState<number[][]>(kernelState.values);
   const [kernelSize, setKernelSize] = useState({
-    width: (transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue)?.width || 3,
-    height: (transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue)?.height || 3
+    width: kernelState.width,
+    height: kernelState.height
   });
+  const [normalize, setNormalize] = useState(kernelState.normalize);
   
-  const [normalize, setNormalize] = useState(
-    (transformation.parameters?.find(p => p.name === 'customKernel')?.value as KernelValue)?.normalize !== false
-  );
-
   // Additional advanced parameters for different transformation types
   const [advancedParameters, setAdvancedParameters] = useState<Record<string, any>>({});
   
@@ -61,12 +93,49 @@ export default function TransformConfigModal({
     return param;
   };
 
+  // Update kernel state when any kernel value changes
+  useEffect(() => {
+    setKernelState({
+      values: kernelValues,
+      width: kernelSize.width,
+      height: kernelSize.height,
+      normalize
+    });
+  }, [kernelValues, kernelSize, normalize]);
+
   // Update when the source transformation changes
   useEffect(() => {
-    setEditedTransformation({
+    // Create a deep copy of the transformation to prevent reference issues
+    const deepCopy = {
       ...transformation,
-      parameters: [...(transformation.parameters || [])].map(param => ({ ...param }))
+      parameters: [...(transformation.parameters || [])].map(param => {
+        // Handle deep copying for complex objects like kernels
+        if (param.name === 'customKernel' && param.type === 'kernel') {
+          const kernelValue = param.value as KernelValue;
+          return {
+            ...param,
+            value: {
+              ...kernelValue,
+              // Make sure to deep clone the values array
+              values: kernelValue.values?.map(row => [...row]) || []
+            }
+          };
+        }
+        return { ...param };
+      })
+    };
+    
+    setEditedTransformation(deepCopy);
+    
+    // Update kernel state from the transformation
+    const newKernelState = initializeKernelValues(transformation);
+    setKernelState(newKernelState);
+    setKernelValues(newKernelState.values);
+    setKernelSize({
+      width: newKernelState.width,
+      height: newKernelState.height
     });
+    setNormalize(newKernelState.normalize);
     
     // Initialize default advanced parameters based on transformation type
     let defaultAdvancedParams = {};
@@ -125,7 +194,7 @@ export default function TransformConfigModal({
         setAdvancedParameters(defaultAdvancedParams);
       } else {
         // Use the stored advanced parameters, with defaults as fallback
-      setAdvancedParameters({
+        setAdvancedParameters({
           ...defaultAdvancedParams,
           ...transformation.metadata.advancedParameters
         });
@@ -154,36 +223,90 @@ export default function TransformConfigModal({
 
   // Handle advanced parameter changes
   const handleAdvancedParamChange = (name: string, value: any) => {
-    setAdvancedParameters({
-      ...advancedParameters,
+    setAdvancedParameters(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
     
     setHasChanges(true);
   };
 
+  // Update kernel values (from CustomBlurConfigPanel)
+  const handleKernelChange = (
+    values: number[][],
+    size: { width: number, height: number },
+    shouldNormalize: boolean
+  ) => {
+    // Update local kernel state
+    setKernelValues(values.map(row => [...row])); // Deep clone
+    setKernelSize(size);
+    setNormalize(shouldNormalize);
+    setHasChanges(true);
+    
+    console.log("TransformConfigModal: Kernel updated", {
+      width: size.width,
+      height: size.height,
+      normalize: shouldNormalize,
+      values: values[0]
+    });
+  };
+
   // Handle saving the configuration
   const handleSave = () => {
-    // Update kernel values in the edited transformation
-    const updatedTransformation = { ...editedTransformation };
+    console.log("TransformConfigModal - Starting save operation with:", {
+      type: transformation.type,
+      id: transformation.id,
+      kernelState
+    });
+    
+    // Create a deep copy of the transformation to avoid reference issues
+    const updatedTransformation = { 
+      ...editedTransformation,
+      // Ensure we properly clone all parameters
+      parameters: [...editedTransformation.parameters].map(param => {
+        // Special handling for complex object types like kernels
+        if (param.type === 'kernel' && param.name === 'customKernel' && param.value) {
+          // Deep clone kernel values
+          const kernelValue = param.value as KernelValue;
+          return {
+            ...param,
+            value: {
+              ...kernelValue,
+              values: kernelValue.values.map(row => [...row])
+            }
+          };
+        }
+        return {...param};
+      })
+    };
     
     // Handle specific parameter updates based on transformation type
     if (transformation.type === 'customBlur') {
       // Find the customKernel parameter or create one if it doesn't exist
-      const kernelParam = updatedTransformation.parameters.find(p => p.name === 'customKernel');
+      const kernelParamIndex = updatedTransformation.parameters.findIndex(p => p.name === 'customKernel');
+      const kernelTypeParam = updatedTransformation.parameters.find(p => p.name === 'kernelType');
       
-      if (transformation.parameters.find(p => p.name === 'kernelType')?.value === 'custom') {
-        // For custom kernel type, we need to save the full kernel matrix
-        const kernelData = {
-          width: kernelSize.width,
-          height: kernelSize.height,
-          values: kernelValues,
-          normalize
-        };
-        
-        if (kernelParam) {
-          // Update existing parameter
-          kernelParam.value = kernelData;
+      // IMPORTANT: Always ensure we have the latest kernel values from kernelState
+      const kernelData = {
+        width: kernelState.width,
+        height: kernelState.height,
+        // Make sure to create a new deep copy of the values
+        values: kernelState.values.map(row => [...row]),
+        normalize: kernelState.normalize
+      };
+      
+      console.log("Saving kernel data:", kernelData);
+      
+      // Store in parameters if kernel type is 'custom'
+      if (kernelTypeParam?.value === 'custom') {
+        if (kernelParamIndex >= 0) {
+          // Update existing parameter (create a new object to ensure reference changes)
+          updatedTransformation.parameters[kernelParamIndex] = {
+            ...updatedTransformation.parameters[kernelParamIndex],
+            type: 'kernel',
+            name: 'customKernel',
+            value: kernelData
+          };
         } else {
           // Add new parameter
           updatedTransformation.parameters.push({
@@ -192,22 +315,43 @@ export default function TransformConfigModal({
             value: kernelData
           });
         }
-      } else if (advancedParameters.useCustomKernel && advancedParameters.customKernel) {
-        // For Gaussian/Box with custom override
-        // Store the custom kernel in advanced parameters
-        advancedParameters.customKernelData = {
-          values: advancedParameters.customKernel,
-          normalize: true
-        };
+      }
+      
+      // For all kernel types, store custom kernel in advanced parameters
+      // This ensures we keep the values even when switching between kernel types
+      const advancedParamsCopy = {...advancedParameters};
+      advancedParamsCopy.customKernelData = {
+        width: kernelState.width,
+        height: kernelState.height,
+        values: kernelState.values.map(row => [...row]),
+        normalize: kernelState.normalize
+      };
+      
+      // Add advanced parameters metadata for all transformation types that have them
+      if (Object.keys(advancedParamsCopy).length > 0) {
+        // Create or update metadata (with deep copying for any array values)
+        updatedTransformation.metadata = updatedTransformation.metadata || {};
+        updatedTransformation.metadata.advancedParameters = JSON.parse(JSON.stringify(advancedParamsCopy));
+      }
+    } else {
+      // Add advanced parameters metadata for all transformation types that have them
+      if (Object.keys(advancedParameters).length > 0) {
+        // Create or update metadata (with deep copying for any array values)
+        updatedTransformation.metadata = updatedTransformation.metadata || {};
+        updatedTransformation.metadata.advancedParameters = JSON.parse(JSON.stringify(advancedParameters));
       }
     }
     
-    // Add advanced parameters metadata for all transformation types that have them
-    if (Object.keys(advancedParameters).length > 0) {
-      // Create or update metadata
-      updatedTransformation.metadata = updatedTransformation.metadata || {};
-      updatedTransformation.metadata.advancedParameters = { ...advancedParameters };
-    }
+    // Preserve the original ID from the transformation we're editing
+    updatedTransformation.id = transformation.id;
+    
+    // Preserve inputNodes (important for node connections)
+    updatedTransformation.inputNodes = transformation.inputNodes;
+    
+    // Debug: Check if the transformation ID is being preserved
+    console.log('Original transformation ID:', transformation.id);
+    console.log('Updated transformation ID:', updatedTransformation.id);
+    console.log('Updated transformation:', updatedTransformation);
     
     // Save the updated transformation
     onSave(updatedTransformation);
@@ -220,12 +364,50 @@ export default function TransformConfigModal({
     if (hasChanges) {
       setShowDiscardWarning(true);
     } else {
+      // Restore original kernel type if needed
+      if (transformation.type === 'customBlur' && 
+          advancedParameters?.originalKernelType && 
+          transformation.parameters.find(p => p.name === 'kernelType')?.value === 'custom') {
+        
+        // Create a copy with the original kernel type restored
+        const restoredTransformation = {
+          ...transformation,
+          parameters: transformation.parameters.map(param => 
+            param.name === 'kernelType' 
+              ? { ...param, value: advancedParameters.originalKernelType } 
+              : { ...param }
+          )
+        };
+        
+        // Apply the change
+        onSave(restoredTransformation);
+      }
+      
       onClose();
     }
   };
 
   // Handle discarding changes
   const handleDiscard = () => {
+    // Restore original kernel type if needed
+    if (transformation.type === 'customBlur' && 
+        advancedParameters?.originalKernelType && 
+        transformation.parameters.find(p => p.name === 'kernelType')?.value === 'custom') {
+      
+      // Create a copy with the original kernel type restored
+      const restoredTransformation = {
+        ...transformation,
+        parameters: transformation.parameters.map(param => 
+          param.name === 'kernelType' 
+            ? { ...param, value: advancedParameters.originalKernelType } 
+            : { ...param }
+        )
+      };
+      
+      // Apply the change
+      onSave(restoredTransformation);
+    }
+    
     setShowDiscardWarning(false);
     setHasChanges(false);
     onClose();
@@ -246,16 +428,7 @@ export default function TransformConfigModal({
         return renderGaussianBlurConfig();
         
       case 'customBlur':
-        return (
-          <CustomBlurConfigPanel
-            transformation={editedTransformation}
-            parameters={editedTransformation.parameters}
-            advancedParameters={advancedParameters}
-            onParameterChange={handleParameterChange}
-            onAdvancedParamChange={handleAdvancedParamChange}
-            renderParameterControl={renderParameterControl}
-          />
-        );
+        return renderCustomBlurConfig();
         
       case 'threshold':
         return renderThresholdConfig();
@@ -337,7 +510,7 @@ export default function TransformConfigModal({
             <select
               value={value as string}
               onChange={(e) => handleParameterChange(name, e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {options?.map((option) => (
                 <option key={option} value={option} className="text-gray-900 bg-white">
@@ -351,8 +524,8 @@ export default function TransformConfigModal({
       case 'boolean':
         return (
           <div className="mb-4 flex items-center" key={name}>
-              <input
-                type="checkbox"
+            <input
+              type="checkbox"
               id={name}
               checked={value as boolean}
               onChange={(e) => handleParameterChange(name, e.target.checked)}
@@ -360,7 +533,7 @@ export default function TransformConfigModal({
             />
             <label htmlFor={name} className="ml-2 block text-sm font-medium text-gray-800">
               {displayLabel}
-              </label>
+            </label>
           </div>
         );
         
@@ -482,7 +655,7 @@ export default function TransformConfigModal({
                 </p>
                 <div className="bg-white p-2 rounded text-center mb-3">
                   <code>Laplacian(f) = ∂²f/∂x² + ∂²f/∂y²</code>
-          </div>
+                </div>
                 <p>
                   In digital image processing, the Laplacian is approximated using a kernel such as:
                 </p>
@@ -492,7 +665,7 @@ export default function TransformConfigModal({
                     [ 1 -4  1 ]<br />
                     [ 0  1  0 ]
                   </code>
-            </div>
+                </div>
               </>
             ) : (
               <>
@@ -501,23 +674,23 @@ export default function TransformConfigModal({
                   It consists of two kernels for horizontal (Gx) and vertical (Gy) gradients:
                 </p>
                 <div className="grid grid-cols-2 gap-4 bg-white p-2 rounded text-center mb-3">
-        <div>
+                  <div>
                     <p className="font-medium mb-1">Horizontal (Gx)</p>
                     <code>
                       [ -1  0  1 ]<br />
                       [ -2  0  2 ]<br />
                       [ -1  0  1 ]
                     </code>
-          </div>
-        <div>
+                  </div>
+                  <div>
                     <p className="font-medium mb-1">Vertical (Gy)</p>
                     <code>
                       [ -1 -2 -1 ]<br />
                       [  0  0  0 ]<br />
                       [  1  2  1 ]
                     </code>
-                </div>
                   </div>
+                </div>
                 <p>
                   The gradient magnitude is calculated as:
                 </p>
@@ -526,7 +699,7 @@ export default function TransformConfigModal({
                 </div>
               </>
             )}
-                  </div>
+          </div>
         </div>
       </div>
     );
@@ -609,11 +782,11 @@ export default function TransformConfigModal({
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-sm text-gray-700">Preserve Luminance</span>
-                </label>
+              </label>
               <span className="text-xs text-gray-500">
                 {advancedParameters.preserveLuminance !== false ? 'On' : 'Off'}
               </span>
-              </div>
+            </div>
             <p className="text-xs text-gray-500 mt-0">
               <InformationCircleIcon className="h-3 w-3 inline-block mr-1" />
               Maintains the perceived brightness when adjusting colors
@@ -694,7 +867,7 @@ export default function TransformConfigModal({
             )}
           </div>
         </div>
-            </div>
+      </div>
     );
   };
 
@@ -703,7 +876,7 @@ export default function TransformConfigModal({
     return (
       <div className="space-y-6">
         {/* Basic parameters section */}
-            <div>
+        <div>
           <h3 className="text-lg font-medium text-gray-900">Basic Parameters</h3>
           <div className="mt-2 bg-gray-50 p-4 rounded-md">
             {editedTransformation.parameters.map(param => 
@@ -712,6 +885,22 @@ export default function TransformConfigModal({
           </div>
         </div>
       </div>
+    );
+  };
+
+  // Pass the kernel state and updater function to CustomBlurConfigPanel
+  const renderCustomBlurConfig = () => {
+    return (
+      <CustomBlurConfigPanel
+        transformation={editedTransformation}
+        parameters={editedTransformation.parameters}
+        advancedParameters={advancedParameters}
+        onParameterChange={handleParameterChange}
+        onAdvancedParamChange={handleAdvancedParamChange}
+        onKernelChange={handleKernelChange}
+        kernelState={kernelState}
+        renderParameterControl={renderParameterControl}
+      />
     );
   };
 
@@ -754,25 +943,25 @@ export default function TransformConfigModal({
                     <div className="flex space-x-3">
                     <button
                       type="button"
-                        className="inline-flex justify-center rounded-md border border-transparent px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                        onClick={onReset}
-                      >
-                        <ArrowPathIcon className="h-5 w-5 mr-1" />
-                        Reset to Default
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex justify-center rounded-md border border-transparent px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      onClick={onReset}
+                    >
+                      <ArrowPathIcon className="h-5 w-5 mr-1" />
+                      Reset to Default
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                       onClick={handleClose}
                     >
-                        <XMarkIcon className="h-5 w-5" />
+                      <XMarkIcon className="h-5 w-5" />
                     </button>
                     </div>
                   </div>
                   
                   {/* Content */}
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-4">
+                  <div className="mt-2 text-gray-800">
+                    <p className="text-sm text-gray-600 mb-4">
                       {editedTransformation.description}
                     </p>
                     
@@ -783,14 +972,14 @@ export default function TransformConfigModal({
                   <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end space-x-3">
                     <button
                       type="button"
-                      className="inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                       onClick={handleClose}
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                       onClick={handleSave}
                     >
                       Save Configuration
@@ -848,14 +1037,14 @@ export default function TransformConfigModal({
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
                       type="button"
-                      className="inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                       onClick={cancelDiscard}
                     >
                       Keep Editing
                     </button>
                     <button
                       type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                      className="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                       onClick={handleDiscard}
                     >
                       Discard Changes

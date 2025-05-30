@@ -53,14 +53,16 @@ export default function TransformationNode({ id, data, selected }: Transformatio
 
   // Function to update parameter value
   const handleUpdateParameterValue = (name: string, value: any) => {
+    if (!data.node?.transformation) return;
+    
     // Check if the parameter is kernel size and show warning if needed
     const isKernelSize = name === 'kernelSize';
-    const isCustomBlur = transformation.type === 'customBlur';
+    const isCustomBlur = data.node.transformation.type === 'customBlur';
     const kernelTypeParam = parameters.find(p => p.name === 'kernelType');
     const isCustomKernelType = kernelTypeParam?.value === 'custom';
     
     // For normal transformations (not customBlur), show warning when changing kernel size with advanced params
-    if (isKernelSize && transformation.metadata?.advancedParameters && !isCustomBlur) {
+    if (isKernelSize && data.node.transformation.metadata?.advancedParameters && !isCustomBlur) {
       setIsKernelSizeChanging(true);
       return;
     }
@@ -73,7 +75,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     
     // For customBlur with other kernel types (gaussian, box), show warning when changing kernel size
     // if there are advanced parameters
-    if (isCustomBlur && isKernelSize && !isCustomKernelType && transformation.metadata?.advancedParameters) {
+    if (isCustomBlur && isKernelSize && !isCustomKernelType && data.node.transformation.metadata?.advancedParameters) {
       setIsKernelSizeChanging(true);
       return;
     }
@@ -111,7 +113,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
         
         // Update the transformation with the new parameters
         const updatedTransformation: Transformation = {
-          ...transformation,
+          ...data.node.transformation,
           parameters: updatedParams
         };
         
@@ -119,28 +121,54 @@ export default function TransformationNode({ id, data, selected }: Transformatio
         setParameters(updatedParams);
         setProcessingSucceeded(false);
         processingAttemptRef.current += 1;
+        invalidateNode(id);
         return;
       }
     }
-
-    // Get a map of all parameter values for conditional rendering
-    const paramMap: Record<string, any> = {};
-    parameters.forEach(p => {
-      paramMap[p.name] = p.name === name ? value : p.value;
-    });
-
-    // Update the local state
-    const updatedParams = parameters?.length 
-      ? parameters.map(param => param.name === name ? { ...param, value } : param)
-      : [];
-    setParameters(updatedParams);
     
-    // Update the parameter through the pipeline context
-    updateParameter(id, name, value);
+    const paramIdx = data.node.transformation.parameters.findIndex(p => p.name === name);
+    
+    if (paramIdx === -1) {
+      console.warn(`Parameter ${name} not found in transformation`);
+      return;
+    }
+    
+    // Special handling for kernel parameters to ensure deep cloning
+    if (data.node.transformation.parameters[paramIdx].type === 'kernel') {
+      // Deep clone the kernel value to prevent reference issues
+      if (value && typeof value === 'object' && value.values) {
+        value = {
+          ...value,
+          values: value.values.map((row: number[]) => [...row])
+        };
+      }
+    }
+    
+    // Create a copy of the parameters array
+    const updatedParams = [...data.node.transformation.parameters];
+    
+    // Update the parameter
+    updatedParams[paramIdx] = {
+      ...updatedParams[paramIdx],
+      value
+    };
+    
+    // Create a copy of the transformation with updated parameters
+    const updatedTransformation = {
+      ...data.node.transformation,
+      parameters: updatedParams
+    };
+    
+    // Update in the context
+    updateNode(id, { transformation: updatedTransformation });
+    
+    // Update local state
+    setParameters(updatedParams);
     
     // Reset processing state to force re-processing
     setProcessingSucceeded(false);
     processingAttemptRef.current += 1;
+    invalidateNode(id);
   };
 
   // Handle the slider change when user confirmed they want to overwrite advanced configs
@@ -183,18 +211,61 @@ export default function TransformationNode({ id, data, selected }: Transformatio
 
   // Handle saving advanced configuration
   const handleSaveAdvancedConfig = (updatedTransformation: Transformation) => {
-    // Update the transformation in the context
-    updateNode(id, { transformation: updatedTransformation });
+    if (!data.node) return;
     
-    // Update local state
-    setParameters(updatedTransformation.parameters);
+    console.log("Saving advanced configuration:", updatedTransformation);
     
-    // Reset processing state to force re-processing
-    setProcessingSucceeded(false);
-    processingAttemptRef.current += 1;
+    // Ensure the ID is preserved
+    updatedTransformation.id = data.node.transformation.id;
     
-    // Close the modal
-    setIsAdvancedConfigOpen(false);
+    // Make sure inputNodes are preserved
+    updatedTransformation.inputNodes = data.node.transformation.inputNodes;
+    
+    // Create a deep clone of the updated transformation to prevent reference issues
+    const deepClonedTransformation = {
+      ...updatedTransformation,
+      parameters: updatedTransformation.parameters.map(param => {
+        // Deep clone kernel values
+        if (param.type === 'kernel' && param.name === 'customKernel' && param.value) {
+          const kernelValue = param.value as KernelValue;
+          return {
+            ...param,
+            value: {
+              ...kernelValue,
+              values: kernelValue.values.map(row => [...row])
+            }
+          };
+        }
+        return {...param};
+      }),
+      metadata: updatedTransformation.metadata ? {
+        ...updatedTransformation.metadata,
+        advancedParameters: updatedTransformation.metadata.advancedParameters ? 
+          JSON.parse(JSON.stringify(updatedTransformation.metadata.advancedParameters)) : 
+          undefined
+      } : undefined
+    };
+    
+    // Force immediate update and reprocessing
+    setTimeout(() => {
+      // Update the node transformation - this ensures we get a new reference
+      updateNode(id, { transformation: deepClonedTransformation });
+      
+      // Update local state to match the new transformation
+      setParameters(deepClonedTransformation.parameters);
+      
+      // Reset processing state to force re-processing
+      setProcessingSucceeded(false);
+      processingAttemptRef.current += 1;
+      
+      // Close the modal
+      setIsAdvancedConfigOpen(false);
+      
+      // Invalidate the node to trigger reprocessing with the new configuration
+      invalidateNode(id);
+      
+      console.log("Advanced configuration saved, node invalidated for reprocessing");
+    }, 0);
   };
 
   // Handle resetting advanced configuration
@@ -391,6 +462,18 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       return false;
     }
     
+    // For customBlur, hide kernelType when it's set to 'custom'
+    if (transformation.type === 'customBlur' && 
+        param.name === 'kernelType' && 
+        parameterValues.kernelType === 'custom') {
+      return false;
+    }
+    
+    // Hide customKernel parameter in the main UI as it's too complex
+    if (param.name === 'customKernel') {
+      return false;
+    }
+    
     // Hide certain parameters if they depend on another parameter's value
     if (param.dependsOn) {
       const dependentParam = parameters.find(p => p.name === param.dependsOn);
@@ -399,7 +482,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       }
     }
     
-    // For customBlur, only show kernelType and kernelSize if not in custom mode
+    // For customBlur with custom kernel type, kernel size changes don't affect the custom kernel
     if (transformation.type === 'customBlur' && 
         parameterValues.kernelType === 'custom' && 
         param.name === 'kernelSize') {
@@ -408,6 +491,11 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     
     return true;
   });
+
+  // Add indicator when custom kernel is active
+  const hasCustomKernel = transformation.type === 'customBlur' && 
+                        parameterValues.kernelType === 'custom' &&
+                        parameters.some(p => p.name === 'customKernel');
 
   return (
     <>
@@ -426,7 +514,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       >
         <div>
           {/* Parameters Section */}
-          {visibleParameters?.length > 0 && (
+          {(visibleParameters?.length > 0 || transformation.type === 'customBlur') && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
@@ -470,11 +558,27 @@ export default function TransformationNode({ id, data, selected }: Transformatio
                   />
                 ))}
 
+                {/* If no parameters are visible for customBlur, show a message */}
+                {visibleParameters.length === 0 && transformation.type === 'customBlur' && (
+                  <div className="py-2 text-sm text-gray-600 flex items-center">
+                    <InformationCircleIcon className="h-4 w-4 mr-1.5" />
+                    <span>Use Advanced Configuration to edit kernel settings</span>
+                  </div>
+                )}
+
                 {/* Show indicator if advanced configuration is active */}
                 {transformation.metadata?.advancedParameters && (
                   <div className="mt-1 pt-2 border-t border-gray-200 flex items-center text-xs text-blue-600">
                     <SparklesIcon className="h-3 w-3 mr-1" />
                     <span>Advanced configuration is active</span>
+                  </div>
+                )}
+                
+                {/* Show indicator when custom kernel is active */}
+                {hasCustomKernel && (
+                  <div className="mt-1 pt-2 border-t border-gray-200 flex items-center text-xs text-blue-600">
+                    <SparklesIcon className="h-3 w-3 mr-1" />
+                    <span>Custom kernel active - use Advanced Config to edit</span>
                   </div>
                 )}
               </div>

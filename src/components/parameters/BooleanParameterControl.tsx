@@ -25,7 +25,7 @@ export default function BooleanParameterControl({
   };
   
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between mb-2">
       <div className="flex items-center">
         <input
           type="checkbox"
@@ -37,17 +37,19 @@ export default function BooleanParameterControl({
         />
         <label
           htmlFor={`toggle-${parameter.name}`}
-          className={`relative inline-block w-10 h-6 rounded-full cursor-pointer transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`relative inline-block w-10 h-6 rounded-full cursor-pointer transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : ''} focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500`}
           style={{ backgroundColor: value ? themeColor.accentColor : '#cbd5e1' }}
         >
           <span
-            className={`absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+            className={`absolute left-1 top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
               value ? 'translate-x-4' : 'translate-x-0'
             }`}
           />
         </label>
       </div>
-      <span className="text-sm text-gray-600">{value ? 'On' : 'Off'}</span>
+      <span className="text-sm text-gray-600 font-medium">
+        {value ? 'On' : 'Off'}
+      </span>
     </div>
   );
 } 
