@@ -11,6 +11,8 @@ import {
   WrenchScrewdriverIcon 
 } from '@heroicons/react/24/outline';
 import type { Transformation, TransformationType } from '../utils/types';
+import ProjectsModal from '../components/modals/ProjectsModal';
+import { projectManager } from '../services/ProjectManager';
 
 // Transformation templates
 export const transformationTemplates: Record<TransformationType, Omit<Transformation, 'id' | 'inputNodes'>> = {
@@ -722,8 +724,10 @@ export default function LabPage() {
     removeEdge, 
     duplicateNode
   } = usePipeline();
-  const [showTransformationManager, setShowTransformationManager] = useState(false);
+  const [transformationManagerOpen, setTransformationManagerOpen] = useState(false);
   const [operationMode, setOperationMode] = useState<'select' | 'connect' | 'disconnect' | null>(null);
+  const [projectsModalOpen, setProjectsModalOpen] = useState(false);
+  const [projectsModalMode, setProjectsModalMode] = useState<'save' | 'load'>('save');
   const [connectStartNodeId, setConnectStartNodeId] = useState<string | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   
@@ -799,12 +803,17 @@ export default function LabPage() {
   const handleAddTransformation = (type: TransformationType) => {
     // Pass the template directly - the pipeline context will handle adding id and inputNodes
     addNode('transformation', transformationTemplates[type]);
-    setShowTransformationManager(false);
+    setTransformationManagerOpen(false);
   };
 
-  const toggleTransformationManager = () => {
-    setShowTransformationManager(!showTransformationManager);
-  };
+  // Check for existing project on load
+  useEffect(() => {
+    const currentProject = projectManager.getCurrentProject();
+    if (currentProject) {
+      // Project already loaded from localStorage
+      console.log(`Current project: ${currentProject.name}`);
+    }
+  }, []);
 
   // Handle node clicks based on current operation mode
   const handleNodeClick = (nodeId: string) => {
@@ -828,12 +837,23 @@ export default function LabPage() {
     }
   };
 
+  const handleOpenProjectsModal = (mode: 'save' | 'load') => {
+    setProjectsModalMode(mode);
+    setProjectsModalOpen(true);
+  };
+  
+  const handleProjectActionSuccess = (projectId: string) => {
+    // Optional: provide feedback or refresh UI after project action
+    console.log(`Project action successful: ${projectId}`);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50" ref={pageRef}>
       <LabToolbar 
-        onOpenTransformationManager={toggleTransformationManager} 
+        onOpenTransformationManager={() => setTransformationManagerOpen(true)}
         operationMode={operationMode}
         onChangeOperationMode={setOperationMode}
+        onOpenProjectsModal={handleOpenProjectsModal}
       />
       
       <div className="flex-grow flex relative p-4">
@@ -849,7 +869,7 @@ export default function LabPage() {
         </div>
         
         {/* Transformation manager panel */}
-        {showTransformationManager && (
+        {transformationManagerOpen && (
           <motion.div 
             initial={{ opacity: 0, x: 300 }}
             animate={{ opacity: 1, x: 0 }}
@@ -857,7 +877,7 @@ export default function LabPage() {
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="absolute top-0 right-0 bottom-0 w-96 bg-white shadow-xl border-l border-gray-200 overflow-y-auto z-20 rounded-l-md"
           >
-            <TransformationManager onClose={toggleTransformationManager} />
+            <TransformationManager onClose={() => setTransformationManagerOpen(false)} />
           </motion.div>
         )}
       </div>
@@ -868,6 +888,14 @@ export default function LabPage() {
           Now select a target node to complete the connection
         </div>
       )}
+
+      {/* Projects modal */}
+      <ProjectsModal
+        isOpen={projectsModalOpen}
+        onClose={() => setProjectsModalOpen(false)}
+        mode={projectsModalMode}
+        onSuccess={handleProjectActionSuccess}
+      />
     </div>
   );
 } 

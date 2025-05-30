@@ -126,4 +126,37 @@ export interface Lesson {
   tags: string[];
   image: string; // URL to lesson cover image
   pipeline: Pipeline;
+}
+
+/**
+ * Project saving/loading types
+ */
+export interface SavedProject {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  version: string; // For migrations if schema changes
+  thumbnailDataUrl?: string; // Preview image
+  state: SerializedPipelineState;
+}
+
+export interface SerializedPipelineState {
+  nodes: SerializedNode[];
+  edges: SerializedEdge[];
+  inputImages: Record<string, string>; // nodeId -> base64 encoded image
+}
+
+export interface SerializedNode {
+  id: string;
+  type: 'input' | 'transformation' | 'output';
+  position: { x: number; y: number };
+  transformation?: Transformation;
+  metadata?: Record<string, any>;
+}
+
+export interface SerializedEdge {
+  id: string;
+  source: string;
+  target: string;
 } 

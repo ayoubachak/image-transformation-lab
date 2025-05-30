@@ -432,55 +432,72 @@ export class PipelineManager {
   /**
    * Add an edge to the pipeline
    */
-  public addEdge(sourceId: string, targetId: string): string | null {
-    // Validate nodes exist
+  public addEdge(sourceId: string, targetId: string, edgeId?: string): string | null {
+    // Get nodes from IDs
     const sourceNode = this.nodes.get(sourceId);
     const targetNode = this.nodes.get(targetId);
     
+    // Validate nodes exist
     if (!sourceNode || !targetNode) {
+      console.error(`Cannot create edge: nodes not found (source: ${sourceId}, target: ${targetId})`);
       return null;
     }
     
-    // Prevent cycles or duplicate edges
-    if (this.wouldCreateCycle(sourceId, targetId) || this.edgeExists(sourceId, targetId)) {
+    // Check if connection already exists
+    if (this.edgeExists(sourceId, targetId)) {
+      console.warn(`Edge already exists between ${sourceId} and ${targetId}`);
       return null;
     }
     
-    const edgeId = `${sourceId}-${targetId}`;
+    // Check if connecting would create a cycle
+    if (this.wouldCreateCycle(sourceId, targetId)) {
+      console.error(`Cannot create edge: would create cycle (source: ${sourceId}, target: ${targetId})`);
+      return null;
+    }
+    
+    // Create edge ID if not provided
+    const id = edgeId || `edge-${sourceId}-${targetId}`;
+    
+    // Create edge
     const edge: ImageProcessingEdge = {
-      id: edgeId,
+      id,
       source: sourceId,
       target: targetId
     };
     
-    this.edges.set(edgeId, edge);
+    // Add to edges map
+    this.edges.set(id, edge);
     
-    // Update the target transformation's inputNodes if it's a transformation
+    // Update target node's transformation inputNodes if it's a transformation
     if (targetNode.type === 'transformation' && targetNode.transformation) {
-      const updatedTransformation = {
-        ...targetNode.transformation,
-        inputNodes: [...targetNode.transformation.inputNodes, sourceId]
-      };
+      targetNode.transformation.inputNodes = targetNode.transformation.inputNodes || [];
       
-      this.updateNode(targetId, { transformation: updatedTransformation });
+      // Add source node ID to inputNodes if not already present
+      if (!targetNode.transformation.inputNodes.includes(sourceId)) {
+        targetNode.transformation.inputNodes.push(sourceId);
+      }
+      
+      // Update the node
+      this.nodes.set(targetId, targetNode);
     }
     
-    // Update dependency graph
+    // Add to dependency graph
     if (!this.dependencyGraph.has(sourceId)) {
-      this.dependencyGraph.set(sourceId, new Set());
+      this.dependencyGraph.set(sourceId, new Set<string>());
     }
-    this.dependencyGraph.get(sourceId)!.add(targetId);
+    this.dependencyGraph.get(sourceId)?.add(targetId);
     
+    // Invalidate the target node to trigger reprocessing
+    this.invalidateNodeAndDownstream(targetId);
+    
+    // Notify observers
     this.notifyObservers({
       type: PipelineEventType.EDGE_ADDED,
       payload: { edge },
       timestamp: Date.now()
     });
     
-    // Invalidate the target node to trigger processing
-    this.invalidateNodeAndDownstream(targetId);
-    
-    return edgeId;
+    return id;
   }
 
   /**
@@ -1032,6 +1049,48 @@ export class PipelineManager {
     }
     
     return newNodeId;
+  }
+
+  /**
+   * Create a node with a specific ID (used for loading saved projects)
+   */
+  public createNode(
+    type: 'input' | 'transformation' | 'output',
+    id: string,
+    position: { x: number, y: number },
+    transformation?: Transformation
+  ): ImageProcessingNode | null {
+    // Create node with the given ID
+    const node: ImageProcessingNode = {
+      id,
+      type,
+      position,
+      transformation: type === 'transformation' && transformation 
+        ? { ...transformation, inputNodes: [] } // Ensure clean inputNodes
+        : undefined,
+      metadata: {}
+    };
+    
+    // Add to nodes map
+    this.nodes.set(id, node);
+    
+    // Initialize processing result
+    this.processingResults.set(id, {
+      nodeId: id,
+      canvas: null,
+      error: null,
+      processingTime: 0,
+      status: 'idle'
+    });
+    
+    // Notify observers
+    this.notifyObservers({
+      type: PipelineEventType.NODE_ADDED,
+      payload: { node },
+      timestamp: Date.now()
+    });
+    
+    return node;
   }
 }
 

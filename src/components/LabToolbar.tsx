@@ -18,7 +18,9 @@ import {
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
   SwatchIcon,
-  CubeTransparentIcon
+  CubeTransparentIcon,
+  FolderIcon,
+  FolderOpenIcon
 } from '@heroicons/react/24/outline';
 import { Tooltip } from 'react-tooltip';
 
@@ -29,9 +31,15 @@ interface LabToolbarProps {
   onOpenTransformationManager?: () => void;
   operationMode?: 'select' | 'connect' | 'disconnect' | null;
   onChangeOperationMode?: (mode: 'select' | 'connect' | 'disconnect' | null) => void;
+  onOpenProjectsModal?: (mode: 'save' | 'load') => void;
 }
 
-export default function LabToolbar({ onOpenTransformationManager, operationMode, onChangeOperationMode }: LabToolbarProps) {
+export default function LabToolbar({ 
+  onOpenTransformationManager, 
+  operationMode, 
+  onChangeOperationMode,
+  onOpenProjectsModal
+}: LabToolbarProps) {
   const { addNode, nodes, clearPipeline, removeNode, selectedNodeId, duplicateNode } = usePipeline();
   const [showAddMenu, setShowAddMenu] = useState(false);
 
@@ -397,6 +405,36 @@ export default function LabToolbar({ onOpenTransformationManager, operationMode,
         
         {/* Right side controls */}
         <div className="flex items-center space-x-1">
+          {/* Project Save button */}
+          {onOpenProjectsModal && (
+            <>
+              <button
+                onClick={() => onOpenProjectsModal('save')}
+                className={buttonClass}
+                id="save-project-btn"
+                data-tooltip-id="save-project-tooltip"
+              >
+                <FolderIcon className="h-5 w-5" />
+              </button>
+              <Tooltip id="save-project-tooltip" place="bottom">
+                Save Project
+              </Tooltip>
+            
+              {/* Project Load button */}
+              <button
+                onClick={() => onOpenProjectsModal('load')}
+                className={buttonClass}
+                id="load-project-btn"
+                data-tooltip-id="load-project-tooltip"
+              >
+                <FolderOpenIcon className="h-5 w-5" />
+              </button>
+              <Tooltip id="load-project-tooltip" place="bottom">
+                Load Project
+              </Tooltip>
+            </>
+          )}
+
           {/* Clear pipeline button */}
           <button
             onClick={() => clearPipeline()}
