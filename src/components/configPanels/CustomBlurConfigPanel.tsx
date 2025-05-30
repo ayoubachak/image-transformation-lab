@@ -6,7 +6,11 @@ import {
   cloneKernelValue, 
   resizeKernelMatrix, 
   getKernelPreset,
-  getKernelSum 
+  getKernelSum,
+  invertKernel,
+  emphasizeKernelCenter,
+  createSharpeningKernel,
+  createSmoothKernel
 } from '../../utils/kernelHelpers';
 import KernelVisualizer from './KernelVisualizer';
 
@@ -210,73 +214,60 @@ export default function CustomBlurConfigPanel({
   
   // Adjust kernel values with common operations
   const adjustKernel = (operation: string) => {
-    let newValues = [...kernelValues.map(row => [...row])];
+    let newValues: number[][];
     
     switch (operation) {
       case 'invert':
-        // Invert the kernel values
-        newValues = newValues.map(row => 
-          row.map(value => -value)
-        );
+        // Use the new invertKernel helper function
+        newValues = invertKernel(kernelValues);
         break;
+        
       case 'emphasizeCenter':
-        // Emphasize the center of the kernel
-        if (newValues.length > 0 && newValues[0].length > 0) {
-          const centerRow = Math.floor(newValues.length / 2);
-          const centerCol = Math.floor(newValues[0].length / 2);
-          
-          // Multiply the center value by 2
-          newValues[centerRow][centerCol] *= 2;
-        }
+        // Use the new emphasizeKernelCenter helper function
+        newValues = emphasizeKernelCenter(kernelValues, 2);
         break;
+        
       case 'sharpen':
-        // Create a sharpening effect by emphasizing center and negating neighbors
-        if (newValues.length >= 3 && newValues[0].length >= 3) {
-          const centerRow = Math.floor(newValues.length / 2);
-          const centerCol = Math.floor(newValues[0].length / 2);
-          
-          // Set center value higher and adjacent values negative
-          for (let r = 0; r < newValues.length; r++) {
-            for (let c = 0; c < newValues[0].length; c++) {
-              if (r === centerRow && c === centerCol) {
-                // Center value - make it positive and larger
-                newValues[r][c] = 2;
-              } else if (
-                (Math.abs(r - centerRow) <= 1 && Math.abs(c - centerCol) <= 1)
-              ) {
-                // Adjacent values - make them slightly negative
-                newValues[r][c] = -0.25;
-              } else {
-                // Other values - set to 0
-                newValues[r][c] = 0;
-              }
-            }
-          }
-        }
+        // Use the createSharpeningKernel function with current kernel dimensions
+        newValues = createSharpeningKernel(kernelSize.width);
         break;
+        
       case 'smooth':
-        // Create a smoothing effect with gaussian-like distribution
-        if (newValues.length >= 3 && newValues[0].length >= 3) {
-          const centerRow = Math.floor(newValues.length / 2);
-          const centerCol = Math.floor(newValues[0].length / 2);
-          
-          for (let r = 0; r < newValues.length; r++) {
-            for (let c = 0; c < newValues[0].length; c++) {
-              // Calculate distance from center
-              const distance = Math.sqrt(
-                Math.pow(r - centerRow, 2) + Math.pow(c - centerCol, 2)
-              );
-              
-              // Apply gaussian-like falloff
-              newValues[r][c] = Math.exp(-(distance * distance) / 2);
-            }
-          }
+        // Use the createSmoothKernel function for gaussian-like falloff
+        newValues = createSmoothKernel(kernelSize.width);
+        break;
+        
+      case 'edgeDetect':
+        // Apply an edge detection kernel based on current kernel size
+        if (kernelSize.width >= 5) {
+          const preset = getKernelPreset('laplacian5x5');
+          newValues = preset.values;
+        } else {
+          const preset = getKernelPreset('edgeDetect');
+          newValues = preset.values;
         }
         break;
-      case 'clear':
-        // Clear all values to 0
-        newValues = newValues.map(row => row.map(() => 0));
+        
+      case 'boxBlur':
+        // Create a uniform blur with all values equal and sum = 1
+        const totalCells = kernelSize.width * kernelSize.height;
+        const value = 1 / totalCells;
+        
+        newValues = [];
+        for (let i = 0; i < kernelSize.height; i++) {
+          const row = Array(kernelSize.width).fill(value);
+          newValues.push(row);
+        }
         break;
+        
+      case 'clear':
+        // Create a new kernel filled with zeros
+        newValues = [];
+        for (let i = 0; i < kernelSize.height; i++) {
+          newValues.push(Array(kernelSize.width).fill(0));
+        }
+        break;
+        
       default:
         return;
     }
@@ -551,20 +542,25 @@ export default function CustomBlurConfigPanel({
                     <option value="" className="text-gray-500">Select a preset...</option>
                     <optgroup label="Basic">
                       <option value="identity" className="text-gray-900">Identity</option>
-                      <option value="boxBlur" className="text-gray-900">Box Blur</option>
-                      <option value="gaussianBlur" className="text-gray-900">Gaussian Blur</option>
+                      <option value="boxBlur" className="text-gray-900">Box Blur 3×3</option>
+                      <option value="boxBlur5x5" className="text-gray-900">Box Blur 5×5</option>
+                      <option value="gaussianBlur" className="text-gray-900">Gaussian Blur 3×3</option>
                       <option value="gaussianBlur5x5" className="text-gray-900">Gaussian 5×5</option>
                     </optgroup>
                     <optgroup label="Enhancement">
-                      <option value="sharpen" className="text-gray-900">Sharpen</option>
+                      <option value="sharpen" className="text-gray-900">Sharpen 3×3</option>
+                      <option value="sharpen5x5" className="text-gray-900">Sharpen 5×5</option>
                       <option value="unsharpMask" className="text-gray-900">Unsharp Mask</option>
                     </optgroup>
                     <optgroup label="Effects">
                       <option value="emboss" className="text-gray-900">Emboss</option>
                       <option value="motionBlur" className="text-gray-900">Motion Blur</option>
+                      <option value="circularBlur" className="text-gray-900">Circular Blur</option>
+                      <option value="circularBlur7x7" className="text-gray-900">Circular Blur 7×7</option>
                     </optgroup>
                     <optgroup label="Edge Detection">
                       <option value="edgeDetect" className="text-gray-900">Edge Detect</option>
+                      <option value="laplacian5x5" className="text-gray-900">Laplacian 5×5</option>
                       <option value="sobelHorizontal" className="text-gray-900">Sobel (Horizontal)</option>
                       <option value="sobelVertical" className="text-gray-900">Sobel (Vertical)</option>
                       <option value="highPass" className="text-gray-900">High Pass</option>
@@ -597,47 +593,100 @@ export default function CustomBlurConfigPanel({
                 </div>
               </div>
               
-              {/* Kernel manipulation tools */}
+              {/* Kernel operations - improve with more operations and better layout */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Kernel Operations</label>
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 mb-2">
                   <button
                     onClick={() => adjustKernel('invert')}
-                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center justify-center"
+                    title="Invert all values in the kernel"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
                     Invert
                   </button>
                   <button
                     onClick={() => adjustKernel('emphasizeCenter')}
-                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center justify-center"
+                    title="Double the center value"
                   >
-                    Emphasize Center
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                    Emphasize
                   </button>
                   <button
                     onClick={() => adjustKernel('sharpen')}
-                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center justify-center"
+                    title="Create a sharpening kernel"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                     Sharpen
                   </button>
                   <button
                     onClick={() => adjustKernel('smooth')}
-                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center justify-center"
+                    title="Create a smooth gaussian-like kernel"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
                     Smooth
                   </button>
                   <button
                     onClick={normalizeKernel}
-                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    className={`px-2 py-1.5 rounded-md text-xs flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                      normalize || getKernelTotal() === 0 || getKernelTotal() === 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                    }`}
                     disabled={normalize || getKernelTotal() === 0 || getKernelTotal() === 1}
+                    title="Normalize all values to sum to 1"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                    </svg>
                     Normalize
                   </button>
                   <button
-                    onClick={() => adjustKernel('clear')}
-                    className="px-2 py-1.5 bg-red-100 text-red-800 rounded-md text-xs hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                    onClick={() => adjustKernel('edgeDetect')}
+                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center justify-center"
+                    title="Create an edge detection kernel"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                    </svg>
+                    Edges
+                  </button>
+                  <button
+                    onClick={() => adjustKernel('boxBlur')}
+                    className="px-2 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center justify-center"
+                    title="Create a box blur (uniform) kernel"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                    </svg>
+                    Box Blur
+                  </button>
+                  <button
+                    onClick={() => adjustKernel('clear')}
+                    className="px-2 py-1.5 bg-red-100 text-red-800 rounded-md text-xs hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 flex items-center justify-center"
+                    title="Set all values to zero"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                     Clear
                   </button>
+                </div>
+                <div className="text-xs text-gray-600 mt-1 flex items-start">
+                  <InformationCircleIcon className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
+                  <span>These operations create standard kernel patterns or modify the current values. Operations will automatically adjust to the current kernel size.</span>
                 </div>
               </div>
               

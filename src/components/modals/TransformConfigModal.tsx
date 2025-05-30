@@ -291,7 +291,7 @@ export default function TransformConfigModal({
         width: kernelState.width,
         height: kernelState.height,
         // Make sure to create a new deep copy of the values
-        values: kernelState.values.map(row => [...row]),
+        values: kernelState.values.map((row: number[]) => [...row]),
         normalize: kernelState.normalize
       };
       
@@ -323,7 +323,7 @@ export default function TransformConfigModal({
       advancedParamsCopy.customKernelData = {
         width: kernelState.width,
         height: kernelState.height,
-        values: kernelState.values.map(row => [...row]),
+        values: kernelState.values.map((row: number[]) => [...row]),
         normalize: kernelState.normalize
       };
       
