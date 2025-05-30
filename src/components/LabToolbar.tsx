@@ -267,6 +267,40 @@ export default function LabToolbar({
                   </div>
                   
                   <div className="px-3 py-1 mt-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Morphology</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1 px-1.5">
+                    <button
+                      onClick={() => handleAddTransformation('dilate')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-indigo-50 text-indigo-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs">Dilate</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('erode')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-indigo-50 text-indigo-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                      <span className="text-xs">Erode</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('morphology')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-indigo-50 text-indigo-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
+                      </svg>
+                      <span className="text-xs">Morphology</span>
+                    </button>
+                  </div>
+                  
+                  <div className="px-3 py-1 mt-2">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Adjustments</h3>
                   </div>
                   
