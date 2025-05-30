@@ -727,7 +727,7 @@ export default function LabPage() {
   const [transformationManagerOpen, setTransformationManagerOpen] = useState(false);
   const [operationMode, setOperationMode] = useState<'select' | 'connect' | 'disconnect' | null>(null);
   const [projectsModalOpen, setProjectsModalOpen] = useState(false);
-  const [projectsModalMode, setProjectsModalMode] = useState<'save' | 'load'>('save');
+  const [projectsModalMode, setProjectsModalMode] = useState<'save' | 'load' | 'new'>('save');
   const [connectStartNodeId, setConnectStartNodeId] = useState<string | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   
@@ -837,7 +837,7 @@ export default function LabPage() {
     }
   };
 
-  const handleOpenProjectsModal = (mode: 'save' | 'load') => {
+  const handleOpenProjectsModal = (mode: 'save' | 'load' | 'new') => {
     setProjectsModalMode(mode);
     setProjectsModalOpen(true);
   };

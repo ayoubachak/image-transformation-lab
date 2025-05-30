@@ -1015,25 +1015,9 @@ export const processImage = async (
   const processingTimeout = calculateTimeout();
   
   // Set up processing timeout
-  const timeoutPromise = new Promise<{
-    result: ImageData;
-    intermediates: IntermediateResult[];
-    diagnosticInfo: any;
-  }>((resolve) => {
+  const timeoutPromise = new Promise<any>((_, reject) => {
     setTimeout(() => {
-      // Only log timeout warning if it hasn't been handled yet
-      if (!diagnosticInfo.completed) {
-        console.warn('Image processing timed out, using fallback');
-        diagnosticInfo.timedOut = true;
-        diagnosticInfo.success = false;
-        diagnosticInfo.error = 'Processing timed out';
-        diagnosticInfo.totalTime = Date.now() - diagnosticInfo.startTime;
-        resolve({
-          result: createFallbackImageData(),
-          intermediates,
-          diagnosticInfo
-        });
-      }
+      reject(new Error(`Processing timed out after ${processingTimeout}ms`));
     }, processingTimeout);
   });
   
@@ -1046,6 +1030,7 @@ export const processImage = async (
       
       // Convert ImageData to cv.Mat
       let src: any = null;
+      let dst: any = null;
       let result: any = null;
       const opencv = getOpenCV();
       
@@ -1057,173 +1042,15 @@ export const processImage = async (
         
         // Apply transformation based on type
         switch (transformation.type) {
-          case 'grayscale': {
-            diagnosticInfo.steps.push({ name: 'apply_grayscale', startTime: Date.now() });
-            result = applyGrayscale(src);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].success = true;
-            
-            if (includeIntermediateResults) {
-              const grayImageData = matToImageData(result);
-              intermediates.push({
-                stage: 'grayscale',
-                imageData: grayImageData,
-                description: 'Image converted to grayscale'
-              });
-            }
+          case 'grayscale':
+            dst = applyGrayscale(src);
             break;
-          }
             
-          case 'blur': {
-            diagnosticInfo.steps.push({ name: 'apply_grayscale', startTime: Date.now() });
-            const gray = applyGrayscale(src);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'grayscale_pre',
-                imageData: matToImageData(gray),
-                description: 'Image converted to grayscale'
-              });
-            }
-            
-            diagnosticInfo.steps.push({ name: 'apply_blur', startTime: Date.now() });
-            const blurSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
-            // Get advanced parameters from metadata if available
-            const advancedParams = transformation.metadata?.advancedParameters;
-            result = applyBlur(gray, blurSize, advancedParams);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            // Free memory from intermediate step
-            gray.delete();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'blur',
-                imageData: matToImageData(result),
-                description: `Gaussian blur applied with kernel size ${blurSize}x${blurSize}`
-              });
-            }
+          case 'blur':
+            const blurKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number;
+            // Pass advanced parameters from metadata if available
+            dst = applyBlur(src, blurKernelSize, transformation.metadata?.advancedParameters);
             break;
-          }
-            
-          case 'threshold': {
-            diagnosticInfo.steps.push({ name: 'apply_threshold', startTime: Date.now() });
-            const thresholdValue = transformation.parameters?.find(p => p.name === 'threshold')?.value as number || 128;
-            result = applyThreshold(src, thresholdValue);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'threshold',
-                imageData: matToImageData(result),
-                description: `Threshold applied with value ${thresholdValue}`
-              });
-            }
-            break;
-          }
-            
-          case 'laplacian': {
-            // Perform step-by-step Laplacian edge detection to show intermediate results
-            diagnosticInfo.steps.push({ name: 'apply_grayscale', startTime: Date.now() });
-            const gray = applyGrayscale(src);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'grayscale',
-                imageData: matToImageData(gray),
-                description: 'Image converted to grayscale'
-              });
-            }
-            
-            diagnosticInfo.steps.push({ name: 'apply_blur', startTime: Date.now() });
-            let blurred;
-            
-            // Check if we have real OpenCV or fallback
-            if (gray.isFallback) {
-              // Use our own blur implementation for fallback
-              blurred = applyBlur(gray, 3);
-            } else {
-              // Use real OpenCV
-              blurred = new opencv.Mat();
-              const ksize_blur = new opencv.Size(3, 3);
-              opencv.GaussianBlur(gray, blurred, ksize_blur, 0, 0, opencv.BORDER_DEFAULT);
-            }
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'blur',
-                imageData: matToImageData(blurred),
-                description: 'Gaussian blur applied to reduce noise'
-              });
-            }
-            
-            diagnosticInfo.steps.push({ name: 'apply_laplacian', startTime: Date.now() });
-            const laplacianSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
-            
-            // Check if we have real OpenCV or fallback
-            if (blurred.isFallback) {
-              // Use our own Laplacian implementation for fallback
-              result = applyLaplacian(blurred, laplacianSize);
-            } else {
-              // Use real OpenCV
-              result = new opencv.Mat();
-              opencv.Laplacian(blurred, result, opencv.CV_8U, laplacianSize, 1, 0, opencv.BORDER_DEFAULT);
-            }
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            // Free memory from intermediate steps
-            if (!gray.isFallback && typeof gray.delete === 'function') {
-              gray.delete();
-            }
-            if (!blurred.isFallback && typeof blurred.delete === 'function') {
-              blurred.delete();
-            }
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'laplacian',
-                imageData: matToImageData(result),
-                description: `Laplacian edge detection with kernel size ${laplacianSize}`
-              });
-            }
-            break;
-          }
-            
-          case 'sobel': {
-            diagnosticInfo.steps.push({ name: 'apply_sobel', startTime: Date.now() });
-            const sobelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
-            result = applySobel(src, sobelSize);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'sobel',
-                imageData: matToImageData(result),
-                description: `Sobel edge detection with kernel size ${sobelSize}`
-              });
-            }
-            break;
-          }
-            
-          case 'canny': {
-            diagnosticInfo.steps.push({ name: 'apply_canny', startTime: Date.now() });
-            const threshold1 = transformation.parameters?.find(p => p.name === 'threshold1')?.value as number || 50;
-            const threshold2 = transformation.parameters?.find(p => p.name === 'threshold2')?.value as number || 150;
-            result = applyCanny(src, threshold1, threshold2);
-            diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
-            
-            if (includeIntermediateResults) {
-              intermediates.push({
-                stage: 'canny',
-                imageData: matToImageData(result),
-                description: `Canny edge detection with thresholds ${threshold1} and ${threshold2}`
-              });
-            }
-            break;
-          }
             
           case 'customBlur': {
             const kernelType = transformation.parameters?.find(p => p.name === 'kernelType')?.value as string;
@@ -1250,24 +1077,82 @@ export const processImage = async (
             }
             
             // Apply blur with properly configured options
-            result = applyBlur(src, kernelSize, advancedParams);
+            dst = applyBlur(src, kernelSize, advancedParams);
             break;
           }
             
-          default: {
-            // For custom or unsupported transformations, return the original image
-            if (src) {
-              result = src.clone();
-            } else {
-              // Handle the case where src might be null
-              throw new Error('Source image is null or undefined');
-            }
-          }
+          case 'threshold':
+            const thresholdValue = transformation.parameters?.find(p => p.name === 'threshold')?.value as number;
+            dst = applyThreshold(src, thresholdValue);
+            break;
+            
+          case 'laplacian':
+            const laplaceKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number;
+            dst = applyLaplacian(src, laplaceKernelSize);
+            break;
+            
+          case 'sobel':
+            const sobelKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number;
+            dst = applySobel(src, sobelKernelSize);
+            break;
+            
+          case 'canny':
+            const threshold1 = transformation.parameters?.find(p => p.name === 'threshold1')?.value as number;
+            const threshold2 = transformation.parameters?.find(p => p.name === 'threshold2')?.value as number;
+            dst = applyCanny(src, threshold1, threshold2);
+            break;
+            
+          case 'dilate':
+            const dilateKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const dilateIterations = transformation.parameters?.find(p => p.name === 'iterations')?.value as number || 1;
+            dst = applyDilate(src, dilateKernelSize, dilateIterations);
+            break;
+            
+          case 'erode':
+            const erodeKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const erodeIterations = transformation.parameters?.find(p => p.name === 'iterations')?.value as number || 1;
+            dst = applyErode(src, erodeKernelSize, erodeIterations);
+            break;
+            
+          case 'rotate':
+            const angle = transformation.parameters?.find(p => p.name === 'angle')?.value as number || 0;
+            const scale = transformation.parameters?.find(p => p.name === 'scale')?.value as number || 1.0;
+            const borderMode = transformation.parameters?.find(p => p.name === 'borderMode')?.value as string || 'constant';
+            dst = applyRotate(src, angle, scale, borderMode);
+            break;
+            
+          case 'resize':
+            const method = transformation.parameters?.find(p => p.name === 'method')?.value as string || 'scale';
+            const scaleX = transformation.parameters?.find(p => p.name === 'scaleX')?.value as number || 100;
+            const scaleY = transformation.parameters?.find(p => p.name === 'scaleY')?.value as number || 100;
+            const resizeWidth = transformation.parameters?.find(p => p.name === 'width')?.value as number || 320;
+            const resizeHeight = transformation.parameters?.find(p => p.name === 'height')?.value as number || 240;
+            const interpolation = transformation.parameters?.find(p => p.name === 'interpolation')?.value as string || 'linear';
+            dst = applyResize(src, method, scaleX, scaleY, resizeWidth, resizeHeight, interpolation);
+            break;
+            
+          case 'flip':
+            const direction = transformation.parameters?.find(p => p.name === 'direction')?.value as string || 'horizontal';
+            dst = applyFlip(src, direction);
+            break;
+            
+          case 'crop':
+            const cropMethod = transformation.parameters?.find(p => p.name === 'method')?.value as string || 'manual';
+            const cropX = transformation.parameters?.find(p => p.name === 'x')?.value as number || 0;
+            const cropY = transformation.parameters?.find(p => p.name === 'y')?.value as number || 0;
+            const cropWidth = transformation.parameters?.find(p => p.name === 'width')?.value as number || 320;
+            const cropHeight = transformation.parameters?.find(p => p.name === 'height')?.value as number || 240;
+            const aspectRatio = transformation.parameters?.find(p => p.name === 'aspectRatio')?.value as string || 'free';
+            dst = applyCrop(src, cropMethod, cropX, cropY, cropWidth, cropHeight, aspectRatio);
+            break;
+            
+          default:
+            throw new Error(`Transformation type ${transformation.type} not implemented`);
         }
         
         // Convert result back to ImageData
         diagnosticInfo.steps.push({ name: 'convert_to_imagedata', startTime: Date.now() });
-        const outputImageData = matToImageData(result);
+        const outputImageData = matToImageData(dst);
         diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
         
         // Calculate total processing time
@@ -1279,8 +1164,8 @@ export const processImage = async (
         if (src && typeof src.delete === 'function') {
           src.delete();
         }
-        if (result && typeof result.delete === 'function') {
-          result.delete();
+        if (dst && typeof dst.delete === 'function') {
+          dst.delete();
         }
         
         return {
@@ -1293,8 +1178,8 @@ export const processImage = async (
         if (src && typeof src.delete === 'function') {
           src.delete();
         }
-        if (result && typeof result.delete === 'function') {
-          result.delete();
+        if (dst && typeof dst.delete === 'function') {
+          dst.delete();
         }
         
         // Record the error in diagnostics
@@ -1376,6 +1261,115 @@ function applyTransformationWithoutOpenCV(
       }
       
       ctx.putImageData(thresholdImageData, 0, 0);
+      break;
+      
+    case 'flip':
+      // Apply flip using canvas API - this is one we can implement without OpenCV
+      const direction = transformation.parameters?.find(p => p.name === 'direction')?.value as string || 'horizontal';
+      const width = outputCanvas.width;
+      const height = outputCanvas.height;
+      
+      // Create a temporary canvas to hold the original image
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) break;
+      
+      // Copy the current image to temp canvas
+      tempCtx.drawImage(outputCanvas, 0, 0);
+      
+      // Clear the output canvas
+      ctx.clearRect(0, 0, width, height);
+      
+      // Apply flip transformation
+      if (direction === 'horizontal') {
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+      } else if (direction === 'vertical') {
+        ctx.translate(0, height);
+        ctx.scale(1, -1);
+        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+      } else if (direction === 'both') {
+        ctx.translate(width, height);
+        ctx.scale(-1, -1);
+        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+      }
+      break;
+      
+    case 'rotate':
+      // Apply rotation using canvas API
+      const angle = transformation.parameters?.find(p => p.name === 'angle')?.value as number || 0;
+      const scale = transformation.parameters?.find(p => p.name === 'scale')?.value as number || 1.0;
+      
+      // Create a temporary canvas to hold the original image
+      const rotTempCanvas = document.createElement('canvas');
+      rotTempCanvas.width = outputCanvas.width;
+      rotTempCanvas.height = outputCanvas.height;
+      const rotTempCtx = rotTempCanvas.getContext('2d');
+      if (!rotTempCtx) break;
+      
+      // Copy the current image to temp canvas
+      rotTempCtx.drawImage(outputCanvas, 0, 0);
+      
+      // Clear the output canvas
+      ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+      
+      // Set the transform for rotation and scaling
+      ctx.translate(outputCanvas.width / 2, outputCanvas.height / 2);
+      ctx.rotate(angle * Math.PI / 180);
+      ctx.scale(scale, scale);
+      ctx.translate(-outputCanvas.width / 2, -outputCanvas.height / 2);
+      
+      // Draw the image with the new transform
+      ctx.drawImage(rotTempCanvas, 0, 0);
+      
+      // Reset transform
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      break;
+      
+    case 'resize':
+      // We can do a basic resize with the canvas API
+      const resizeMethod = transformation.parameters?.find(p => p.name === 'method')?.value as string || 'scale';
+      const scaleX = transformation.parameters?.find(p => p.name === 'scaleX')?.value as number || 100;
+      const scaleY = transformation.parameters?.find(p => p.name === 'scaleY')?.value as number || 100;
+      const targetWidth = transformation.parameters?.find(p => p.name === 'width')?.value as number || 320;
+      const targetHeight = transformation.parameters?.find(p => p.name === 'height')?.value as number || 240;
+      
+      // Create a temporary canvas
+      const resTempCanvas = document.createElement('canvas');
+      resTempCanvas.width = outputCanvas.width;
+      resTempCanvas.height = outputCanvas.height;
+      const resTempCtx = resTempCanvas.getContext('2d');
+      if (!resTempCtx) break;
+      
+      // Copy the current image to temp canvas
+      resTempCtx.drawImage(outputCanvas, 0, 0);
+      
+      // Calculate new dimensions
+      let newWidth, newHeight;
+      if (resizeMethod === 'scale') {
+        newWidth = Math.round(outputCanvas.width * scaleX / 100);
+        newHeight = Math.round(outputCanvas.height * scaleY / 100);
+      } else {
+        newWidth = targetWidth;
+        newHeight = targetHeight;
+      }
+      
+      // Resize canvas to new dimensions
+      outputCanvas.width = newWidth;
+      outputCanvas.height = newHeight;
+      
+      // Re-get context (it gets lost when canvas is resized)
+      const newCtx = outputCanvas.getContext('2d');
+      if (!newCtx) break;
+      
+      // Draw resized image
+      newCtx.drawImage(resTempCanvas, 0, 0, resTempCanvas.width, resTempCanvas.height, 0, 0, newWidth, newHeight);
       break;
       
     // For other transformations, we'll just return the original image
@@ -1548,6 +1542,50 @@ export function applyTransformation(
         dst = applyCanny(src, threshold1, threshold2);
         break;
         
+      case 'dilate':
+        const dilateKernelSize = paramMap.kernelSize as number || 3;
+        const dilateIterations = paramMap.iterations as number || 1;
+        dst = applyDilate(src, dilateKernelSize, dilateIterations);
+        break;
+        
+      case 'erode':
+        const erodeKernelSize = paramMap.kernelSize as number || 3;
+        const erodeIterations = paramMap.iterations as number || 1;
+        dst = applyErode(src, erodeKernelSize, erodeIterations);
+        break;
+        
+      case 'rotate':
+        const angle = paramMap.angle as number || 0;
+        const scale = paramMap.scale as number || 1.0;
+        const borderMode = paramMap.borderMode as string || 'constant';
+        dst = applyRotate(src, angle, scale, borderMode);
+        break;
+        
+      case 'resize':
+        const method = paramMap.method as string || 'scale';
+        const scaleX = paramMap.scaleX as number || 100;
+        const scaleY = paramMap.scaleY as number || 100;
+        const resizeWidth = paramMap.width as number || 320;
+        const resizeHeight = paramMap.height as number || 240;
+        const interpolation = paramMap.interpolation as string || 'linear';
+        dst = applyResize(src, method, scaleX, scaleY, resizeWidth, resizeHeight, interpolation);
+        break;
+        
+      case 'flip':
+        const direction = paramMap.direction as string || 'horizontal';
+        dst = applyFlip(src, direction);
+        break;
+        
+      case 'crop':
+        const cropMethod = paramMap.method as string || 'manual';
+        const cropX = paramMap.x as number || 0;
+        const cropY = paramMap.y as number || 0;
+        const cropWidth = paramMap.width as number || 320;
+        const cropHeight = paramMap.height as number || 240;
+        const aspectRatio = paramMap.aspectRatio as string || 'free';
+        dst = applyCrop(src, cropMethod, cropX, cropY, cropWidth, cropHeight, aspectRatio);
+        break;
+        
       default:
         throw new Error(`Transformation type ${transformation.type} not implemented`);
     }
@@ -1574,6 +1612,251 @@ export function applyTransformation(
     console.error('Error in applyTransformation:', error);
     return { canvas: null, intermediates: [] };
   }
+}
+
+// Apply dilation to an image
+export const applyDilate = (src: any, kernelSize: number, iterations: number = 1): any => {
+  const cv = getOpenCV();
+  try {
+    // Create destination matrix
+    const dst = new cv.Mat();
+    
+    // Create kernel for dilation
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kernelSize, kernelSize));
+    
+    // Apply dilation
+    const anchor = new cv.Point(-1, -1); // Default anchor point (center of kernel)
+    cv.dilate(src, dst, kernel, anchor, iterations, cv.BORDER_DEFAULT);
+    
+    // Clean up
+    kernel.delete();
+    
+    return dst;
+  } catch (error) {
+    console.error('Error in applyDilate:', error);
+    return src.clone();
+  }
+};
+
+// Apply erosion to an image
+export const applyErode = (src: any, kernelSize: number, iterations: number = 1): any => {
+  const cv = getOpenCV();
+  try {
+    // Create destination matrix
+    const dst = new cv.Mat();
+    
+    // Create kernel for erosion
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kernelSize, kernelSize));
+    
+    // Apply erosion
+    const anchor = new cv.Point(-1, -1); // Default anchor point (center of kernel)
+    cv.erode(src, dst, kernel, anchor, iterations, cv.BORDER_DEFAULT);
+    
+    // Clean up
+    kernel.delete();
+    
+    return dst;
+  } catch (error) {
+    console.error('Error in applyErode:', error);
+    return src.clone();
+  }
+};
+
+// Rotate an image
+export const applyRotate = (src: any, angle: number, scale: number = 1.0, borderMode: string = 'constant'): any => {
+  const cv = getOpenCV();
+  try {
+    // Create destination matrix
+    const dst = new cv.Mat();
+    
+    // Get image dimensions
+    const height = src.rows;
+    const width = src.cols;
+    
+    // Calculate center of rotation
+    const center = new cv.Point(width / 2, height / 2);
+    
+    // Get rotation matrix
+    const rotationMatrix = cv.getRotationMatrix2D(center, angle, scale);
+    
+    // Map border mode string to OpenCV constant
+    let borderType: number;
+    switch (borderMode) {
+      case 'constant': borderType = cv.BORDER_CONSTANT; break;
+      case 'reflect': borderType = cv.BORDER_REFLECT; break;
+      case 'replicate': borderType = cv.BORDER_REPLICATE; break;
+      case 'wrap': borderType = cv.BORDER_WRAP; break;
+      default: borderType = cv.BORDER_CONSTANT;
+    }
+    
+    // Apply affine transformation (rotation)
+    const borderValue = new cv.Scalar(0, 0, 0, 255);
+    cv.warpAffine(src, dst, rotationMatrix, new cv.Size(width, height), cv.INTER_LINEAR, borderType, borderValue);
+    
+    // Clean up
+    rotationMatrix.delete();
+    
+    return dst;
+  } catch (error) {
+    console.error('Error in applyRotate:', error);
+    return src.clone();
+  }
+};
+
+// Resize an image
+export const applyResize = (src: any, method: string, scaleX: number, scaleY: number, width: number, height: number, interpolation: string = 'linear'): any => {
+  const cv = getOpenCV();
+  try {
+    // Create destination matrix
+    const dst = new cv.Mat();
+    
+    // Map interpolation method to OpenCV constant
+    let interpMode: number;
+    switch (interpolation) {
+      case 'nearest': interpMode = cv.INTER_NEAREST; break;
+      case 'linear': interpMode = cv.INTER_LINEAR; break;
+      case 'cubic': interpMode = cv.INTER_CUBIC; break;
+      case 'lanczos': interpMode = cv.INTER_LANCZOS4; break;
+      default: interpMode = cv.INTER_LINEAR;
+    }
+    
+    // Calculate dimensions based on method
+    let newWidth: number, newHeight: number;
+    if (method === 'scale') {
+      newWidth = Math.round(src.cols * (scaleX / 100));
+      newHeight = Math.round(src.rows * (scaleY / 100));
+    } else { // dimensions
+      newWidth = width;
+      newHeight = height;
+    }
+    
+    // Ensure we have valid dimensions (at least 1x1)
+    newWidth = Math.max(1, newWidth);
+    newHeight = Math.max(1, newHeight);
+    
+    // Apply resize
+    cv.resize(src, dst, new cv.Size(newWidth, newHeight), 0, 0, interpMode);
+    
+    return dst;
+  } catch (error) {
+    console.error('Error in applyResize:', error);
+    return src.clone();
+  }
+};
+
+// Flip an image
+export const applyFlip = (src: any, direction: string): any => {
+  const cv = getOpenCV();
+  try {
+    // Create destination matrix
+    const dst = new cv.Mat();
+    
+    // Determine flip code based on direction
+    let flipCode: number;
+    switch (direction) {
+      case 'horizontal': flipCode = 1; break; // Flip around y-axis
+      case 'vertical': flipCode = 0; break;   // Flip around x-axis
+      case 'both': flipCode = -1; break;      // Flip around both axes
+      default: flipCode = 1; // Default to horizontal
+    }
+    
+    // Apply flip
+    cv.flip(src, dst, flipCode);
+    
+    return dst;
+  } catch (error) {
+    console.error('Error in applyFlip:', error);
+    return src.clone();
+  }
+};
+
+// Crop an image
+export const applyCrop = (src: any, method: string, x: number, y: number, width: number, height: number, aspectRatio: string = 'free'): any => {
+  const cv = getOpenCV();
+  try {
+    // Create destination matrix
+    let dst: any;
+    
+    // Get source dimensions
+    const srcWidth = src.cols;
+    const srcHeight = src.rows;
+    
+    // Calculate crop parameters based on method
+    let cropX: number, cropY: number, cropWidth: number, cropHeight: number;
+    
+    if (method === 'manual') {
+      // Manual crop with explicit coordinates
+      cropX = Math.min(Math.max(0, x), srcWidth - 1);
+      cropY = Math.min(Math.max(0, y), srcHeight - 1);
+      cropWidth = Math.min(width, srcWidth - cropX);
+      cropHeight = Math.min(height, srcHeight - cropY);
+      
+    } else if (method === 'center') {
+      // Center crop
+      // Apply aspect ratio if specified
+      if (aspectRatio !== 'free') {
+        const ratio = parseAspectRatio(aspectRatio);
+        
+        // Determine if width or height should be fixed
+        if (width / height > ratio) {
+          // Width is relatively larger, adjust it
+          cropWidth = Math.round(height * ratio);
+          cropHeight = height;
+        } else {
+          // Height is relatively larger, adjust it
+          cropWidth = width;
+          cropHeight = Math.round(width / ratio);
+        }
+      } else {
+        cropWidth = width;
+        cropHeight = height;
+      }
+      
+      // Center the crop region
+      cropX = Math.max(0, Math.floor((srcWidth - cropWidth) / 2));
+      cropY = Math.max(0, Math.floor((srcHeight - cropHeight) / 2));
+      
+      // Ensure dimensions don't exceed image bounds
+      cropWidth = Math.min(cropWidth, srcWidth - cropX);
+      cropHeight = Math.min(cropHeight, srcHeight - cropY);
+      
+    } else { // Auto crop (detect content)
+      // For auto crop, we'd implement content-aware cropping
+      // This is complex and beyond this implementation, so we'll just crop center
+      cropWidth = Math.min(width, srcWidth);
+      cropHeight = Math.min(height, srcHeight);
+      cropX = Math.floor((srcWidth - cropWidth) / 2);
+      cropY = Math.floor((srcHeight - cropHeight) / 2);
+    }
+    
+    // Ensure valid crop dimensions (at least 1x1)
+    cropWidth = Math.max(1, cropWidth);
+    cropHeight = Math.max(1, cropHeight);
+    
+    // Create a region of interest (ROI) for cropping
+    const rect = new cv.Rect(cropX, cropY, cropWidth, cropHeight);
+    dst = src.roi(rect);
+    
+    return dst;
+  } catch (error) {
+    console.error('Error in applyCrop:', error);
+    return src.clone();
+  }
+};
+
+// Helper function to parse aspect ratio string (e.g., "16:9") to a number
+function parseAspectRatio(aspectRatio: string): number {
+  if (aspectRatio === 'free') return 1; // Default to 1:1
+  
+  const parts = aspectRatio.split(':');
+  if (parts.length !== 2) return 1;
+  
+  const width = parseFloat(parts[0]);
+  const height = parseFloat(parts[1]);
+  
+  if (isNaN(width) || isNaN(height) || height === 0) return 1;
+  
+  return width / height;
 }
 
 // Helper function to adjust an image channel for color adjustments

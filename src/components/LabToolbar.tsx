@@ -20,7 +20,8 @@ import {
   SwatchIcon,
   CubeTransparentIcon,
   FolderIcon,
-  FolderOpenIcon
+  FolderOpenIcon,
+  DocumentPlusIcon
 } from '@heroicons/react/24/outline';
 import { Tooltip } from 'react-tooltip';
 
@@ -31,7 +32,7 @@ interface LabToolbarProps {
   onOpenTransformationManager?: () => void;
   operationMode?: 'select' | 'connect' | 'disconnect' | null;
   onChangeOperationMode?: (mode: 'select' | 'connect' | 'disconnect' | null) => void;
-  onOpenProjectsModal?: (mode: 'save' | 'load') => void;
+  onOpenProjectsModal?: (mode: 'save' | 'load' | 'new') => void;
 }
 
 export default function LabToolbar({ 
@@ -447,9 +448,30 @@ export default function LabToolbar({
         
         {/* Right side controls */}
         <div className="flex items-center space-x-1">
-          {/* Project Save button */}
+          {/* Project buttons */}
           {onOpenProjectsModal && (
             <>
+              {/* New Project button */}
+              <button
+                onClick={() => onOpenProjectsModal('new')}
+                className={buttonClass}
+                id="new-project-btn"
+                data-tooltip-id="new-project-tooltip"
+              >
+                <DocumentPlusIcon className="h-5 w-5" />
+              </button>
+              <Tooltip 
+                id="new-project-tooltip" 
+                place="bottom" 
+                offset={10}
+                className="tooltip-fixed"
+                delayShow={300}
+                positionStrategy="fixed"
+              >
+                New Project
+              </Tooltip>
+              
+              {/* Save Project button */}
               <button
                 onClick={() => onOpenProjectsModal('save')}
                 className={buttonClass}
