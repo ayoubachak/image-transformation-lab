@@ -1,6 +1,7 @@
 // Import OpenCV
 import cv from 'opencv-ts';
 import type { Transformation } from './types';
+import { createStructuringElementMat } from './morphologyUtils';
 
 // Ensure OpenCV is initialized
 let isOpenCVInitialized = false;
@@ -498,12 +499,12 @@ export const applyBlur = (src: any, ksize: number, advancedParams?: Record<strin
         const flatValues = values.flat();
         console.log(`Creating kernel matrix: ${width}x${height}, values:`, flatValues);
         kernel = cv.matFromArray(height, width, cv.CV_32FC1, flatValues);
-        
-        // Apply custom kernel filter
-        cv.filter2D(src, dst, -1, kernel, new cv.Point(-1, -1), 0, borderType);
-        
-        // Clean up kernel matrix
-        kernel.delete();
+      
+      // Apply custom kernel filter
+      cv.filter2D(src, dst, -1, kernel, new cv.Point(-1, -1), 0, borderType);
+      
+      // Clean up kernel matrix
+      kernel.delete();
       } else {
         console.warn('No valid custom kernel data found, falling back to box blur');
         // Fallback to box blur
@@ -1103,15 +1104,43 @@ export const processImage = async (
             break;
             
           case 'dilate':
-            const dilateKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
-            const dilateIterations = transformation.parameters?.find(p => p.name === 'iterations')?.value as number || 1;
-            dst = applyDilate(src, dilateKernelSize, dilateIterations);
+            const dilateKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
+            const dilateKernelSize = dilateKernelSizeParam ? dilateKernelSizeParam.value as number : 3;
+            
+            const dilateIterationsParam = transformation.parameters.find(p => p.name === 'iterations');
+            const dilateIterations = dilateIterationsParam ? dilateIterationsParam.value as number : 1;
+            
+            // Get advanced parameters
+            const dilateAdvancedParams = transformation.metadata?.advancedParameters || {};
+            
+            // Apply dilation
+            dst = applyDilate(src, dilateKernelSize, dilateIterations, dilateAdvancedParams);
+            
+              intermediates.push({
+              stage: 'dilate',
+              imageData: matToImageData(dst),
+              description: `Dilated with ${dilateKernelSize}×${dilateKernelSize} kernel, iterations: ${dilateIterations}`
+            });
             break;
             
           case 'erode':
-            const erodeKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
-            const erodeIterations = transformation.parameters?.find(p => p.name === 'iterations')?.value as number || 1;
-            dst = applyErode(src, erodeKernelSize, erodeIterations);
+            const erodeKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
+            const erodeKernelSize = erodeKernelSizeParam ? erodeKernelSizeParam.value as number : 3;
+            
+            const erodeIterationsParam = transformation.parameters.find(p => p.name === 'iterations');
+            const erodeIterations = erodeIterationsParam ? erodeIterationsParam.value as number : 1;
+            
+            // Get advanced parameters
+            const erodeAdvancedParams = transformation.metadata?.advancedParameters || {};
+            
+            // Apply erosion
+            dst = applyErode(src, erodeKernelSize, erodeIterations, erodeAdvancedParams);
+            
+              intermediates.push({
+              stage: 'erode',
+              imageData: matToImageData(dst),
+              description: `Eroded with ${erodeKernelSize}×${erodeKernelSize} kernel, iterations: ${erodeIterations}`
+            });
             break;
             
           case 'rotate':
@@ -1543,15 +1572,43 @@ export function applyTransformation(
         break;
         
       case 'dilate':
-        const dilateKernelSize = paramMap.kernelSize as number || 3;
-        const dilateIterations = paramMap.iterations as number || 1;
-        dst = applyDilate(src, dilateKernelSize, dilateIterations);
+        const dilateKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
+        const dilateKernelSize = dilateKernelSizeParam ? dilateKernelSizeParam.value as number : 3;
+        
+        const dilateIterationsParam = transformation.parameters.find(p => p.name === 'iterations');
+        const dilateIterations = dilateIterationsParam ? dilateIterationsParam.value as number : 1;
+        
+        // Get advanced parameters
+        const dilateAdvancedParams = transformation.metadata?.advancedParameters || {};
+        
+        // Apply dilation
+        dst = applyDilate(src, dilateKernelSize, dilateIterations, dilateAdvancedParams);
+        
+        intermediates.push({
+          stage: 'dilate',
+          imageData: matToImageData(dst),
+          description: `Dilated with ${dilateKernelSize}×${dilateKernelSize} kernel, iterations: ${dilateIterations}`
+        });
         break;
         
       case 'erode':
-        const erodeKernelSize = paramMap.kernelSize as number || 3;
-        const erodeIterations = paramMap.iterations as number || 1;
-        dst = applyErode(src, erodeKernelSize, erodeIterations);
+        const erodeKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
+        const erodeKernelSize = erodeKernelSizeParam ? erodeKernelSizeParam.value as number : 3;
+        
+        const erodeIterationsParam = transformation.parameters.find(p => p.name === 'iterations');
+        const erodeIterations = erodeIterationsParam ? erodeIterationsParam.value as number : 1;
+        
+        // Get advanced parameters
+        const erodeAdvancedParams = transformation.metadata?.advancedParameters || {};
+        
+        // Apply erosion
+        dst = applyErode(src, erodeKernelSize, erodeIterations, erodeAdvancedParams);
+        
+        intermediates.push({
+          stage: 'erode',
+          imageData: matToImageData(dst),
+          description: `Eroded with ${erodeKernelSize}×${erodeKernelSize} kernel, iterations: ${erodeIterations}`
+        });
         break;
         
       case 'rotate':
@@ -1615,50 +1672,132 @@ export function applyTransformation(
 }
 
 // Apply dilation to an image
-export const applyDilate = (src: any, kernelSize: number, iterations: number = 1): any => {
-  const cv = getOpenCV();
+export const applyDilate = (src: any, kernelSize: number, iterations: number = 1, advancedParams?: Record<string, any>): any => {
   try {
+    const cv = getOpenCV();
+    if (!cv) throw new Error('OpenCV not available');
+    
+    console.log('Applying dilation with params:', { kernelSize, iterations, advancedParams });
+    
     // Create destination matrix
     const dst = new cv.Mat();
     
-    // Create kernel for dilation
-    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kernelSize, kernelSize));
+    // Determine border type
+    const borderType = advancedParams?.borderType ? cv[advancedParams.borderType] : cv.BORDER_DEFAULT;
     
-    // Apply dilation
-    const anchor = new cv.Point(-1, -1); // Default anchor point (center of kernel)
-    cv.dilate(src, dst, kernel, anchor, iterations, cv.BORDER_DEFAULT);
-    
-    // Clean up
-    kernel.delete();
+    // Check if using custom structuring element
+    if (advancedParams?.useCustomElement && advancedParams?.structuringElement) {
+      // Use the custom structuring element
+      const kernel = createStructuringElementMat(cv, advancedParams.structuringElement);
+      
+      // Apply dilation
+      const anchor = new cv.Point(-1, -1); // Default anchor point (center)
+      cv.dilate(
+        src,
+        dst,
+        kernel,
+        anchor,
+        iterations,
+        borderType
+      );
+      
+      // Clean up
+      kernel.delete();
+    } else {
+      // Use standard OpenCV structuring element
+      const shape = advancedParams?.shape === 'ellipse' ? cv.MORPH_ELLIPSE :
+                    advancedParams?.shape === 'cross' ? cv.MORPH_CROSS :
+                    cv.MORPH_RECT;
+      
+      const kernel = cv.getStructuringElement(
+        shape,
+        new cv.Size(kernelSize, kernelSize)
+      );
+      
+      // Apply dilation
+      const anchor = new cv.Point(-1, -1); // Default anchor point (center)
+      cv.dilate(
+        src,
+        dst,
+        kernel,
+        anchor,
+        iterations,
+        borderType
+      );
+      
+      // Clean up
+      kernel.delete();
+    }
     
     return dst;
   } catch (error) {
     console.error('Error in applyDilate:', error);
-    return src.clone();
+    throw error;
   }
 };
 
 // Apply erosion to an image
-export const applyErode = (src: any, kernelSize: number, iterations: number = 1): any => {
-  const cv = getOpenCV();
+export const applyErode = (src: any, kernelSize: number, iterations: number = 1, advancedParams?: Record<string, any>): any => {
   try {
+    const cv = getOpenCV();
+    if (!cv) throw new Error('OpenCV not available');
+    
+    console.log('Applying erosion with params:', { kernelSize, iterations, advancedParams });
+    
     // Create destination matrix
     const dst = new cv.Mat();
     
-    // Create kernel for erosion
-    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kernelSize, kernelSize));
+    // Determine border type
+    const borderType = advancedParams?.borderType ? cv[advancedParams.borderType] : cv.BORDER_DEFAULT;
     
-    // Apply erosion
-    const anchor = new cv.Point(-1, -1); // Default anchor point (center of kernel)
-    cv.erode(src, dst, kernel, anchor, iterations, cv.BORDER_DEFAULT);
-    
-    // Clean up
-    kernel.delete();
+    // Check if using custom structuring element
+    if (advancedParams?.useCustomElement && advancedParams?.structuringElement) {
+      // Use the custom structuring element
+      const kernel = createStructuringElementMat(cv, advancedParams.structuringElement);
+      
+      // Apply erosion
+      const anchor = new cv.Point(-1, -1); // Default anchor point (center)
+      cv.erode(
+        src,
+        dst,
+        kernel,
+        anchor,
+        iterations,
+        borderType
+      );
+      
+      // Clean up
+      kernel.delete();
+    } else {
+      // Use standard OpenCV structuring element
+      const shape = advancedParams?.shape === 'ellipse' ? cv.MORPH_ELLIPSE :
+                    advancedParams?.shape === 'cross' ? cv.MORPH_CROSS :
+                    cv.MORPH_RECT;
+      
+      const kernel = cv.getStructuringElement(
+        shape,
+        new cv.Size(kernelSize, kernelSize)
+      );
+      
+      // Apply erosion
+      const anchor = new cv.Point(-1, -1); // Default anchor point (center)
+      cv.erode(
+        src,
+        dst,
+        kernel,
+        anchor,
+        iterations,
+        borderType
+      );
+      
+      // Clean up
+      kernel.delete();
+    }
     
     return dst;
   } catch (error) {
     console.error('Error in applyErode:', error);
-    return src.clone();
+    throw error;
   }
 };
 

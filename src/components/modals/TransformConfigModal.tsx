@@ -3,6 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { ExclamationTriangleIcon, XMarkIcon, DocumentTextIcon, InformationCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import type { Transformation, TransformationParameter, KernelValue } from '../../utils/types';
 import CustomBlurConfigPanel from '../configPanels/CustomBlurConfigPanel';
+import MorphologyConfigPanel from '../configPanels/MorphologyConfigPanel';
 
 interface TransformConfigModalProps {
   isOpen: boolean;
@@ -857,17 +858,14 @@ export default function TransformConfigModal({
   // Render Morphology configuration
   const renderMorphologyConfig = () => {
     return (
-      <div className="space-y-6">
-        {/* Basic parameters section */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900">Basic Parameters</h3>
-          <div className="mt-2 bg-gray-50 p-4 rounded-md">
-            {editedTransformation.parameters.map(param => 
-              <div key={param.name}>{renderParameterControl(param)}</div>
-            )}
-          </div>
-        </div>
-      </div>
+      <MorphologyConfigPanel
+        transformation={editedTransformation}
+        parameters={editedTransformation.parameters}
+        advancedParameters={advancedParameters}
+        onParameterChange={handleParameterChange}
+        onAdvancedParamChange={handleAdvancedParamChange}
+        renderParameterControl={renderParameterControl}
+      />
     );
   };
 

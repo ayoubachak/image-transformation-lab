@@ -159,4 +159,23 @@ export interface SerializedEdge {
   id: string;
   source: string;
   target: string;
+}
+
+// Structuring element shape types
+export type StructuringElementShape = 'rect' | 'ellipse' | 'cross' | 'stick' | 'bipoint' | 'circle' | 'square' | 'custom';
+
+export interface StructuringElement {
+  shape: StructuringElementShape;
+  width: number;
+  height: number;
+  // For stick
+  angle?: number;
+  length?: number;
+  // For bipoint
+  point1?: { x: number, y: number };
+  point2?: { x: number, y: number };
+  // For circle
+  radius?: number;
+  // For custom shape
+  matrix?: number[][];
 } 
