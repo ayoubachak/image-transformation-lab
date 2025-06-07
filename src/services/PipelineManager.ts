@@ -3,28 +3,32 @@ import type {
   ImageProcessingNode, 
   ImageProcessingEdge, 
   Transformation,
-  TransformationParameter
+  Inspection,
+  TransformationParameter,
+  InspectionParameter
 } from '../utils/types';
 import { processImage } from '../utils/imageProcessing';
 
 /**
  * Event types for pipeline processing
  */
-export enum PipelineEventType {
-  NODE_ADDED = 'node_added',
-  NODE_REMOVED = 'node_removed',
-  NODE_UPDATED = 'node_updated',
-  EDGE_ADDED = 'edge_added',
-  EDGE_REMOVED = 'edge_removed',
-  PROCESSING_STARTED = 'processing_started',
-  PROCESSING_COMPLETED = 'processing_completed',
-  PROCESSING_FAILED = 'processing_failed',
-  PIPELINE_RESET = 'pipeline_reset',
-  PIPELINE_INVALIDATED = 'pipeline_invalidated'
-}
+export const PipelineEventType = {
+  NODE_ADDED: 'node_added',
+  NODE_REMOVED: 'node_removed',
+  NODE_UPDATED: 'node_updated',
+  EDGE_ADDED: 'edge_added',
+  EDGE_REMOVED: 'edge_removed',
+  PROCESSING_STARTED: 'processing_started',
+  PROCESSING_COMPLETED: 'processing_completed',
+  PROCESSING_FAILED: 'processing_failed',
+  PIPELINE_RESET: 'pipeline_reset',
+  PIPELINE_INVALIDATED: 'pipeline_invalidated'
+} as const;
+
+export type PipelineEventType = typeof PipelineEventType[keyof typeof PipelineEventType];
 
 /**
- * Event payload for pipeline events
+ * Event payload interface
  */
 export interface PipelineEvent {
   type: PipelineEventType;
@@ -40,7 +44,7 @@ export interface PipelineObserver {
 }
 
 /**
- * Result of a node processing operation
+ * Node processing result interface
  */
 export interface NodeProcessingResult {
   nodeId: string;
@@ -51,15 +55,12 @@ export interface NodeProcessingResult {
 }
 
 /**
- * PipelineManager Service
- * 
- * Responsible for managing the image processing pipeline, including:
- * - Managing nodes and edges
- * - Tracking dependencies between nodes
- * - Processing images through the pipeline
- * - Notifying observers of pipeline events
+ * Main Pipeline Manager class
+ * Manages the image processing pipeline including nodes, edges, and processing state
+ * Uses observer pattern for state updates and properly handles async processing
  */
 export class PipelineManager {
+  // Core data structures
   private nodes: Map<string, ImageProcessingNode> = new Map();
   private edges: Map<string, ImageProcessingEdge> = new Map();
   private observers: Set<PipelineObserver> = new Set();
@@ -69,14 +70,14 @@ export class PipelineManager {
   private inputImages: Map<string, HTMLImageElement> = new Map(); // nodeId -> input image
 
   /**
-   * Initialize a new PipelineManager
+   * Initialize the pipeline manager
    */
   constructor() {
-    this.resetPipeline();
+    // Pipeline manager is initialized with empty state
   }
 
   /**
-   * Reset the pipeline to its initial state
+   * Reset the entire pipeline
    */
   public resetPipeline(): void {
     this.nodes.clear();
@@ -85,10 +86,10 @@ export class PipelineManager {
     this.processingQueue.clear();
     this.dependencyGraph.clear();
     this.inputImages.clear();
-    
+
     this.notifyObservers({
       type: PipelineEventType.PIPELINE_RESET,
-      payload: null,
+      payload: {},
       timestamp: Date.now()
     });
   }
@@ -108,16 +109,20 @@ export class PipelineManager {
   }
 
   /**
-   * Notify all observers of an event
+   * Notify all observers of a pipeline event
    */
   private notifyObservers(event: PipelineEvent): void {
     this.observers.forEach(observer => {
-      observer.onPipelineEvent(event);
+      try {
+        observer.onPipelineEvent(event);
+      } catch (error) {
+        console.error('Error in pipeline observer:', error);
+      }
     });
   }
 
   /**
-   * Get all nodes in the pipeline
+   * Get all nodes as an array
    */
   public getNodes(): ImageProcessingNode[] {
     return Array.from(this.nodes.values());
@@ -131,14 +136,14 @@ export class PipelineManager {
   }
 
   /**
-   * Get all edges in the pipeline
+   * Get all edges as an array
    */
   public getEdges(): ImageProcessingEdge[] {
     return Array.from(this.edges.values());
   }
 
   /**
-   * Get the processing result for a node
+   * Get processing result for a node
    */
   public getNodeResult(nodeId: string): NodeProcessingResult | undefined {
     return this.processingResults.get(nodeId);
@@ -209,6 +214,58 @@ export class PipelineManager {
   }
 
   /**
+   * Add an inspection node to the pipeline
+   */
+  public addInspectionNode(
+    position: { x: number, y: number },
+    inspection: Inspection | Omit<Inspection, 'id' | 'inputNodes'>
+  ): string {
+    const id = uuidv4();
+    
+    // Ensure inspection has the required fields
+    const nodeInspection: Inspection = {
+      // For TypeScript safety, check if 'id' exists on the inspection
+      // If it doesn't, we're dealing with a partial inspection
+      ...(('id' in inspection) ? inspection : { 
+        ...inspection,
+        id,
+        inputNodes: []
+      }),
+      // Ensure these properties exist
+      id,
+      inputNodes: ('inputNodes' in inspection) ? 
+        (inspection as Inspection).inputNodes : []
+    };
+    
+    const node: ImageProcessingNode = {
+      id,
+      type: 'inspection',
+      position,
+      inspection: nodeInspection
+    };
+    
+    this.nodes.set(id, node);
+    this.dependencyGraph.set(id, new Set());
+    
+    // Initialize node processing result (inspection nodes don't actually process, they analyze)
+    this.processingResults.set(id, {
+      nodeId: id,
+      canvas: null,
+      error: null,
+      processingTime: 0,
+      status: 'idle'
+    });
+    
+    this.notifyObservers({
+      type: PipelineEventType.NODE_ADDED,
+      payload: { node },
+      timestamp: Date.now()
+    });
+    
+    return id;
+  }
+
+  /**
    * Update a node in the pipeline
    */
   public updateNode(nodeId: string, updates: Partial<ImageProcessingNode>): boolean {
@@ -217,6 +274,7 @@ export class PipelineManager {
     
     // Create a deep copy of the transformation if one is provided
     let transformationUpdate = updates.transformation;
+    let inspectionUpdate = updates.inspection;
     
     if (transformationUpdate) {
       // Deep clone transformation to avoid reference issues
@@ -259,13 +317,34 @@ export class PipelineManager {
       
       transformationUpdate = deepClonedTransformation;
     }
+
+    if (inspectionUpdate) {
+      // Deep clone inspection to avoid reference issues
+      const deepClonedInspection = {
+        ...inspectionUpdate,
+        // Ensure ID is preserved
+        id: nodeId,
+        // Deep clone parameters
+        parameters: inspectionUpdate.parameters ? 
+          inspectionUpdate.parameters.map(param => ({...param})) : 
+          (inspectionUpdate.parameters || []),
+        // Deep clone metadata if it exists
+        metadata: inspectionUpdate.metadata ? 
+          JSON.parse(JSON.stringify(inspectionUpdate.metadata)) : undefined,
+        // Preserve input nodes
+        inputNodes: inspectionUpdate.inputNodes || node.inspection?.inputNodes || []
+      };
+      
+      inspectionUpdate = deepClonedInspection;
+    }
     
     // Apply updates to the node
     const updatedNode: ImageProcessingNode = {
       ...node,
       ...updates,
-      // Use the deeply cloned transformation
-      transformation: transformationUpdate || node.transformation
+      // Use the deeply cloned transformation or inspection
+      transformation: transformationUpdate || node.transformation,
+      inspection: inspectionUpdate || node.inspection
     };
     
     // Store the updated node
@@ -294,7 +373,7 @@ export class PipelineManager {
   }
 
   /**
-   * Update a transformation parameter
+   * Update a transformation or inspection parameter
    */
   public updateParameter(
     nodeId: string, 
@@ -302,7 +381,7 @@ export class PipelineManager {
     value: number | string | boolean | object
   ): boolean {
     const node = this.nodes.get(nodeId);
-    if (!node || node.type !== 'transformation' || !node.transformation) {
+    if (!node || (!node.transformation && !node.inspection)) {
       return false;
     }
     
@@ -324,75 +403,78 @@ export class PipelineManager {
       }
     }
     
-    // Find the parameter to update
-    const paramIndex = node.transformation.parameters.findIndex(p => p.name === paramName);
-    
-    if (paramIndex >= 0) {
-      // Update existing parameter
-      const updatedParams = [...node.transformation.parameters];
-      updatedParams[paramIndex] = {
-        ...updatedParams[paramIndex],
-        value: clonedValue
-      };
+    if (node.type === 'transformation' && node.transformation) {
+      // Handle transformation parameter update
+      const paramIndex = node.transformation.parameters.findIndex(p => p.name === paramName);
       
-      // Create a deep copy of the transformation
-      const updatedTransformation = {
-        ...node.transformation,
-        parameters: updatedParams
-      };
+      if (paramIndex >= 0) {
+        // Update existing parameter
+        const updatedParams = [...node.transformation.parameters];
+        updatedParams[paramIndex] = {
+          ...updatedParams[paramIndex],
+          value: clonedValue as any
+        };
+        
+        // Create a deep copy of the transformation
+        const updatedTransformation = {
+          ...node.transformation,
+          parameters: updatedParams
+        };
+        
+        // Update the node
+        this.nodes.set(nodeId, {
+          ...node,
+          transformation: updatedTransformation
+        });
+        
+        // Notify observers of the parameter change
+        this.notifyObservers({
+          type: PipelineEventType.NODE_UPDATED,
+          payload: { nodeId, paramName, value: clonedValue },
+          timestamp: Date.now()
+        });
+        
+        // Invalidate this node and downstream for processing
+        this.invalidateNodeAndDownstream(nodeId);
+        
+        return true;
+      }
+    } else if (node.type === 'inspection' && node.inspection) {
+      // Handle inspection parameter update
+      const paramIndex = node.inspection.parameters.findIndex(p => p.name === paramName);
       
-      // Update the node
-      this.nodes.set(nodeId, {
-        ...node,
-        transformation: updatedTransformation
-      });
-      
-      // Notify observers
-      this.notifyObservers({
-        type: PipelineEventType.NODE_UPDATED,
-        payload: { nodeId },
-        timestamp: Date.now()
-      });
-      
-      // Force invalidation of the node when parameters change
-      this.invalidateNodeAndDownstream(nodeId);
-      
-      return true;
-    } else {
-      // Parameter doesn't exist, add it
-      const updatedParams = [...node.transformation.parameters];
-      updatedParams.push({
-        name: paramName,
-        type: typeof clonedValue === 'object' ? 
-          ('values' in (clonedValue as any) ? 'kernel' : 'object') : 
-          typeof clonedValue as any,
-        value: clonedValue
-      });
-      
-      // Create a deep copy of the transformation
-      const updatedTransformation = {
-        ...node.transformation,
-        parameters: updatedParams
-      };
-      
-      // Update the node
-      this.nodes.set(nodeId, {
-        ...node,
-        transformation: updatedTransformation
-      });
-      
-      // Notify observers
-      this.notifyObservers({
-        type: PipelineEventType.NODE_UPDATED,
-        payload: { nodeId },
-        timestamp: Date.now()
-      });
-      
-      // Force invalidation of the node when parameters change
-      this.invalidateNodeAndDownstream(nodeId);
-      
-      return true;
+      if (paramIndex >= 0) {
+        // Update existing parameter
+        const updatedParams = [...node.inspection.parameters];
+        updatedParams[paramIndex] = {
+          ...updatedParams[paramIndex],
+          value: clonedValue as any
+        };
+        
+        // Create a deep copy of the inspection
+        const updatedInspection = {
+          ...node.inspection,
+          parameters: updatedParams
+        };
+        
+        // Update the node
+        this.nodes.set(nodeId, {
+          ...node,
+          inspection: updatedInspection
+        });
+        
+        // Notify observers of the parameter change
+        this.notifyObservers({
+          type: PipelineEventType.NODE_UPDATED,
+          payload: { nodeId, paramName, value: clonedValue },
+          timestamp: Date.now()
+        });
+        
+        return true;
+      }
     }
+    
+    return false;
   }
 
   /**
@@ -480,6 +562,18 @@ export class PipelineManager {
       // Update the node
       this.nodes.set(targetId, targetNode);
     }
+    // Update target node's inspection inputNodes if it's an inspection
+    else if (targetNode.type === 'inspection' && targetNode.inspection) {
+      targetNode.inspection.inputNodes = targetNode.inspection.inputNodes || [];
+      
+      // Add source node ID to inputNodes if not already present
+      if (!targetNode.inspection.inputNodes.includes(sourceId)) {
+        targetNode.inspection.inputNodes.push(sourceId);
+      }
+      
+      // Update the node
+      this.nodes.set(targetId, targetNode);
+    }
     
     // Add to dependency graph
     if (!this.dependencyGraph.has(sourceId)) {
@@ -522,6 +616,19 @@ export class PipelineManager {
       };
       
       this.updateNode(edge.target, { transformation: updatedTransformation });
+    }
+    // Update the target node's inputNodes if it's an inspection
+    else if (targetNode?.type === 'inspection' && targetNode.inspection) {
+      const updatedInputNodes = targetNode.inspection.inputNodes.filter(
+        id => id !== edge.source
+      );
+      
+      const updatedInspection = {
+        ...targetNode.inspection,
+        inputNodes: updatedInputNodes
+      };
+      
+      this.updateNode(edge.target, { inspection: updatedInspection });
     }
     
     // Update dependency graph
@@ -749,8 +856,11 @@ export class PipelineManager {
     }
     
     // For transformation nodes, ensure all input nodes are processed first
-    if (node.type === 'transformation' && node.transformation) {
-      const inputNodeIds = node.transformation.inputNodes;
+    if ((node.type === 'transformation' && node.transformation) || 
+        (node.type === 'inspection' && node.inspection)) {
+      const inputNodeIds = node.type === 'transformation' 
+        ? node.transformation!.inputNodes 
+        : node.inspection!.inputNodes;
       
       // Check if any input nodes are still processing
       const pendingInputs = inputNodeIds.filter(id => {
@@ -861,6 +971,32 @@ export class PipelineManager {
         }
         
         resultCtx.putImageData(processResult.result, 0, 0);
+      }
+      else if (node.type === 'inspection' && node.inspection) {
+        // Inspection nodes analyze the input image without transforming it
+        const inputNodeIds = node.inspection.inputNodes;
+        
+        // If no input nodes, can't process
+        if (inputNodeIds.length === 0) {
+          throw new Error('Inspection node has no input nodes');
+        }
+        
+        // Get the first input node's result (for now we only support one input)
+        const inputNodeId = inputNodeIds[0];
+        const inputResult = this.processingResults.get(inputNodeId);
+        
+        // Double-check that input is successful
+        if (!inputResult || inputResult.status !== 'success' || !inputResult.canvas) {
+          throw new Error('Input node has not been successfully processed');
+        }
+        
+        // For inspection nodes, we don't create a new canvas - we use the input canvas
+        // The inspection results are stored in the node's metadata or handled by the UI
+        canvas = inputResult.canvas;
+        
+        // Here you could add specific inspection analysis logic
+        // For now, we just pass through the input canvas
+        // The actual inspection analysis would be done in the InspectionNode component
       }
       else if (node.type === 'output') {
         // Output nodes just pass through their input
@@ -1078,8 +1214,7 @@ export class PipelineManager {
       position,
       transformation: type === 'transformation' && transformation 
         ? { ...transformation, inputNodes: [] } // Ensure clean inputNodes
-        : undefined,
-      metadata: {}
+        : undefined
     };
     
     // Add to nodes map

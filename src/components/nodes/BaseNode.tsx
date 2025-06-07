@@ -5,7 +5,7 @@ import { usePipeline } from '../../contexts/PipelineContext';
 
 export interface BaseNodeProps {
   id: string;
-  type: 'input' | 'transformation' | 'output';
+  type: 'input' | 'transformation' | 'output' | 'inspection';
   selected: boolean;
   children: React.ReactNode;
   title: string;
@@ -74,7 +74,12 @@ export default function BaseNode({
       <div className={`${color.header} ${color.headerText} py-2 px-3 flex justify-between items-center`}>
         <h3 className="text-sm font-semibold">{title}</h3>
         <div className="flex items-center space-x-1">
-          <div className={`w-2 h-2 rounded-full ${type === 'input' ? 'bg-blue-400' : type === 'output' ? 'bg-green-400' : 'bg-purple-400'}`}></div>
+          <div className={`w-2 h-2 rounded-full ${
+            type === 'input' ? 'bg-blue-400' : 
+            type === 'output' ? 'bg-green-400' : 
+            type === 'inspection' ? 'bg-teal-400' :
+            'bg-purple-400'
+          }`}></div>
         </div>
       </div>
 

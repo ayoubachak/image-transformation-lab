@@ -21,12 +21,14 @@ import { usePipeline } from '../contexts/PipelineContext';
 import InputNode from './nodes/InputNode';
 import TransformationNode from './nodes/TransformationNode';
 import OutputNode from './nodes/OutputNode';
+import InspectionNode from './nodes/InspectionNode';
 
 // Define nodeTypes outside of the component to avoid recreation on each render
 const nodeTypes: NodeTypes = {
   input: InputNode,
   transformation: TransformationNode,
   output: OutputNode,
+  inspection: InspectionNode,
 };
 
 // Define custom edge types for more attractive connections
@@ -254,11 +256,13 @@ export default function ImageProcessingPipeline({
           nodeStrokeColor={(n) => {
             if (n.type === 'input') return '#1d4ed8';
             if (n.type === 'output') return '#15803d';
+            if (n.type === 'inspection') return '#0f766e';
             return '#6b7280';
           }}
           nodeColor={(n) => {
             if (n.type === 'input') return '#dbeafe';
             if (n.type === 'output') return '#dcfce7';
+            if (n.type === 'inspection') return '#ccfbf1';
             return '#f3f4f6';
           }}
           maskColor="rgba(240, 249, 255, 0.6)"

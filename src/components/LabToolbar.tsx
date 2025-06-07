@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { usePipeline } from '../contexts/PipelineContext';
 import { v4 as uuidv4 } from 'uuid';
-import type { Transformation, TransformationType } from '../utils/types';
+import type { Transformation, TransformationType, InspectionType } from '../utils/types';
 import {
   PhotoIcon,
   DocumentArrowDownIcon,
@@ -21,12 +21,14 @@ import {
   CubeTransparentIcon,
   FolderIcon,
   FolderOpenIcon,
-  DocumentPlusIcon
+  DocumentPlusIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { Tooltip } from 'react-tooltip';
 
 // Import transformation templates
 import { transformationTemplates } from '../pages/LabPage';
+import { inspectionTemplates } from '../utils/inspectionTemplates';
 
 interface LabToolbarProps {
   onOpenTransformationManager?: () => void;
@@ -41,7 +43,7 @@ export default function LabToolbar({
   onChangeOperationMode,
   onOpenProjectsModal
 }: LabToolbarProps) {
-  const { addNode, nodes, clearPipeline, removeNode, selectedNodeId, duplicateNode } = usePipeline();
+  const { addNode, addInspectionNode, nodes, clearPipeline, removeNode, selectedNodeId, duplicateNode } = usePipeline();
   const [showAddMenu, setShowAddMenu] = useState(false);
 
   // Check if there's already an input node
@@ -74,6 +76,17 @@ export default function LabToolbar({
     // Use the transformation template from transformationTemplates
     if (transformationTemplates[type]) {
       addNode('transformation', transformationTemplates[type]);
+    }
+    setShowAddMenu(false);
+  };
+
+  const handleAddInspection = (inspectionType: InspectionType | string) => {
+    // Convert to InspectionType if needed
+    const type = inspectionType as InspectionType;
+    
+    // Use the inspection template from inspectionTemplates
+    if (inspectionTemplates[type]) {
+      addInspectionNode(inspectionTemplates[type]);
     }
     setShowAddMenu(false);
   };
@@ -366,6 +379,32 @@ export default function LabToolbar({
                       </svg>
                       <span className="text-xs">Perspective</span>
                         </button>
+                  </div>
+                </div>
+                
+                {/* Inspection Tools Section */}
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <div className="px-3 py-1">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Inspection Tools</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1 px-1.5 mb-2">
+                    <button
+                      onClick={() => handleAddInspection('histogram')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                    >
+                      <ChartBarIcon className="h-6 w-6 mb-1" />
+                      <span className="text-xs">Histogram</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddInspection('statistics')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs">Statistics</span>
+                    </button>
                   </div>
                 </div>
                     </div>

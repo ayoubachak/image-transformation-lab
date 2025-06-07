@@ -22,6 +22,18 @@ export type TransformationType =
   | 'perspective'
   | 'custom';
 
+// New inspection node types
+export type InspectionType = 
+  | 'histogram'
+  | 'statistics'
+  | 'colorProfile'
+  | 'dimensionInfo'
+  | 'moduleCalculator'    // Calculate magnitude/module of gradients
+  | 'phaseCalculator'     // Calculate phase/direction of gradients
+  | 'edgeDensity'         // Analyze edge density in regions
+  | 'colorDistribution'   // Advanced color distribution analysis
+  | 'textureAnalysis';
+
 export type ParameterType = 
   | 'number' 
   | 'string' 
@@ -78,6 +90,32 @@ export interface TransformationParameter {
   validate?: (value: any, params: Record<string, any>) => boolean | string;
 }
 
+// Base interface for inspection parameters (same as transformation parameters)
+export interface InspectionParameter extends TransformationParameter {}
+
+// Inspection interface - similar to Transformation but for visualization
+export interface Inspection {
+  id: string;
+  type: InspectionType;
+  name: string;
+  description: string;
+  parameters: InspectionParameter[];
+  inputNodes: string[];
+  
+  // Inspection-specific properties
+  visualizationType: 'chart' | 'table' | 'overlay' | 'info';
+  isRealTime?: boolean; // Whether to update in real-time or on demand
+  
+  // Configuration and metadata
+  metadata?: {
+    advancedParameters?: Record<string, any>;
+    chartConfig?: Record<string, any>;
+    displayOptions?: Record<string, any>;
+    notes?: string;
+    [key: string]: any;
+  };
+}
+
 export interface Transformation {
   id: string;
   type: TransformationType;
@@ -101,8 +139,9 @@ export interface Transformation {
 
 export interface ImageProcessingNode {
   id: string;
-  type: 'input' | 'transformation' | 'output';
+  type: 'input' | 'transformation' | 'output' | 'inspection';
   transformation?: Transformation;
+  inspection?: Inspection;
   position: { x: number; y: number };
 }
 
@@ -149,9 +188,10 @@ export interface SerializedPipelineState {
 
 export interface SerializedNode {
   id: string;
-  type: 'input' | 'transformation' | 'output';
+  type: 'input' | 'transformation' | 'output' | 'inspection';
   position: { x: number; y: number };
   transformation?: Transformation;
+  inspection?: Inspection;
   metadata?: Record<string, any>;
 }
 
@@ -159,6 +199,28 @@ export interface SerializedEdge {
   id: string;
   source: string;
   target: string;
+}
+
+// Histogram-specific data structures
+export interface HistogramData {
+  red?: number[];
+  green?: number[];
+  blue?: number[];
+  gray?: number[];
+  binary?: number[];
+  imageType: 'rgb' | 'grayscale' | 'binary';
+  totalPixels: number;
+  width: number;
+  height: number;
+}
+
+// Inspection result interface
+export interface InspectionResult {
+  nodeId: string;
+  type: InspectionType;
+  data: HistogramData | Record<string, any>; // Generic data structure for different inspection types
+  timestamp: number;
+  processingTime: number;
 }
 
 // Structuring element shape types

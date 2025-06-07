@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { pipelineManager, type PipelineObserver, type PipelineEvent, PipelineEventType, type NodeProcessingResult } from '../services/PipelineManager';
-import type { ImageProcessingNode, ImageProcessingEdge, Transformation } from '../utils/types';
+import type { ImageProcessingNode, ImageProcessingEdge, Transformation, Inspection } from '../utils/types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface PipelineContextType {
@@ -12,8 +12,12 @@ interface PipelineContextType {
   
   // Actions
   addNode: (
-    type: 'input' | 'transformation' | 'output', 
-    transformation?: Omit<Transformation, 'id' | 'inputNodes'>, 
+    type: 'input' | 'transformation' | 'output' | 'inspection', 
+    transformationOrInspection?: Omit<Transformation, 'id' | 'inputNodes'> | Omit<Inspection, 'id' | 'inputNodes'>, 
+    position?: { x: number, y: number }
+  ) => string;
+  addInspectionNode: (
+    inspection: Omit<Inspection, 'id' | 'inputNodes'>,
     position?: { x: number, y: number }
   ) => string;
   updateNode: (nodeId: string, updates: Partial<ImageProcessingNode>) => void;
@@ -92,22 +96,46 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
   
   // Add a node to the pipeline
   const addNode = useCallback((
-    type: 'input' | 'transformation' | 'output', 
-    transformation?: Omit<Transformation, 'id' | 'inputNodes'>,
+    type: 'input' | 'transformation' | 'output' | 'inspection', 
+    transformationOrInspection?: Omit<Transformation, 'id' | 'inputNodes'> | Omit<Inspection, 'id' | 'inputNodes'>,
     position?: { x: number, y: number }
   ): string => {
     // Calculate position if not provided
     const calculatedPosition = position || calculateNodePosition(type, nodes);
     
-    // Create a complete Transformation object if one was provided
-    const completeTransformation = transformation ? {
-      ...transformation,
-      id: uuidv4(), // Add temporary ID (will be replaced by PipelineManager)
-      inputNodes: [] // Initialize empty inputNodes array
-    } : undefined;
-    
-    return pipelineManager.addNode(type, calculatedPosition, completeTransformation);
+    if (type === 'inspection' && transformationOrInspection) {
+      // Handle inspection node
+      const inspection = transformationOrInspection as Omit<Inspection, 'id' | 'inputNodes'>;
+      const completeInspection = {
+        ...inspection,
+        id: uuidv4(), // Add temporary ID (will be replaced by PipelineManager)
+        inputNodes: [] // Initialize empty inputNodes array
+      };
+      
+      return pipelineManager.addInspectionNode(calculatedPosition, completeInspection);
+    } else if (transformationOrInspection && type === 'transformation') {
+      // Handle transformation node
+      const transformation = transformationOrInspection as Omit<Transformation, 'id' | 'inputNodes'>;
+      const completeTransformation = {
+        ...transformation,
+        id: uuidv4(), // Add temporary ID (will be replaced by PipelineManager)
+        inputNodes: [] // Initialize empty inputNodes array
+      };
+      
+      return pipelineManager.addNode(type, calculatedPosition, completeTransformation);
+    } else {
+      // Handle input/output nodes
+      return pipelineManager.addNode(type, calculatedPosition);
+    }
   }, [nodes]);
+
+  // Specialized function for adding inspection nodes
+  const addInspectionNode = useCallback((
+    inspection: Omit<Inspection, 'id' | 'inputNodes'>,
+    position?: { x: number, y: number }
+  ): string => {
+    return addNode('inspection', inspection, position);
+  }, [addNode]);
   
   // Update a node
   const updateNode = useCallback((nodeId: string, updates: Partial<ImageProcessingNode>): void => {
@@ -166,7 +194,7 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
   
   // Helper function to calculate node position
   const calculateNodePosition = (
-    type: 'input' | 'transformation' | 'output',
+    type: 'input' | 'transformation' | 'output' | 'inspection',
     currentNodes: ImageProcessingNode[]
   ): { x: number, y: number } => {
     // Default positions for each type when no nodes exist
@@ -174,6 +202,7 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
       if (type === 'input') return { x: 100, y: 250 };
       if (type === 'transformation') return { x: 350, y: 250 };
       if (type === 'output') return { x: 600, y: 250 };
+      if (type === 'inspection') return { x: 350, y: 450 }; // Below transformations
     }
 
     // Find nodes of the same type
@@ -193,6 +222,21 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
           return { x: rightmostInput.position.x + 250, y: rightmostInput.position.y };
         }
         return { x: 350, y: 250 };
+      }
+      
+      if (type === 'inspection') {
+        // Position inspection nodes below the main processing chain
+        const allProcessingNodes = currentNodes.filter(node => 
+          node.type === 'input' || node.type === 'transformation' || node.type === 'output'
+        );
+        if (allProcessingNodes.length > 0) {
+          // Find the leftmost processing node and position inspection below it
+          const leftmostNode = allProcessingNodes.reduce((prev, current) => 
+            (current.position.x < prev.position.x) ? current : prev
+          );
+          return { x: leftmostNode.position.x, y: leftmostNode.position.y + 200 };
+        }
+        return { x: 350, y: 450 };
       }
       
       if (type === 'output') {
@@ -218,15 +262,23 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
       }
     }
     
-    // For nodes of the same type, arrange vertically with spacing
-    const verticalOffset = existingNodesByType.length * 150;
-    
-    // Use the position of the first node of this type with vertical offset
-    const baseNode = existingNodesByType[0];
-    return { 
-      x: baseNode.position.x, 
-      y: baseNode.position.y + verticalOffset 
-    };
+    // For nodes of the same type, arrange horizontally with spacing for inspection nodes
+    if (type === 'inspection') {
+      const horizontalOffset = existingNodesByType.length * 320; // Wider spacing for inspection nodes
+      const baseNode = existingNodesByType[0];
+      return { 
+        x: baseNode.position.x + horizontalOffset, 
+        y: baseNode.position.y 
+      };
+    } else {
+      // For other types, arrange vertically with spacing
+      const verticalOffset = existingNodesByType.length * 150;
+      const baseNode = existingNodesByType[0];
+      return { 
+        x: baseNode.position.x, 
+        y: baseNode.position.y + verticalOffset 
+      };
+    }
   };
   
   // Duplicate a node with its configuration
@@ -247,6 +299,10 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
       // Deep clone the transformation, removing id and inputNodes
       const { id, inputNodes, ...transformationData } = node.transformation;
       return pipelineManager.addNode('transformation', offsetPosition, transformationData as Omit<Transformation, 'id' | 'inputNodes'>);
+    } else if (node.type === 'inspection' && node.inspection) {
+      // Deep clone the inspection, removing id and inputNodes
+      const { id, inputNodes, ...inspectionData } = node.inspection;
+      return pipelineManager.addInspectionNode(offsetPosition, inspectionData as Omit<Inspection, 'id' | 'inputNodes'>);
     }
     
     return null;
@@ -266,6 +322,7 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
     selectedNodeId,
     results,
     addNode,
+    addInspectionNode,
     updateNode,
     removeNode,
     updateParameter,
