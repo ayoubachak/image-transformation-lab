@@ -45,6 +45,7 @@ export default function LabToolbar({
 }: LabToolbarProps) {
   const { addNode, addInspectionNode, nodes, clearPipeline, removeNode, selectedNodeId, duplicateNode } = usePipeline();
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showInspectionMenu, setShowInspectionMenu] = useState(false);
 
   // Check if there's already an input node
   const hasInputNode = nodes.some((node) => node.type === 'input');
@@ -88,7 +89,7 @@ export default function LabToolbar({
     if (inspectionTemplates[type]) {
       addInspectionNode(inspectionTemplates[type]);
     }
-    setShowAddMenu(false);
+    setShowInspectionMenu(false);
   };
   
   const handleDeleteSelectedNode = () => {
@@ -148,41 +149,41 @@ export default function LabToolbar({
               Add Node
             </Tooltip>
       
-      {/* Add node dropdown menu */}
-      {showAddMenu && (
+            {/* Add node dropdown menu */}
+            {showAddMenu && (
               <div className="absolute top-full left-0 z-50 mt-1 bg-white rounded-md shadow-lg border border-gray-200 w-56 py-2 max-h-[80vh] overflow-y-auto">
                 <div className="px-3 py-1 border-b border-gray-100 mb-1 sticky top-0 bg-white z-10">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Nodes</h3>
-          </div>
-          
-          <div className="px-1.5 py-1">
-            <button
-              className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-blue-50 text-blue-700 ${hasInputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={handleAddInputNode}
-              disabled={hasInputNode}
-            >
-              <PhotoIcon className="h-5 w-5 mr-2 text-blue-500" />
-              Input Node
-              {hasInputNode && (
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Nodes</h3>
+                </div>
+                
+                <div className="px-1.5 py-1">
+                  <button
+                    className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-blue-50 text-blue-700 ${hasInputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={handleAddInputNode}
+                    disabled={hasInputNode}
+                  >
+                    <PhotoIcon className="h-5 w-5 mr-2 text-blue-500" />
+                    Input Node
+                    {hasInputNode && (
                       <span className="ml-auto text-xs text-gray-500">(Added)</span>
-              )}
-            </button>
-            
-            <button
-              className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-green-50 text-green-700 ${hasOutputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={handleAddOutputNode}
-              disabled={hasOutputNode}
-            >
-              <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-green-500" />
-              Output Node
-              {hasOutputNode && (
+                    )}
+                  </button>
+                  
+                  <button
+                    className={`flex items-center px-3 py-2 rounded-md text-sm w-full text-left hover:bg-green-50 text-green-700 ${hasOutputNode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={handleAddOutputNode}
+                    disabled={hasOutputNode}
+                  >
+                    <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-green-500" />
+                    Output Node
+                    {hasOutputNode && (
                       <span className="ml-auto text-xs text-gray-500">(Added)</span>
-              )}
-            </button>
-          </div>
-          
+                    )}
+                  </button>
+                </div>
+                
                 {/* Transformations section - categorized */}
-          <div className="border-t border-gray-100 mt-1 pt-1">
+                <div className="border-t border-gray-100 mt-1 pt-1">
                   <div className="px-3 py-1">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Basic Transforms</h3>
                   </div>
@@ -247,8 +248,8 @@ export default function LabToolbar({
                   
                   <div className="px-3 py-1 mt-2">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Edge Detection</h3>
-            </div>
-            
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-1 px-1.5">
                     <button
                       onClick={() => handleAddTransformation('canny')}
@@ -259,7 +260,7 @@ export default function LabToolbar({
                       </svg>
                       <span className="text-xs">Canny</span>
                     </button>
-                  <button
+                    <button
                       onClick={() => handleAddTransformation('laplacian')}
                       className="flex flex-col items-center justify-center p-2 hover:bg-amber-50 text-amber-700 rounded-md"
                     >
@@ -274,9 +275,9 @@ export default function LabToolbar({
                     >
                       <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 6v12m3-12v12m3-12v12M4 9h16M4 12h16M4 15h16" />
-                    </svg>
+                      </svg>
                       <span className="text-xs">Sobel</span>
-                  </button>
+                    </button>
                   </div>
                   
                   <div className="px-3 py-1 mt-2">
@@ -327,7 +328,7 @@ export default function LabToolbar({
                       </svg>
                       <span className="text-xs">Color</span>
                     </button>
-                        <button
+                    <button
                       onClick={() => handleAddTransformation('histogram')}
                       className="flex flex-col items-center justify-center p-2 hover:bg-rose-50 text-rose-700 rounded-md"
                     >
@@ -340,7 +341,7 @@ export default function LabToolbar({
                   
                   <div className="px-3 py-1 mt-2">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Geometry</h3>
-                          </div>
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-1 px-1.5 mb-2">
                     <button
@@ -378,39 +379,126 @@ export default function LabToolbar({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                       </svg>
                       <span className="text-xs">Perspective</span>
-                        </button>
+                    </button>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Dedicated Inspection Tools button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowInspectionMenu(!showInspectionMenu)}
+              className={actionButtonClass(showInspectionMenu)}
+              id="inspection-tools-btn"
+              data-tooltip-id="inspection-tools-tooltip"
+            >
+              <ChartBarIcon className="h-5 w-5" />
+            </button>
+            <Tooltip 
+              id="inspection-tools-tooltip" 
+              place="bottom" 
+              offset={10}
+              className="tooltip-fixed"
+              delayShow={300}
+              positionStrategy="fixed"
+            >
+              Inspection Tools
+            </Tooltip>
+            
+            {/* Inspection tools dropdown menu */}
+            {showInspectionMenu && (
+              <div className="absolute top-full left-0 z-50 mt-1 bg-white rounded-md shadow-lg border border-gray-200 w-72 py-2 max-h-[80vh] overflow-y-auto">
+                <div className="px-3 py-1 border-b border-gray-100 mb-1 sticky top-0 bg-white z-10">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Analysis & Inspection Tools</h3>
                 </div>
                 
-                {/* Inspection Tools Section */}
-                <div className="border-t border-gray-100 mt-1 pt-1">
-                  <div className="px-3 py-1">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Inspection Tools</h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-1 px-1.5 mb-2">
-                    <button
-                      onClick={() => handleAddInspection('histogram')}
-                      className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
-                    >
-                      <ChartBarIcon className="h-6 w-6 mb-1" />
-                      <span className="text-xs">Histogram</span>
-                    </button>
-                    <button
-                      onClick={() => handleAddInspection('statistics')}
-                      className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
-                    >
-                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-xs">Statistics</span>
-                    </button>
-                  </div>
+                {/* Basic Analysis */}
+                <div className="px-3 py-1 mt-2">
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Basic Analysis</h4>
                 </div>
-                    </div>
-                  )}
+                <div className="grid grid-cols-2 gap-1 px-1.5">
+                  <button
+                    onClick={() => handleAddInspection('histogram')}
+                    className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                  >
+                    <ChartBarIcon className="h-6 w-6 mb-1" />
+                    <span className="text-xs">Histogram</span>
+                  </button>
+                  <button
+                    onClick={() => handleAddInspection('statistics')}
+                    className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                  >
+                    <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-xs">Statistics</span>
+                  </button>
                 </div>
-          
+                
+                {/* Gradient Analysis */}
+                <div className="px-3 py-1 mt-2">
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Gradient Analysis</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-1 px-1.5">
+                  <button
+                    onClick={() => handleAddInspection('moduleCalculator')}
+                    className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                  >
+                    <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span className="text-xs">Module Calc</span>
+                  </button>
+                  <button
+                    onClick={() => handleAddInspection('phaseCalculator')}
+                    className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                  >
+                    <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span className="text-xs">Phase Calc</span>
+                  </button>
+                </div>
+                
+                {/* Advanced Analysis */}
+                <div className="px-3 py-1 mt-2">
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Advanced Analysis</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-1 px-1.5">
+                  <button
+                    onClick={() => handleAddInspection('edgeDensity')}
+                    className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                  >
+                    <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    <span className="text-xs">Edge Density</span>
+                  </button>
+                  <button
+                    onClick={() => handleAddInspection('colorDistribution')}
+                    className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                  >
+                    <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                    </svg>
+                    <span className="text-xs">Color Dist</span>
+                  </button>
+                  <button
+                    onClick={() => handleAddInspection('textureAnalysis')}
+                    className="flex flex-col items-center justify-center p-2 hover:bg-teal-50 text-teal-700 rounded-md"
+                  >
+                    <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                    </svg>
+                    <span className="text-xs">Texture</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Manage Pipeline button */}
           <button
             onClick={onOpenTransformationManager}
@@ -661,7 +749,7 @@ export default function LabToolbar({
                 <span className="sr-only">Cancel</span>
                 ✕
               </button>
-          </div>
+            </div>
           )}
         </div>
       )}

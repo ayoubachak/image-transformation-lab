@@ -162,5 +162,345 @@ export const inspectionTemplates: Record<InspectionType, Omit<Inspection, 'id' |
         showIcons: true
       }
     }
+  },
+
+  moduleCalculator: {
+    type: 'moduleCalculator',
+    name: 'Module Calculator',
+    description: 'Calculate magnitude/module of image gradients',
+    visualizationType: 'overlay',
+    isRealTime: true,
+    parameters: [
+      {
+        name: 'gradientMethod',
+        type: 'select',
+        value: 'sobel',
+        options: ['sobel', 'scharr', 'laplacian'],
+        label: 'Gradient Method',
+        description: 'Method for calculating gradients'
+      },
+      {
+        name: 'kernelSize',
+        type: 'number',
+        value: 3,
+        min: 1,
+        max: 31,
+        step: 2,
+        label: 'Kernel Size',
+        description: 'Size of the gradient kernel (odd numbers only)'
+      },
+      {
+        name: 'threshold',
+        type: 'number',
+        value: 10,
+        min: 0,
+        max: 255,
+        step: 1,
+        label: 'Magnitude Threshold',
+        description: 'Minimum magnitude to consider'
+      },
+      {
+        name: 'colormap',
+        type: 'select',
+        value: 'jet',
+        options: ['jet', 'hot', 'cool', 'viridis'],
+        label: 'Color Map',
+        description: 'Color scheme for visualization'
+      },
+      {
+        name: 'normalize',
+        type: 'boolean',
+        value: true,
+        label: 'Normalize',
+        description: 'Normalize magnitude values'
+      }
+    ],
+    metadata: {
+      category: 'gradient',
+      complexity: 'intermediate',
+      computationalCost: 'medium'
+    }
+  },
+
+  phaseCalculator: {
+    type: 'phaseCalculator',
+    name: 'Phase Calculator',
+    description: 'Calculate phase/direction of image gradients',
+    visualizationType: 'overlay',
+    isRealTime: true,
+    parameters: [
+      {
+        name: 'gradientMethod',
+        type: 'select',
+        value: 'sobel',
+        options: ['sobel', 'scharr'],
+        label: 'Gradient Method',
+        description: 'Method for calculating gradients'
+      },
+      {
+        name: 'angleUnit',
+        type: 'select',
+        value: 'degrees',
+        options: ['degrees', 'radians'],
+        label: 'Angle Unit',
+        description: 'Unit for angle measurements'
+      },
+      {
+        name: 'magnitudeThreshold',
+        type: 'number',
+        value: 10,
+        min: 0,
+        max: 100,
+        step: 1,
+        label: 'Magnitude Threshold',
+        description: 'Minimum gradient magnitude to consider'
+      },
+      {
+        name: 'visualizationMode',
+        type: 'select',
+        value: 'color',
+        options: ['color', 'arrows', 'both'],
+        label: 'Visualization Mode',
+        description: 'How to display phase information'
+      },
+      {
+        name: 'arrowDensity',
+        type: 'number',
+        value: 20,
+        min: 5,
+        max: 50,
+        step: 5,
+        label: 'Arrow Density',
+        description: 'Density of direction arrows (if enabled)'
+      },
+      {
+        name: 'smoothing',
+        type: 'boolean',
+        value: false,
+        label: 'Phase Smoothing',
+        description: 'Apply smoothing to phase map'
+      }
+    ],
+    metadata: {
+      category: 'gradient',
+      complexity: 'advanced',
+      computationalCost: 'medium'
+    }
+  },
+
+  edgeDensity: {
+    type: 'edgeDensity',
+    name: 'Edge Density Analyzer',
+    description: 'Analyze edge density in image regions',
+    visualizationType: 'heatmap',
+    isRealTime: true,
+    parameters: [
+      {
+        name: 'edgeDetector',
+        type: 'select',
+        value: 'canny',
+        options: ['canny', 'sobel', 'laplacian', 'roberts'],
+        label: 'Edge Detector',
+        description: 'Method for edge detection'
+      },
+      {
+        name: 'lowThreshold',
+        type: 'number',
+        value: 50,
+        min: 0,
+        max: 255,
+        step: 1,
+        label: 'Low Threshold',
+        description: 'Lower threshold for edge detection'
+      },
+      {
+        name: 'highThreshold',
+        type: 'number',
+        value: 150,
+        min: 0,
+        max: 255,
+        step: 1,
+        label: 'High Threshold',
+        description: 'Upper threshold for edge detection'
+      },
+      {
+        name: 'regionSize',
+        type: 'number',
+        value: 32,
+        min: 8,
+        max: 128,
+        step: 8,
+        label: 'Region Size',
+        description: 'Size of analysis regions (pixels)'
+      },
+      {
+        name: 'overlapRatio',
+        type: 'number',
+        value: 0.5,
+        min: 0,
+        max: 0.9,
+        step: 0.1,
+        label: 'Overlap Ratio',
+        description: 'Overlap between adjacent regions'
+      },
+      {
+        name: 'heatmapMode',
+        type: 'select',
+        value: 'density',
+        options: ['density', 'strength', 'direction'],
+        label: 'Heatmap Mode',
+        description: 'What to visualize in the heatmap'
+      }
+    ],
+    metadata: {
+      category: 'structure',
+      complexity: 'advanced',
+      computationalCost: 'high'
+    }
+  },
+
+  colorDistribution: {
+    type: 'colorDistribution',
+    name: 'Color Distribution Analyzer',
+    description: 'Advanced analysis of color distribution and clustering',
+    visualizationType: 'chart',
+    isRealTime: false,
+    parameters: [
+      {
+        name: 'colorSpace',
+        type: 'select',
+        value: 'rgb',
+        options: ['rgb', 'hsv', 'lab', 'xyz'],
+        label: 'Color Space',
+        description: 'Color space for analysis'
+      },
+      {
+        name: 'clusterCount',
+        type: 'number',
+        value: 8,
+        min: 2,
+        max: 32,
+        step: 1,
+        label: 'Cluster Count',
+        description: 'Number of color clusters to identify'
+      },
+      {
+        name: 'samplingRate',
+        type: 'number',
+        value: 0.1,
+        min: 0.01,
+        max: 1.0,
+        step: 0.01,
+        label: 'Sampling Rate',
+        description: 'Fraction of pixels to sample for analysis'
+      },
+      {
+        name: 'binSize',
+        type: 'number',
+        value: 8,
+        min: 1,
+        max: 32,
+        step: 1,
+        label: 'Histogram Bin Size',
+        description: 'Size of histogram bins per channel'
+      },
+      {
+        name: 'showClusters',
+        type: 'boolean',
+        value: true,
+        label: 'Show Color Clusters',
+        description: 'Display dominant color clusters'
+      },
+      {
+        name: 'showDistribution',
+        type: 'boolean',
+        value: true,
+        label: 'Show Distribution',
+        description: 'Display color distribution charts'
+      }
+    ],
+    metadata: {
+      category: 'color',
+      complexity: 'advanced',
+      computationalCost: 'high'
+    }
+  },
+
+  textureAnalysis: {
+    type: 'textureAnalysis',
+    name: 'Texture Analyzer',
+    description: 'Analyze texture patterns using multiple descriptors',
+    visualizationType: 'composite',
+    isRealTime: false,
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'glcm',
+        options: ['glcm', 'lbp', 'gabor', 'wavelet'],
+        label: 'Analysis Method',
+        description: 'Texture analysis method'
+      },
+      {
+        name: 'windowSize',
+        type: 'number',
+        value: 32,
+        min: 8,
+        max: 128,
+        step: 8,
+        label: 'Window Size',
+        description: 'Size of analysis window'
+      },
+      {
+        name: 'direction',
+        type: 'select',
+        value: 'all',
+        options: ['horizontal', 'vertical', 'diagonal', 'all'],
+        label: 'Analysis Direction',
+        description: 'Direction for texture analysis'
+      },
+      {
+        name: 'distance',
+        type: 'number',
+        value: 1,
+        min: 1,
+        max: 10,
+        step: 1,
+        label: 'Pixel Distance',
+        description: 'Distance between pixel pairs for GLCM'
+      },
+      {
+        name: 'radius',
+        type: 'number',
+        value: 3,
+        min: 1,
+        max: 8,
+        step: 1,
+        label: 'LBP Radius',
+        description: 'Radius for Local Binary Pattern'
+      },
+      {
+        name: 'gaborFrequency',
+        type: 'number',
+        value: 0.1,
+        min: 0.01,
+        max: 0.5,
+        step: 0.01,
+        label: 'Gabor Frequency',
+        description: 'Frequency for Gabor filters'
+      },
+      {
+        name: 'showFeatures',
+        type: 'boolean',
+        value: true,
+        label: 'Show Feature Maps',
+        description: 'Display individual texture features'
+      }
+    ],
+    metadata: {
+      category: 'texture',
+      complexity: 'expert',
+      computationalCost: 'very_high'
+    }
   }
 }; 
