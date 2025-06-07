@@ -606,6 +606,17 @@ export class PipelineManager {
       // Invalidate downstream nodes
       this.invalidateDownstreamNodes(nodeId);
       
+      // Process downstream nodes directly after successful processing (similar to processNode method)
+      const downstreamNodes = this.getDirectDependents(nodeId);
+      if (downstreamNodes.length > 0) {
+        // Use a small timeout to prevent stack overflow with deep pipelines
+        setTimeout(() => {
+          downstreamNodes.forEach(dependentId => {
+            this.processNode(dependentId);
+          });
+        }, 50);
+      }
+      
       return true;
     }
     
