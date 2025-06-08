@@ -144,27 +144,27 @@ export class ProjectManager {
         }
       }
       
-      // Generate unique ID if not updating an existing project
-      const projectId = uuidv4();
-      const timestamp = Date.now();
-      
+    // Generate unique ID if not updating an existing project
+    const projectId = uuidv4();
+    const timestamp = Date.now();
+    
       // Serialize the current state with compression
-      const state = this.serializeCurrentState();
-      
-      // Generate thumbnail from the output node if available
-      const thumbnailDataUrl = this.generateThumbnail();
-      
-      // Create the project object
-      const project: SavedProject = {
-        id: projectId,
-        name,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        version: APP_VERSION,
-        thumbnailDataUrl,
-        state
-      };
-      
+    const state = this.serializeCurrentState();
+    
+    // Generate thumbnail from the output node if available
+    const thumbnailDataUrl = this.generateThumbnail();
+    
+    // Create the project object
+    const project: SavedProject = {
+      id: projectId,
+      name,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      version: APP_VERSION,
+      thumbnailDataUrl,
+      state
+    };
+    
       // Validate the project before saving
       const validation = this.validateProject(project);
       if (!validation.isValid) {
@@ -172,16 +172,16 @@ export class ProjectManager {
       }
       
       // Save to localStorage with proper error handling
-      this.saveProjectToStorage(project);
-      
-      // Update the projects list
-      this.addProjectToList(project);
-      
-      // Set as current project
-      localStorage.setItem(CURRENT_PROJECT_KEY, projectId);
-      
+    this.saveProjectToStorage(project);
+    
+    // Update the projects list
+    this.addProjectToList(project);
+    
+    // Set as current project
+    localStorage.setItem(CURRENT_PROJECT_KEY, projectId);
+    
       console.log(`✅ Project "${name}" saved successfully with ID: ${projectId}`);
-      return project;
+    return project;
     } catch (error) {
       console.error('❌ Failed to save project:', error);
       throw new Error(`Failed to save project "${name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -193,8 +193,8 @@ export class ProjectManager {
    */
   public updateProject(projectId: string, name?: string): SavedProject | null {
     try {
-      // Check if project exists
-      const existingProject = this.getProject(projectId);
+    // Check if project exists
+    const existingProject = this.getProject(projectId);
       if (!existingProject) {
         throw new Error(`Project with ID "${projectId}" not found`);
       }
@@ -208,33 +208,33 @@ export class ProjectManager {
           throw new Error('Insufficient storage space. Please delete some projects to continue.');
         }
       }
-      
-      // Serialize the current state
-      const state = this.serializeCurrentState();
-      
-      // Generate thumbnail from the output node if available
-      const thumbnailDataUrl = this.generateThumbnail();
-      
-      // Create the updated project
-      const updatedProject: SavedProject = {
-        ...existingProject,
-        name: name || existingProject.name,
-        updatedAt: Date.now(),
-        thumbnailDataUrl,
-        state
-      };
+    
+    // Serialize the current state
+    const state = this.serializeCurrentState();
+    
+    // Generate thumbnail from the output node if available
+    const thumbnailDataUrl = this.generateThumbnail();
+    
+    // Create the updated project
+    const updatedProject: SavedProject = {
+      ...existingProject,
+      name: name || existingProject.name,
+      updatedAt: Date.now(),
+      thumbnailDataUrl,
+      state
+    };
       
       // Validate the updated project
       const validation = this.validateProject(updatedProject);
       if (!validation.isValid) {
         throw new Error(`Project validation failed: ${validation.errors.join(', ')}`);
       }
-      
-      // Save to localStorage
-      this.saveProjectToStorage(updatedProject);
-      
+    
+    // Save to localStorage
+    this.saveProjectToStorage(updatedProject);
+    
       console.log(`✅ Project "${updatedProject.name}" updated successfully`);
-      return updatedProject;
+    return updatedProject;
     } catch (error) {
       console.error('❌ Failed to update project:', error);
       throw new Error(`Failed to update project: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -246,7 +246,7 @@ export class ProjectManager {
    */
   public loadProject(projectId: string): SavedProject | null {
     try {
-      const project = this.getProject(projectId);
+    const project = this.getProject(projectId);
       if (!project) {
         throw new Error(`Project with ID "${projectId}" not found`);
       }
@@ -270,12 +270,12 @@ export class ProjectManager {
       if (!success) {
         throw new Error('Failed to apply project state to pipeline');
       }
-      
-      // Set as current project
-      localStorage.setItem(CURRENT_PROJECT_KEY, projectId);
-      
+    
+    // Set as current project
+    localStorage.setItem(CURRENT_PROJECT_KEY, projectId);
+    
       console.log(`✅ Project "${project.name}" loaded successfully`);
-      return project;
+    return project;
     } catch (error) {
       console.error('❌ Failed to load project:', error);
       throw new Error(`Failed to load project: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -312,10 +312,10 @@ export class ProjectManager {
    */
   public getCurrentProject(): SavedProject | null {
     try {
-      const currentProjectId = localStorage.getItem(CURRENT_PROJECT_KEY);
-      if (!currentProjectId) return null;
-      
-      return this.getProject(currentProjectId);
+    const currentProjectId = localStorage.getItem(CURRENT_PROJECT_KEY);
+    if (!currentProjectId) return null;
+    
+    return this.getProject(currentProjectId);
     } catch (error) {
       console.error('❌ Error getting current project:', error);
       return null;
@@ -327,9 +327,9 @@ export class ProjectManager {
    */
   public getProjectsList(): { id: string; name: string; updatedAt: number; thumbnailDataUrl?: string }[] {
     try {
-      const projectsListJson = localStorage.getItem(PROJECTS_LIST_KEY);
-      if (!projectsListJson) return [];
-      
+    const projectsListJson = localStorage.getItem(PROJECTS_LIST_KEY);
+    if (!projectsListJson) return [];
+    
       const projectsList = JSON.parse(projectsListJson);
       
       // Validate the projects list structure
@@ -355,21 +355,21 @@ export class ProjectManager {
    */
   public deleteProject(projectId: string): boolean {
     try {
-      // Remove the project
-      localStorage.removeItem(`${STORAGE_KEY_PREFIX}${projectId}`);
-      
-      // Update the projects list
-      const projectsList = this.getProjectsList().filter(p => p.id !== projectId);
-      localStorage.setItem(PROJECTS_LIST_KEY, JSON.stringify(projectsList));
-      
-      // Clear current project if it's the deleted one
-      const currentProjectId = localStorage.getItem(CURRENT_PROJECT_KEY);
-      if (currentProjectId === projectId) {
-        localStorage.removeItem(CURRENT_PROJECT_KEY);
-      }
-      
+    // Remove the project
+    localStorage.removeItem(`${STORAGE_KEY_PREFIX}${projectId}`);
+    
+    // Update the projects list
+    const projectsList = this.getProjectsList().filter(p => p.id !== projectId);
+    localStorage.setItem(PROJECTS_LIST_KEY, JSON.stringify(projectsList));
+    
+    // Clear current project if it's the deleted one
+    const currentProjectId = localStorage.getItem(CURRENT_PROJECT_KEY);
+    if (currentProjectId === projectId) {
+      localStorage.removeItem(CURRENT_PROJECT_KEY);
+    }
+    
       console.log(`✅ Project "${projectId}" deleted successfully`);
-      return true;
+    return true;
     } catch (error) {
       console.error('❌ Error deleting project:', error);
       return false;
@@ -381,11 +381,11 @@ export class ProjectManager {
    */
   public createNewProject(): void {
     try {
-      // Reset the pipeline
-      pipelineManager.resetPipeline();
-      
-      // Clear current project
-      localStorage.removeItem(CURRENT_PROJECT_KEY);
+    // Reset the pipeline
+    pipelineManager.resetPipeline();
+    
+    // Clear current project
+    localStorage.removeItem(CURRENT_PROJECT_KEY);
       
       console.log('✅ New project created');
     } catch (error) {
@@ -495,32 +495,32 @@ export class ProjectManager {
     try {
       console.log('🔄 Serializing pipeline state with optimization...');
       
-      // Get nodes and edges from pipeline manager
-      const nodes = pipelineManager.getNodes();
-      const edges = pipelineManager.getEdges();
-      
+    // Get nodes and edges from pipeline manager
+    const nodes = pipelineManager.getNodes();
+    const edges = pipelineManager.getEdges();
+    
       console.log(`📊 Serializing ${nodes.length} nodes and ${edges.length} edges`);
       
       // Collect input images with optimization
-      const inputImages: Record<string, string> = {};
-      
+    const inputImages: Record<string, string> = {};
+    
       // Convert nodes to serializable format with enhanced validation and optimization
-      const serializedNodes: SerializedNode[] = nodes.map(node => {
+    const serializedNodes: SerializedNode[] = nodes.map(node => {
         try {
           // Validate node structure
           if (!node.id || !node.type || !node.position) {
             throw new Error(`Invalid node structure: missing required fields`);
           }
           
-          // If this is an input node, we need to grab the image data
-          if (node.type === 'input') {
-            const canvas = pipelineManager.getNodeResult(node.id)?.canvas;
-            if (canvas) {
-              try {
+      // If this is an input node, we need to grab the image data
+      if (node.type === 'input') {
+        const canvas = pipelineManager.getNodeResult(node.id)?.canvas;
+        if (canvas) {
+          try {
                 // Optimize and compress the image data
                 inputImages[node.id] = this.optimizeImageForStorage(canvas);
                 console.log(`📸 Optimized and serialized input image for node ${node.id}`);
-              } catch (error) {
+          } catch (error) {
                 console.warn(`⚠️ Failed to serialize input image for node ${node.id}:`, error);
               }
             }
@@ -542,13 +542,13 @@ export class ProjectManager {
           
           // Return serialized node with optimized data
           const serializedNode: SerializedNode = {
-            id: node.id,
-            type: node.type,
-            position: { ...node.position },
+        id: node.id,
+        type: node.type,
+        position: { ...node.position },
             transformation: cleanedTransformation,
             inspection: cleanedInspection,
-            metadata: undefined // Remove metadata reference as it doesn't exist in ImageProcessingNode
-          };
+        metadata: undefined // Remove metadata reference as it doesn't exist in ImageProcessingNode
+      };
           
           console.log(`✅ Serialized ${node.type} node: ${node.id}`);
           return serializedNode;
@@ -566,9 +566,9 @@ export class ProjectManager {
           }
           
           return {
-            id: edge.id,
-            source: edge.source,
-            target: edge.target
+      id: edge.id,
+      source: edge.source,
+      target: edge.target
           };
         } catch (error) {
           console.error(`❌ Failed to serialize edge ${edge.id}:`, error);
@@ -577,10 +577,10 @@ export class ProjectManager {
       });
       
       const state: SerializedPipelineState = {
-        nodes: serializedNodes,
-        edges: serializedEdges,
-        inputImages
-      };
+      nodes: serializedNodes,
+      edges: serializedEdges,
+      inputImages
+    };
       
       // Log the final size
       const stateSize = new Blob([JSON.stringify(state)]).size;
@@ -607,35 +607,35 @@ export class ProjectManager {
       
       console.log(`📊 Deserializing ${state.nodes.length} nodes and ${state.edges.length} edges`);
       
-      // Start with a clean pipeline
-      pipelineManager.resetPipeline();
-      
+    // Start with a clean pipeline
+    pipelineManager.resetPipeline();
+    
       // Create a map to store nodes by ID for validation
-      const nodesMap = new Map<string, ImageProcessingNode>();
+    const nodesMap = new Map<string, ImageProcessingNode>();
       const createdNodeIds = new Set<string>();
-      
+    
       // First pass: create all nodes with enhanced error handling
-      for (const serializedNode of state.nodes) {
+    for (const serializedNode of state.nodes) {
         try {
           if (!serializedNode.id || !serializedNode.type || !serializedNode.position) {
             throw new Error(`Invalid serialized node: missing required fields`);
           }
           
-          let node: ImageProcessingNode | null = null;
-          
-          // Create the node with the right type
-          if (serializedNode.type === 'input') {
-            node = pipelineManager.createNode('input', serializedNode.id, serializedNode.position);
-          } else if (serializedNode.type === 'output') {
-            node = pipelineManager.createNode('output', serializedNode.id, serializedNode.position);
-          } else if (serializedNode.type === 'transformation' && serializedNode.transformation) {
+      let node: ImageProcessingNode | null = null;
+      
+      // Create the node with the right type
+      if (serializedNode.type === 'input') {
+        node = pipelineManager.createNode('input', serializedNode.id, serializedNode.position);
+      } else if (serializedNode.type === 'output') {
+        node = pipelineManager.createNode('output', serializedNode.id, serializedNode.position);
+      } else if (serializedNode.type === 'transformation' && serializedNode.transformation) {
             // Validate transformation before creating
             this.validateTransformation(serializedNode.transformation);
-            node = pipelineManager.createNode('transformation', serializedNode.id, serializedNode.position, serializedNode.transformation);
-          } else if (serializedNode.type === 'inspection' && serializedNode.inspection) {
+        node = pipelineManager.createNode('transformation', serializedNode.id, serializedNode.position, serializedNode.transformation);
+      } else if (serializedNode.type === 'inspection' && serializedNode.inspection) {
             // Validate inspection before creating
             this.validateInspection(serializedNode.inspection);
-            node = pipelineManager.createInspectionNode(serializedNode.id, serializedNode.position, serializedNode.inspection);
+        node = pipelineManager.createInspectionNode(serializedNode.id, serializedNode.position, serializedNode.inspection);
           } else {
             throw new Error(`Unsupported node type or missing configuration: ${serializedNode.type}`);
           }
@@ -690,16 +690,16 @@ export class ProjectManager {
       
       // Third pass: load input images with error handling
       if (state.inputImages) {
-        for (const [nodeId, imageDataUrl] of Object.entries(state.inputImages)) {
-          try {
+    for (const [nodeId, imageDataUrl] of Object.entries(state.inputImages)) {
+      try {
             if (!createdNodeIds.has(nodeId)) {
               console.warn(`⚠️ Skipping input image for non-existent node: ${nodeId}`);
               continue;
             }
             
             // Load the image asynchronously
-            const img = new Image();
-            img.onload = () => {
+        const img = new Image();
+        img.onload = () => {
               const success = pipelineManager.setInputImage(nodeId, img);
               if (success) {
                 console.log(`✅ Loaded input image for node: ${nodeId}`);
@@ -709,9 +709,9 @@ export class ProjectManager {
             };
             img.onerror = () => {
               console.warn(`⚠️ Failed to load input image for node: ${nodeId}`);
-            };
-            img.src = imageDataUrl;
-          } catch (error) {
+        };
+        img.src = imageDataUrl;
+      } catch (error) {
             console.error(`❌ Error loading image for node ${nodeId}:`, error);
           }
         }
@@ -843,49 +843,49 @@ export class ProjectManager {
    */
   private generateThumbnail(): string | undefined {
     try {
-      const nodes = pipelineManager.getNodes();
-      const outputNode = nodes.find(node => node.type === 'output');
-      
-      if (outputNode) {
-        const canvas = pipelineManager.getNodeResult(outputNode.id)?.canvas;
-        if (canvas) {
-          try {
-            // Create a smaller thumbnail
-            const thumbnailCanvas = document.createElement('canvas');
-            const thumbnailCtx = thumbnailCanvas.getContext('2d');
-            
-            if (thumbnailCtx) {
+    const nodes = pipelineManager.getNodes();
+    const outputNode = nodes.find(node => node.type === 'output');
+    
+    if (outputNode) {
+      const canvas = pipelineManager.getNodeResult(outputNode.id)?.canvas;
+      if (canvas) {
+        try {
+          // Create a smaller thumbnail
+          const thumbnailCanvas = document.createElement('canvas');
+          const thumbnailCtx = thumbnailCanvas.getContext('2d');
+          
+          if (thumbnailCtx) {
               // Set thumbnail size (max 150px in either dimension to save space)
               const maxSize = 150;
-              const aspectRatio = canvas.width / canvas.height;
-              
-              let width = maxSize;
-              let height = maxSize;
-              
-              if (aspectRatio > 1) {
-                // Landscape
-                height = width / aspectRatio;
-              } else {
-                // Portrait
-                width = height * aspectRatio;
-              }
-              
-              thumbnailCanvas.width = width;
-              thumbnailCanvas.height = height;
-              
-              // Draw the image at the reduced size
-              thumbnailCtx.drawImage(canvas, 0, 0, width, height);
-              
+            const aspectRatio = canvas.width / canvas.height;
+            
+            let width = maxSize;
+            let height = maxSize;
+            
+            if (aspectRatio > 1) {
+              // Landscape
+              height = width / aspectRatio;
+            } else {
+              // Portrait
+              width = height * aspectRatio;
+            }
+            
+            thumbnailCanvas.width = width;
+            thumbnailCanvas.height = height;
+            
+            // Draw the image at the reduced size
+            thumbnailCtx.drawImage(canvas, 0, 0, width, height);
+            
               // Return compressed JPEG data URL
               return thumbnailCanvas.toDataURL('image/jpeg', 0.6); // Lower quality for thumbnails
             }
           } catch (error) {
             console.warn('⚠️ Error generating thumbnail:', error);
-          }
         }
       }
-      
-      return undefined;
+    }
+    
+    return undefined;
     } catch (error) {
       console.warn('⚠️ Error in thumbnail generation:', error);
       return undefined;
@@ -937,11 +937,11 @@ export class ProjectManager {
    */
   private addProjectToList(project: SavedProject): void {
     try {
-      const projectsList = this.getProjectsList();
-      
-      // Check if project already exists in list
-      const existingIndex = projectsList.findIndex(p => p.id === project.id);
-      
+    const projectsList = this.getProjectsList();
+    
+    // Check if project already exists in list
+    const existingIndex = projectsList.findIndex(p => p.id === project.id);
+    
       const projectListItem = {
         id: project.id,
         name: project.name,
@@ -952,13 +952,13 @@ export class ProjectManager {
       if (existingIndex >= 0) {
         // Update existing entry
         projectsList[existingIndex] = projectListItem;
-      } else {
-        // Add new entry
+    } else {
+      // Add new entry
         projectsList.push(projectListItem);
-      }
-      
-      // Save updated list
-      localStorage.setItem(PROJECTS_LIST_KEY, JSON.stringify(projectsList));
+    }
+    
+    // Save updated list
+    localStorage.setItem(PROJECTS_LIST_KEY, JSON.stringify(projectsList));
       
       console.log(`📝 Updated projects list`);
     } catch (error) {

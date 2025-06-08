@@ -1143,6 +1143,29 @@ export const processImage = async (
             });
             break;
             
+          case 'morphology':
+            const morphologyOperationParam = transformation.parameters.find(p => p.name === 'operation');
+            const morphologyOperation = morphologyOperationParam ? morphologyOperationParam.value as string : 'open';
+            
+            const morphologyKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
+            const morphologyKernelSize = morphologyKernelSizeParam ? morphologyKernelSizeParam.value as number : 5;
+            
+            const morphologyIterationsParam = transformation.parameters.find(p => p.name === 'iterations');
+            const morphologyIterations = morphologyIterationsParam ? morphologyIterationsParam.value as number : 1;
+            
+            // Get advanced parameters
+            const morphologyAdvancedParams = transformation.metadata?.advancedParameters || {};
+            
+            // Apply morphological operation
+            dst = applyMorphology(src, morphologyOperation, morphologyKernelSize, morphologyIterations, morphologyAdvancedParams);
+            
+            intermediates.push({
+              stage: 'morphology',
+              imageData: matToImageData(dst),
+              description: `Applied ${morphologyOperation} with ${morphologyKernelSize}×${morphologyKernelSize} kernel, iterations: ${morphologyIterations}`
+            });
+            break;
+            
           case 'rotate':
             const angle = transformation.parameters?.find(p => p.name === 'angle')?.value as number || 0;
             const scale = transformation.parameters?.find(p => p.name === 'scale')?.value as number || 1.0;
@@ -1611,6 +1634,29 @@ export function applyTransformation(
         });
         break;
         
+      case 'morphology':
+        const morphologyOperationParam = transformation.parameters.find(p => p.name === 'operation');
+        const morphologyOperation = morphologyOperationParam ? morphologyOperationParam.value as string : 'open';
+        
+        const morphologyKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
+        const morphologyKernelSize = morphologyKernelSizeParam ? morphologyKernelSizeParam.value as number : 5;
+        
+        const morphologyIterationsParam = transformation.parameters.find(p => p.name === 'iterations');
+        const morphologyIterations = morphologyIterationsParam ? morphologyIterationsParam.value as number : 1;
+        
+        // Get advanced parameters
+        const morphologyAdvancedParams = transformation.metadata?.advancedParameters || {};
+        
+        // Apply morphological operation
+        dst = applyMorphology(src, morphologyOperation, morphologyKernelSize, morphologyIterations, morphologyAdvancedParams);
+        
+        intermediates.push({
+          stage: 'morphology',
+          imageData: matToImageData(dst),
+          description: `Applied ${morphologyOperation} with ${morphologyKernelSize}×${morphologyKernelSize} kernel, iterations: ${morphologyIterations}`
+        });
+        break;
+        
       case 'rotate':
         const angle = paramMap.angle as number || 0;
         const scale = paramMap.scale as number || 1.0;
@@ -2010,3 +2056,80 @@ function adjustChannel(channel: any, adjustment: number, maxValue: number, cv: a
     cv.addWeighted(channel, 1 + factor, channel, 0, 0, channel);
   }
 } 
+
+// Apply morphological operations (opening, closing, gradient, tophat, blackhat)
+export const applyMorphology = (src: any, operation: string, kernelSize: number, iterations: number = 1, advancedParams?: Record<string, any>): any => {
+  const cv = getOpenCV();
+  try {
+    // Create destination matrix
+    const dst = new cv.Mat();
+    
+    // Map border type
+    const borderType = advancedParams?.borderType === 'reflect' ? cv.BORDER_REFLECT :
+                      advancedParams?.borderType === 'replicate' ? cv.BORDER_REPLICATE :
+                      advancedParams?.borderType === 'wrap' ? cv.BORDER_WRAP :
+                      cv.BORDER_DEFAULT; // Default border handling
+    
+    // Create structuring element
+    let kernel: any;
+    
+    if (advancedParams?.useCustomElement && advancedParams?.structuringElement) {
+      // Use the custom structuring element
+      kernel = createStructuringElementMat(cv, advancedParams.structuringElement);
+    } else {
+      // Use standard OpenCV structuring element
+      const shape = advancedParams?.shape === 'ellipse' ? cv.MORPH_ELLIPSE :
+                    advancedParams?.shape === 'cross' ? cv.MORPH_CROSS :
+                    cv.MORPH_RECT;
+      
+      kernel = cv.getStructuringElement(
+        shape,
+        new cv.Size(kernelSize, kernelSize)
+      );
+    }
+    
+    // Map morphological operation to OpenCV constant
+    let morphOp: number;
+    switch (operation) {
+      case 'open':
+        morphOp = cv.MORPH_OPEN;
+        break;
+      case 'close':
+        morphOp = cv.MORPH_CLOSE;
+        break;
+      case 'gradient':
+        morphOp = cv.MORPH_GRADIENT;
+        break;
+      case 'tophat':
+        morphOp = cv.MORPH_TOPHAT;
+        break;
+      case 'blackhat':
+        morphOp = cv.MORPH_BLACKHAT;
+        break;
+      default:
+        morphOp = cv.MORPH_OPEN; // Default to opening
+    }
+    
+    // Set up anchor point (center of kernel by default)
+    const anchor = new cv.Point(-1, -1);
+    
+    // Apply morphological operation
+    cv.morphologyEx(
+      src,
+      dst,
+      morphOp,
+      kernel,
+      anchor,
+      iterations,
+      borderType
+    );
+    
+    // Clean up
+    kernel.delete();
+    
+    return dst;
+  } catch (error) {
+    console.error('Error in applyMorphology:', error);
+    throw error;
+  }
+};

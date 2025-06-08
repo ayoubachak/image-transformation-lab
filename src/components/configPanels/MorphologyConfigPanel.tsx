@@ -46,6 +46,54 @@ export default function MorphologyConfigPanel({
     onAdvancedParamChange('structuringElement', element);
   };
 
+  // Get the current operation type
+  const operationParam = parameters.find(p => p.name === 'operation');
+  const currentOperation = operationParam?.value as string || 'open';
+
+  // Define operation descriptions
+  const getOperationDescription = (operation: string) => {
+    switch (operation) {
+      case 'open':
+        return {
+          name: 'Opening',
+          description: 'Erosion followed by dilation. Removes small noise and separates connected objects while preserving the overall shape.',
+          effect: 'Smooths object contours, breaks narrow connections, and eliminates small bright spots.'
+        };
+      case 'close':
+        return {
+          name: 'Closing',
+          description: 'Dilation followed by erosion. Fills small holes and gaps while preserving the overall shape.',
+          effect: 'Smooths object contours, fuses narrow breaks, and fills small dark holes.'
+        };
+      case 'gradient':
+        return {
+          name: 'Morphological Gradient',
+          description: 'Difference between dilation and erosion. Highlights the edges and boundaries of objects.',
+          effect: 'Creates an outline effect showing the boundaries of objects with varying thickness.'
+        };
+      case 'tophat':
+        return {
+          name: 'Top-Hat Transform',
+          description: 'Difference between the original image and its opening. Extracts small bright details.',
+          effect: 'Isolates bright features that are smaller than the structuring element.'
+        };
+      case 'blackhat':
+        return {
+          name: 'Black-Hat Transform',
+          description: 'Difference between the closing and the original image. Extracts small dark details.',
+          effect: 'Isolates dark features that are smaller than the structuring element.'
+        };
+      default:
+        return {
+          name: 'Morphological Operation',
+          description: 'A morphological transformation using the specified structuring element.',
+          effect: 'Modifies the structure of objects in the image.'
+        };
+    }
+  };
+
+  const operationInfo = getOperationDescription(currentOperation);
+
   return (
     <div className="space-y-6">
       {/* Basic parameters section */}
@@ -97,6 +145,28 @@ export default function MorphologyConfigPanel({
       <div>
         <h3 className="text-lg font-medium text-gray-900">Advanced Parameters</h3>
         <div className="mt-2 bg-gray-50 p-4 rounded-md space-y-4">
+          {/* Structuring Element Shape (when not using custom) */}
+          {!useCustomElement && (
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-1">
+                Structuring Element Shape
+              </label>
+              <select
+                value={advancedParameters.shape || 'rect'}
+                onChange={(e) => onAdvancedParamChange('shape', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="rect" className="text-gray-900 bg-white">Rectangle</option>
+                <option value="ellipse" className="text-gray-900 bg-white">Ellipse</option>
+                <option value="cross" className="text-gray-900 bg-white">Cross</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500 flex items-center">
+                <InformationCircleIcon className="h-3 w-3 mr-1" />
+                Shape of the structuring element affects the morphological operation
+              </p>
+            </div>
+          )}
+          
           {/* Border Type */}
           <div>
             <label className="block text-sm font-medium text-gray-800 mb-1">
@@ -128,24 +198,32 @@ export default function MorphologyConfigPanel({
         </div>
       </div>
       
-      {/* Explanation section */}
+      {/* Operation-specific explanation section */}
       <div>
         <h3 className="text-lg font-medium text-blue-600 flex items-center">
           <InformationCircleIcon className="h-5 w-5 mr-1" />
-          Morphology Explanation
+          {operationInfo.name} Explanation
         </h3>
         <div className="mt-2 bg-blue-50 p-4 rounded-md text-sm text-gray-800">
           <p className="mb-2">
-            <strong>{transformation.type === 'dilate' ? 'Dilation' : 'Erosion'}</strong> is a fundamental morphological operation that {transformation.type === 'dilate' ? 'expands' : 'shrinks'} regions in binary or grayscale images.
+            <strong>{operationInfo.name}</strong>: {operationInfo.description}
           </p>
-          <p className="mb-2">
-            {transformation.type === 'dilate' 
-              ? 'Dilation adds pixels to the boundaries of objects, potentially filling in small holes and connecting nearby objects.' 
-              : 'Erosion removes pixels from the boundaries of objects, which can separate connected objects and eliminate small details.'}
+          <p className="mb-3">
+            <strong>Effect:</strong> {operationInfo.effect}
           </p>
-          <p>
-            The structuring element defines the pattern used to {transformation.type === 'dilate' ? 'add' : 'remove'} pixels. Its size, shape, and pattern determine how the operation affects the image.
-          </p>
+          
+          {/* General morphology information */}
+          <div className="border-t border-blue-200 pt-3">
+            <p className="mb-2">
+              <strong>Structuring Element:</strong> The structuring element defines the neighborhood pattern used for the operation. Its size and shape determine how the morphological operation affects the image structure.
+            </p>
+            <p className="mb-2">
+              <strong>Iterations:</strong> Multiple iterations apply the operation repeatedly, amplifying its effects. Higher iterations produce more pronounced results.
+            </p>
+            <p>
+              <strong>Kernel Size:</strong> Larger kernels affect broader areas and can bridge larger gaps or remove larger features.
+            </p>
+          </div>
         </div>
       </div>
     </div>
