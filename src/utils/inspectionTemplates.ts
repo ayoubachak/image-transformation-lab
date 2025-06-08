@@ -502,5 +502,114 @@ export const inspectionTemplates: Record<InspectionType, Omit<Inspection, 'id' |
       complexity: 'expert',
       computationalCost: 'very_high'
     }
+  },
+
+  fourierTransform: {
+    type: 'fourierTransform',
+    name: 'Fourier Transform Analyzer',
+    description: 'Frequency domain analysis using Fast Fourier Transform',
+    visualizationType: 'composite',
+    isRealTime: false,
+    parameters: [
+      {
+        name: 'visualizationMode',
+        type: 'select',
+        value: 'magnitude',
+        options: ['magnitude', 'phase', 'both', 'spectrum'],
+        label: 'Visualization Mode',
+        description: 'What to display from the FFT'
+      },
+      {
+        name: 'logScale',
+        type: 'boolean',
+        value: true,
+        label: 'Logarithmic Scale',
+        description: 'Use logarithmic scale for magnitude display'
+      },
+      {
+        name: 'centerDC',
+        type: 'boolean',
+        value: true,
+        label: 'Center DC Component',
+        description: 'Shift zero frequency to center of spectrum'
+      },
+      {
+        name: 'normalize',
+        type: 'boolean',
+        value: true,
+        label: 'Normalize Values',
+        description: 'Normalize spectrum values to 0-255 range'
+      },
+      {
+        name: 'colormap',
+        type: 'select',
+        value: 'jet',
+        options: ['jet', 'hot', 'cool', 'gray', 'hsv'],
+        label: 'Color Map',
+        description: 'Color mapping for magnitude visualization'
+      },
+      {
+        name: 'filterType',
+        type: 'select',
+        value: 'none',
+        options: ['none', 'lowpass', 'highpass', 'bandpass', 'notch'],
+        label: 'Frequency Filter',
+        description: 'Apply frequency domain filter'
+      },
+      {
+        name: 'cutoffFrequency',
+        type: 'number',
+        value: 0.3,
+        min: 0.01,
+        max: 0.5,
+        step: 0.01,
+        label: 'Cutoff Frequency',
+        description: 'Filter cutoff frequency (normalized)',
+        dependsOn: 'filterType',
+        showIf: (params) => params.filterType !== 'none'
+      },
+      {
+        name: 'filterOrder',
+        type: 'number',
+        value: 2,
+        min: 1,
+        max: 10,
+        step: 1,
+        label: 'Filter Order',
+        description: 'Order/sharpness of the frequency filter',
+        dependsOn: 'filterType',
+        showIf: (params) => params.filterType !== 'none',
+        advanced: true
+      },
+      {
+        name: 'showStatistics',
+        type: 'boolean',
+        value: true,
+        label: 'Show Statistics',
+        description: 'Display frequency domain statistics'
+      },
+      {
+        name: 'showRadialProfile',
+        type: 'boolean',
+        value: false,
+        label: 'Show Radial Profile',
+        description: 'Display radial frequency profile',
+        advanced: true
+      },
+      {
+        name: 'windowFunction',
+        type: 'select',
+        value: 'none',
+        options: ['none', 'hanning', 'hamming', 'blackman', 'kaiser'],
+        label: 'Window Function',
+        description: 'Apply windowing to reduce spectral leakage',
+        advanced: true
+      }
+    ],
+    metadata: {
+      category: 'frequency',
+      complexity: 'advanced',
+      computationalCost: 'high'
+    }
   }
 }; 

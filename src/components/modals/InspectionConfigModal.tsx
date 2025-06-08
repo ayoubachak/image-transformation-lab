@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
-import { XMarkIcon, InformationCircleIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import ParameterControl from '../parameters/ParameterControl';
+import { XMarkIcon, ChartBarIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import type { Inspection, InspectionParameter } from '../../utils/types';
 
 interface InspectionConfigModalProps {
@@ -18,16 +16,10 @@ export default function InspectionConfigModal({
   inspection,
   onSave
 }: InspectionConfigModalProps) {
-  const [localInspection, setLocalInspection] = useState<Inspection>(inspection);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  // Reset local state when modal opens with new inspection
-  useEffect(() => {
-    if (isOpen) {
-      setLocalInspection(JSON.parse(JSON.stringify(inspection))); // Deep clone
-      setHasChanges(false);
-    }
-  }, [isOpen, inspection]);
+  const [localInspection, setLocalInspection] = useState<Inspection>({ ...inspection });
+  
+  // Check if there are any unsaved changes
+  const hasChanges = JSON.stringify(localInspection) !== JSON.stringify(inspection);
 
   const handleParameterChange = (name: string, value: any) => {
     setLocalInspection(prev => ({
@@ -36,7 +28,6 @@ export default function InspectionConfigModal({
         param.name === name ? { ...param, value } : param
       )
     }));
-    setHasChanges(true);
   };
 
   const handleAdvancedParamChange = (name: string, value: any) => {
@@ -50,7 +41,6 @@ export default function InspectionConfigModal({
         }
       }
     }));
-    setHasChanges(true);
   };
 
   const handleDisplayOptionChange = (name: string, value: any) => {
@@ -64,45 +54,83 @@ export default function InspectionConfigModal({
         }
       }
     }));
-    setHasChanges(true);
   };
 
   const handleSave = () => {
     onSave(localInspection);
-    setHasChanges(false);
   };
 
   const handleDiscard = () => {
-    setLocalInspection(JSON.parse(JSON.stringify(inspection)));
-    setHasChanges(false);
+    setLocalInspection({ ...inspection });
     onClose();
   };
 
   const getParameterControlValue = (param: InspectionParameter) => {
-    const currentParam = localInspection.parameters.find(p => p.name === param.name);
-    return currentParam ? currentParam.value : param.value;
+    return param.value;
   };
 
   const renderParameterControl = (param: InspectionParameter) => {
-    const currentValue = getParameterControlValue(param);
-    const allParameters = localInspection.parameters.reduce((acc, p) => {
-      acc[p.name] = p.value;
-      return acc;
-    }, {} as Record<string, any>);
-
-    return (
-      <ParameterControl
-        key={param.name}
-        parameter={{ ...param, value: currentValue }}
-        onChange={handleParameterChange}
-        allParameters={allParameters}
-        themeColor={{
-          accentColor: 'rgb(8, 145, 178)', // cyan-600
-          accentLight: 'bg-cyan-100',
-          textAccent: 'text-cyan-600'
-        }}
-      />
-    );
+    switch (param.type) {
+      case 'select':
+        return (
+          <div key={param.name}>
+            <label className="block text-sm font-medium text-gray-800 mb-1">
+              {param.label || param.name}
+            </label>
+            <select
+              value={getParameterControlValue(param) as string}
+              onChange={(e) => handleParameterChange(param.name, e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {param.options?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            {param.description && (
+              <p className="mt-1 text-xs text-gray-500">{param.description}</p>
+            )}
+          </div>
+        );
+      case 'number':
+        return (
+          <div key={param.name}>
+            <label className="block text-sm font-medium text-gray-800 mb-1">
+              {param.label || param.name}
+            </label>
+            <input
+              type="number"
+              value={getParameterControlValue(param) as number}
+              onChange={(e) => handleParameterChange(param.name, parseFloat(e.target.value))}
+              min={param.min}
+              max={param.max}
+              step={param.step}
+              className="w-full p-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {param.description && (
+              <p className="mt-1 text-xs text-gray-500">{param.description}</p>
+            )}
+          </div>
+        );
+      case 'boolean':
+        return (
+          <div key={param.name} className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-800">
+              {param.label || param.name}
+            </label>
+            <input
+              type="checkbox"
+              checked={getParameterControlValue(param) as boolean}
+              onChange={(e) => handleParameterChange(param.name, e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            {param.description && (
+              <p className="mt-1 text-xs text-gray-500">{param.description}</p>
+            )}
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   const renderHistogramConfig = () => {
@@ -110,7 +138,7 @@ export default function InspectionConfigModal({
       <div className="space-y-6">
         {/* Basic Parameters */}
         <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-3">Analysis Settings</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Basic Parameters</h3>
           <div className="bg-gray-50 p-4 rounded-md space-y-3">
             {localInspection.parameters
               .filter(param => !param.advanced)
@@ -122,7 +150,6 @@ export default function InspectionConfigModal({
         <div>
           <h3 className="text-lg font-medium text-gray-900 mb-3">Display Options</h3>
           <div className="bg-gray-50 p-4 rounded-md space-y-4">
-            {/* Chart Size */}
             <div>
               <label className="block text-sm font-medium text-gray-800 mb-1">
                 Chart Size
@@ -138,7 +165,6 @@ export default function InspectionConfigModal({
               </select>
             </div>
 
-            {/* Show Statistics */}
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-800">
                 Show Statistics
@@ -151,7 +177,6 @@ export default function InspectionConfigModal({
               />
             </div>
 
-            {/* Interactive Mode */}
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-800">
                 Interactive Mode
@@ -164,7 +189,6 @@ export default function InspectionConfigModal({
               />
             </div>
 
-            {/* Real-time Updates */}
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-800">
                 Real-time Updates
@@ -213,10 +237,346 @@ export default function InspectionConfigModal({
     );
   };
 
+  const renderModuleCalculatorConfig = () => {
+    return (
+      <div className="space-y-6">
+        {/* Basic Parameters */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Basic Parameters</h3>
+          <div className="bg-gray-50 p-4 rounded-md space-y-3">
+            {localInspection.parameters
+              .filter(param => !param.advanced)
+              .map(param => renderParameterControl(param))}
+          </div>
+        </div>
+
+        {/* Advanced Parameters */}
+        {localInspection.parameters.some(param => param.advanced) && (
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Advanced Settings</h3>
+            <div className="bg-gray-50 p-4 rounded-md space-y-3">
+              {localInspection.parameters
+                .filter(param => param.advanced)
+                .map(param => renderParameterControl(param))}
+            </div>
+          </div>
+        )}
+
+        {/* Information */}
+        <div>
+          <h3 className="text-lg font-medium text-orange-600 flex items-center mb-3">
+            <InformationCircleIcon className="h-5 w-5 mr-2" />
+            About Module Calculator
+          </h3>
+          <div className="bg-orange-50 p-4 rounded-md text-sm text-gray-800">
+            <p className="mb-2">
+              <strong>Module Calculator</strong> computes the gradient magnitude for each pixel, showing edge strength and intensity transitions.
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Sobel:</strong> Robust edge detection with good noise suppression</li>
+              <li><strong>Scharr:</strong> More accurate gradient computation, especially for small-scale features</li>
+              <li><strong>Laplacian:</strong> Second-order derivative operator, sensitive to noise but detects fine details</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPhaseCalculatorConfig = () => {
+    return (
+      <div className="space-y-6">
+        {/* Basic Parameters */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Basic Parameters</h3>
+          <div className="bg-gray-50 p-4 rounded-md space-y-3">
+            {localInspection.parameters
+              .filter(param => !param.advanced)
+              .map(param => renderParameterControl(param))}
+          </div>
+        </div>
+
+        {/* Advanced Parameters */}
+        {localInspection.parameters.some(param => param.advanced) && (
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Advanced Settings</h3>
+            <div className="bg-gray-50 p-4 rounded-md space-y-3">
+              {localInspection.parameters
+                .filter(param => param.advanced)
+                .map(param => renderParameterControl(param))}
+            </div>
+          </div>
+        )}
+
+        {/* Information */}
+        <div>
+          <h3 className="text-lg font-medium text-purple-600 flex items-center mb-3">
+            <InformationCircleIcon className="h-5 w-5 mr-2" />
+            About Phase Calculator
+          </h3>
+          <div className="bg-purple-50 p-4 rounded-md text-sm text-gray-800">
+            <p className="mb-2">
+              <strong>Phase Calculator</strong> computes gradient direction (phase) for each pixel, revealing the orientation of edges and features.
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Color visualization:</strong> Maps direction to HSV color space for intuitive viewing</li>
+              <li><strong>Arrow overlay:</strong> Shows direction vectors as arrows on the image</li>
+              <li><strong>Statistical analysis:</strong> Computes dominant directions and coherence measures</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEdgeDensityConfig = () => {
+    return (
+      <div className="space-y-6">
+        {/* Basic Parameters */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Basic Parameters</h3>
+          <div className="bg-gray-50 p-4 rounded-md space-y-3">
+            {localInspection.parameters
+              .filter(param => !param.advanced)
+              .map(param => renderParameterControl(param))}
+          </div>
+        </div>
+
+        {/* Advanced Parameters */}
+        {localInspection.parameters.some(param => param.advanced) && (
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Advanced Settings</h3>
+            <div className="bg-gray-50 p-4 rounded-md space-y-3">
+              {localInspection.parameters
+                .filter(param => param.advanced)
+                .map(param => renderParameterControl(param))}
+            </div>
+          </div>
+        )}
+
+        {/* Information */}
+        <div>
+          <h3 className="text-lg font-medium text-red-600 flex items-center mb-3">
+            <InformationCircleIcon className="h-5 w-5 mr-2" />
+            About Edge Density Analysis
+          </h3>
+          <div className="bg-red-50 p-4 rounded-md text-sm text-gray-800">
+            <p className="mb-2">
+              <strong>Edge Density Analysis</strong> divides the image into regions and computes edge density for each region, creating a heatmap of edge activity.
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Canny detection:</strong> Multi-stage algorithm with hysteresis thresholding</li>
+              <li><strong>Sobel detection:</strong> Faster gradient-based edge detection</li>
+              <li><strong>Regional analysis:</strong> Overlapping windows for smooth density maps</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderColorDistributionConfig = () => {
+    return (
+      <div className="space-y-6">
+        {/* Basic Parameters */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Basic Parameters</h3>
+          <div className="bg-gray-50 p-4 rounded-md space-y-3">
+            {localInspection.parameters
+              .filter(param => !param.advanced)
+              .map(param => renderParameterControl(param))}
+          </div>
+        </div>
+
+        {/* Advanced Parameters */}
+        {localInspection.parameters.some(param => param.advanced) && (
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Advanced Settings</h3>
+            <div className="bg-gray-50 p-4 rounded-md space-y-3">
+              {localInspection.parameters
+                .filter(param => param.advanced)
+                .map(param => renderParameterControl(param))}
+            </div>
+          </div>
+        )}
+
+        {/* Information */}
+        <div>
+          <h3 className="text-lg font-medium text-pink-600 flex items-center mb-3">
+            <InformationCircleIcon className="h-5 w-5 mr-2" />
+            About Color Distribution Analysis
+          </h3>
+          <div className="bg-pink-50 p-4 rounded-md text-sm text-gray-800">
+            <p className="mb-2">
+              <strong>Color Distribution Analysis</strong> analyzes the distribution of colors in different color spaces and performs clustering to identify dominant colors.
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Color space analysis:</strong> RGB, HSV, LAB color space distributions</li>
+              <li><strong>K-means clustering:</strong> Groups similar colors to find dominant palette</li>
+              <li><strong>Statistical metrics:</strong> Color variance, saturation analysis, and more</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTextureAnalysisConfig = () => {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {localInspection.parameters
+            .filter(param => !param.advanced)
+            .map(param => (
+              <div key={param.name}>
+                {renderParameterControl(param)}
+              </div>
+            ))}
+        </div>
+        
+        {/* Advanced Parameters */}
+        <details className="bg-gray-50 rounded-lg">
+          <summary className="cursor-pointer p-3 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+            Advanced Parameters
+          </summary>
+          <div className="p-3 space-y-3">
+            {localInspection.parameters
+              .filter(param => param.advanced)
+              .map(param => (
+                <div key={param.name}>
+                  {renderParameterControl(param)}
+                </div>
+              ))}
+          </div>
+        </details>
+        
+        <div className="bg-blue-50 p-3 rounded-md">
+          <h4 className="font-medium text-blue-800 mb-2">About Texture Analysis</h4>
+          <p className="text-sm text-blue-700">
+            Analyzes texture patterns using various descriptors like GLCM, LBP, Gabor filters, and wavelets.
+            Different methods capture different aspects of texture - GLCM for statistical properties,
+            LBP for local patterns, Gabor for oriented textures, and wavelets for multi-scale analysis.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFourierTransformConfig = () => {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {localInspection.parameters
+            .filter(param => !param.advanced)
+            .map(param => (
+              <div key={param.name}>
+                {renderParameterControl(param)}
+              </div>
+            ))}
+        </div>
+        
+        {/* Advanced Parameters */}
+        <details className="bg-gray-50 rounded-lg">
+          <summary className="cursor-pointer p-3 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+            Advanced Parameters
+          </summary>
+          <div className="p-3 space-y-3">
+            {localInspection.parameters
+              .filter(param => param.advanced)
+              .map(param => (
+                <div key={param.name}>
+                  {renderParameterControl(param)}
+                </div>
+              ))}
+          </div>
+        </details>
+        
+        <div className="bg-blue-50 p-3 rounded-md">
+          <h4 className="font-medium text-blue-800 mb-2">About Fourier Transform</h4>
+          <p className="text-sm text-blue-700">
+            Converts images from spatial domain to frequency domain using Fast Fourier Transform (FFT).
+            The magnitude spectrum shows the strength of different frequency components, while the phase spectrum
+            shows their spatial relationships. Useful for analyzing periodic patterns, textures, noise, and
+            applying frequency-domain filtering.
+          </p>
+          <div className="mt-2 text-xs text-blue-600">
+            <strong>Visualization Modes:</strong>
+            <ul className="mt-1 ml-4 list-disc">
+              <li><strong>Magnitude:</strong> Shows frequency component strengths</li>
+              <li><strong>Phase:</strong> Shows spatial phase relationships</li>
+              <li><strong>Both:</strong> Side-by-side magnitude and phase</li>
+              <li><strong>Spectrum:</strong> Full analysis with radial profile</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderStatisticsConfig = () => {
+    return (
+      <div className="space-y-6">
+        {/* Basic Parameters */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Statistics Options</h3>
+          <div className="bg-gray-50 p-4 rounded-md space-y-3">
+            {localInspection.parameters
+              .filter(param => !param.advanced)
+              .map(param => renderParameterControl(param))}
+          </div>
+        </div>
+
+        {/* Advanced Parameters */}
+        {localInspection.parameters.some(param => param.advanced) && (
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Advanced Settings</h3>
+            <div className="bg-gray-50 p-4 rounded-md space-y-3">
+              {localInspection.parameters
+                .filter(param => param.advanced)
+                .map(param => renderParameterControl(param))}
+            </div>
+          </div>
+        )}
+
+        {/* Information */}
+        <div>
+          <h3 className="text-lg font-medium text-blue-600 flex items-center mb-3">
+            <InformationCircleIcon className="h-5 w-5 mr-2" />
+            About Image Statistics
+          </h3>
+          <div className="bg-blue-50 p-4 rounded-md text-sm text-gray-800">
+            <p className="mb-2">
+              <strong>Image Statistics</strong> provides comprehensive numerical analysis of image properties and pixel distributions.
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Channel analysis:</strong> Mean, min, max values for each color channel</li>
+              <li><strong>Distribution metrics:</strong> Standard deviation, variance, skewness</li>
+              <li><strong>Image properties:</strong> Dimensions, pixel count, aspect ratio</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderConfigurationUI = () => {
     switch (localInspection.type) {
       case 'histogram':
         return renderHistogramConfig();
+      case 'moduleCalculator':
+        return renderModuleCalculatorConfig();
+      case 'phaseCalculator':
+        return renderPhaseCalculatorConfig();
+      case 'edgeDensity':
+        return renderEdgeDensityConfig();
+      case 'colorDistribution':
+        return renderColorDistributionConfig();
+      case 'textureAnalysis':
+        return renderTextureAnalysisConfig();
+      case 'fourierTransform':
+        return renderFourierTransformConfig();
+      case 'statistics':
+        return renderStatisticsConfig();
       default:
         return (
           <div className="text-center py-8">

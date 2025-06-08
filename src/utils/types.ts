@@ -32,7 +32,8 @@ export type InspectionType =
   | 'phaseCalculator'     // Calculate phase/direction of gradients
   | 'edgeDensity'         // Analyze edge density in regions
   | 'colorDistribution'   // Advanced color distribution analysis
-  | 'textureAnalysis';    // Texture analysis using various descriptors
+  | 'textureAnalysis'     // Texture analysis using various descriptors
+  | 'fourierTransform';   // Frequency domain analysis using FFT
 
 export type ParameterType = 
   | 'number' 
