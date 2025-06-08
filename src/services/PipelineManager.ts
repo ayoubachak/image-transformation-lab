@@ -1238,6 +1238,45 @@ export class PipelineManager {
     
     return node;
   }
+
+  /**
+   * Create an inspection node with a specific ID (used for loading saved projects)
+   */
+  public createInspectionNode(
+    id: string,
+    position: { x: number, y: number },
+    inspection: Inspection
+  ): ImageProcessingNode | null {
+    // Create inspection node with the given ID
+    const node: ImageProcessingNode = {
+      id,
+      type: 'inspection',
+      position,
+      inspection: { ...inspection, inputNodes: [] } // Ensure clean inputNodes
+    };
+    
+    // Add to nodes map
+    this.nodes.set(id, node);
+    this.dependencyGraph.set(id, new Set());
+    
+    // Initialize node processing result (inspection nodes don't actually process, they analyze)
+    this.processingResults.set(id, {
+      nodeId: id,
+      canvas: null,
+      error: null,
+      processingTime: 0,
+      status: 'idle'
+    });
+    
+    // Notify observers
+    this.notifyObservers({
+      type: PipelineEventType.NODE_ADDED,
+      payload: { node },
+      timestamp: Date.now()
+    });
+    
+    return node;
+  }
 }
 
 // Create a singleton instance

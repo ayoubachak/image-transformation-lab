@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Position } from 'reactflow';
 import { usePipeline } from '../../contexts/PipelineContext';
 import { 
@@ -7,7 +8,8 @@ import {
   ExclamationTriangleIcon,
   ArrowsPointingOutIcon,
   ChevronDownIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import BaseNode from './BaseNode';
 import HistogramChart from '../charts/HistogramChart';
@@ -1044,149 +1046,334 @@ function FullSizeInspectionModal({
     return <span>{String(value)}</span>;
   };
 
-  return (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden">
-          {/* Header */}
-          <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gray-50">
-            <h3 className="text-xl font-semibold text-gray-900">
-              {inspection.name} - Full Analysis View
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-200 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          {/* Content */}
-          <div className="p-6 max-h-[calc(95vh-5rem)] overflow-y-auto">
-            {inspectionData.type === 'histogram' && inspectionData.data && (
-              <div className="flex flex-col items-center">
-                <HistogramChart 
-                  data={inspectionData.data} 
-                  width={900} 
-                  height={600}
-                  interactive={true}
-                />
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-3">Image Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Type:</span>
-                        <span className="font-medium">{inspectionData.data.imageType.toUpperCase()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Dimensions:</span>
-                        <span className="font-medium">{inspectionData.data.width}×{inspectionData.data.height}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total Pixels:</span>
-                        <span className="font-medium">{inspectionData.data.totalPixels.toLocaleString()}</span>
-                      </div>
+  // Use createPortal to render a proper modal instead of full-screen
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white max-w-7xl w-full max-h-[90vh] mx-4 rounded-lg shadow-xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {inspection.name} - Full Analysis
+          </h1>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 transition-colors"
+          >
+            <XMarkIcon className="w-8 h-8" />
+          </button>
+        </div>
+        
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto p-6">
+          {inspectionData.type === 'histogram' && inspectionData.data && (
+            <div className="h-full flex flex-col">
+              {/* Large Histogram Chart */}
+              <div className="flex-1 flex items-center justify-center mb-8">
+                <div className="bg-white rounded-lg shadow-lg p-8 border">
+                  <HistogramChart 
+                    data={inspectionData.data} 
+                    width={Math.min(1200, window.innerWidth - 300)} 
+                    height={Math.min(600, window.innerHeight - 400)}
+                    interactive={true}
+                  />
+                </div>
+              </div>
+
+              {/* Statistics Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Image Information */}
+                <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-lg border border-blue-200">
+                  <h2 className="font-bold text-xl text-blue-800 mb-4 flex items-center">
+                    <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Image Information
+                  </h2>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center py-3 px-4 bg-white rounded border">
+                      <span className="text-gray-700 font-medium">Type:</span>
+                      <span className="font-bold text-blue-700 uppercase tracking-wide text-lg">{inspectionData.data.imageType}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white rounded border">
+                      <span className="text-gray-700 font-medium">Dimensions:</span>
+                      <span className="font-bold text-gray-900 text-lg">{inspectionData.data.width}×{inspectionData.data.height} px</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white rounded border">
+                      <span className="text-gray-700 font-medium">Total Pixels:</span>
+                      <span className="font-bold text-gray-900 text-lg">{inspectionData.data.totalPixels.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white rounded border">
+                      <span className="text-gray-700 font-medium">Aspect Ratio:</span>
+                      <span className="font-bold text-gray-900 text-lg">{(inspectionData.data.width / inspectionData.data.height).toFixed(2)}:1</span>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-            
-            {inspectionData.canvas && inspectionData.type !== 'histogram' && (
-              <div className="flex flex-col items-center">
-                <img 
-                  src={inspectionData.canvas.toDataURL()} 
-                  alt={`${inspection.type} visualization`}
-                  className="max-w-full max-h-[70vh] object-contain rounded border shadow-lg mb-6"
-                />
-                
-                {inspectionData.statistics && (
-                  <div className="w-full max-w-4xl bg-gray-50 p-6 rounded-lg">
-                    <h4 className="font-semibold mb-4 text-lg">Analysis Statistics</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(inspectionData.statistics).map(([key, value]) => (
-                        <div key={key} className="bg-white p-3 rounded border">
-                          <div className="font-medium text-gray-700 capitalize mb-2">
-                            {key.replace(/([A-Z])/g, ' $1')}:
+
+                {/* Channel Statistics */}
+                <div className="bg-gradient-to-br from-green-50 to-white p-6 rounded-lg border border-green-200">
+                  <h2 className="font-bold text-xl text-green-800 mb-4 flex items-center">
+                    <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Channel Statistics
+                  </h2>
+                  <div className="space-y-4">
+                    {inspectionData.data.imageType === 'rgb' && (
+                      <>
+                        {inspectionData.data.red && (
+                          <div className="py-3 px-4 bg-white rounded border">
+                            <div className="text-red-600 font-bold mb-2 text-lg">Red Channel</div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Peak:</span>
+                                <span className="font-bold text-gray-900">{Math.max(...inspectionData.data.red).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Mean:</span>
+                                <span className="font-bold text-gray-900">{(inspectionData.data.red.reduce((a: number, b: number) => a + b, 0) / 256).toFixed(0)}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm">
-                            {formatFullValue(key, value)}
+                        )}
+                        {inspectionData.data.green && (
+                          <div className="py-3 px-4 bg-white rounded border">
+                            <div className="text-green-600 font-bold mb-2 text-lg">Green Channel</div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Peak:</span>
+                                <span className="font-bold text-gray-900">{Math.max(...inspectionData.data.green).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Mean:</span>
+                                <span className="font-bold text-gray-900">{(inspectionData.data.green.reduce((a: number, b: number) => a + b, 0) / 256).toFixed(0)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {inspectionData.data.blue && (
+                          <div className="py-3 px-4 bg-white rounded border">
+                            <div className="text-blue-600 font-bold mb-2 text-lg">Blue Channel</div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Peak:</span>
+                                <span className="font-bold text-gray-900">{Math.max(...inspectionData.data.blue).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Mean:</span>
+                                <span className="font-bold text-gray-900">{(inspectionData.data.blue.reduce((a: number, b: number) => a + b, 0) / 256).toFixed(0)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {inspectionData.data.imageType === 'grayscale' && inspectionData.data.gray && (
+                      <div className="py-3 px-4 bg-white rounded border">
+                        <div className="text-gray-700 font-bold mb-2 text-lg">Grayscale Channel</div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Peak Value:</span>
+                            <span className="font-bold text-gray-900">{Math.max(...inspectionData.data.gray).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Mean Frequency:</span>
+                            <span className="font-bold text-gray-900">{(inspectionData.data.gray.reduce((a: number, b: number) => a + b, 0) / 256).toFixed(0)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Peak Intensity:</span>
+                            <span className="font-bold text-gray-900">{inspectionData.data.gray.findIndex((v: number) => v === Math.max(...inspectionData.data.gray))}</span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {inspectionData.type === 'statistics' && (
-              <div className="space-y-8">
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h4 className="font-semibold mb-4 text-lg">Image Dimensions</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white p-4 rounded border">
-                      <div className="text-sm text-gray-600">Width</div>
-                      <div className="text-2xl font-bold">{inspectionData.data.dimensions.width}px</div>
-                    </div>
-                    <div className="bg-white p-4 rounded border">
-                      <div className="text-sm text-gray-600">Height</div>
-                      <div className="text-2xl font-bold">{inspectionData.data.dimensions.height}px</div>
-                    </div>
-                    <div className="bg-white p-4 rounded border">
-                      <div className="text-sm text-gray-600">Total Pixels</div>
-                      <div className="text-2xl font-bold">{inspectionData.data.pixelCount.toLocaleString()}</div>
-                    </div>
+                      </div>
+                    )}
+                    {inspectionData.data.imageType === 'binary' && inspectionData.data.binary && (
+                      <div className="space-y-3">
+                        <div className="py-3 px-4 bg-white rounded border">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-700">Black Pixels:</span>
+                            <span className="font-bold text-gray-900">{inspectionData.data.binary[0].toLocaleString()}</span>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {((inspectionData.data.binary[0] / inspectionData.data.totalPixels) * 100).toFixed(2)}% of image
+                          </div>
+                        </div>
+                        <div className="py-3 px-4 bg-white rounded border">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-700">White Pixels:</span>
+                            <span className="font-bold text-gray-900">{inspectionData.data.binary[1].toLocaleString()}</span>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {((inspectionData.data.binary[1] / inspectionData.data.totalPixels) * 100).toFixed(2)}% of image
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h4 className="font-semibold mb-4 text-lg">Channel Statistics</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {Object.entries(inspectionData.data.channels).map(([channel, stats]: [string, any]) => (
-                      <div key={channel} className="bg-white p-4 rounded border">
-                        <h5 className="font-medium capitalize mb-3 text-center">{channel}</h5>
+
+                {/* Analysis Details */}
+                <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-lg border border-purple-200">
+                  <h2 className="font-bold text-xl text-purple-800 mb-4 flex items-center">
+                    <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Analysis Details
+                  </h2>
+                  <div className="space-y-4">
+                    <div className="py-3 px-4 bg-white rounded border">
+                      <div className="flex justify-between">
+                        <span className="text-gray-700 font-medium">Method:</span>
+                        <span className="font-bold text-gray-900">Auto-detected</span>
+                      </div>
+                    </div>
+                    <div className="py-3 px-4 bg-white rounded border">
+                      <div className="flex justify-between">
+                        <span className="text-gray-700 font-medium">Bins:</span>
+                        <span className="font-bold text-gray-900">{inspectionData.data.imageType === 'binary' ? '2' : '256'}</span>
+                      </div>
+                    </div>
+                    <div className="py-3 px-4 bg-white rounded border">
+                      <div className="flex justify-between">
+                        <span className="text-gray-700 font-medium">Analysis Time:</span>
+                        <span className="font-bold text-gray-900">{new Date(inspectionData.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    </div>
+                    {inspectionData.data.imageType === 'rgb' && (
+                      <div className="py-3 px-4 bg-white rounded border">
+                        <div className="text-gray-700 font-medium mb-3">Color Balance:</div>
                         <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Mean:</span>
-                            <span className="font-mono font-medium">{stats.mean.toFixed(3)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Min:</span>
-                            <span className="font-mono font-medium">{stats.min}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Max:</span>
-                            <span className="font-mono font-medium">{stats.max}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Range:</span>
-                            <span className="font-mono font-medium">{stats.max - stats.min}</span>
-                          </div>
+                          {inspectionData.data.red && inspectionData.data.green && inspectionData.data.blue && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Red Dominance:</span>
+                                <span className="font-bold text-gray-900">{((inspectionData.data.red.reduce((a: number, b: number) => a + b, 0) / inspectionData.data.totalPixels) * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Green Dominance:</span>
+                                <span className="font-bold text-gray-900">{((inspectionData.data.green.reduce((a: number, b: number) => a + b, 0) / inspectionData.data.totalPixels) * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Blue Dominance:</span>
+                                <span className="font-bold text-gray-900">{((inspectionData.data.blue.reduce((a: number, b: number) => a + b, 0) / inspectionData.data.totalPixels) * 100).toFixed(1)}%</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {inspectionData.canvas && inspectionData.type !== 'histogram' && (
+            <div className="h-full flex flex-col">
+              {/* Large Visualization */}
+              <div className="flex-1 flex items-center justify-center mb-8">
+                <div className="bg-white rounded-lg shadow-lg p-8 border">
+                  <img 
+                    src={inspectionData.canvas.toDataURL()} 
+                    alt={`${inspection.type} visualization`}
+                    className="max-w-full rounded border shadow-lg"
+                    style={{ 
+                      maxHeight: Math.min(600, window.innerHeight - 200) + 'px'
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {inspectionData.statistics && (
+                <div className="bg-gray-50 p-8 rounded-lg">
+                  <h2 className="font-bold text-2xl text-gray-900 mb-6">Analysis Statistics</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Object.entries(inspectionData.statistics).map(([key, value]) => (
+                      <div key={key} className="bg-white p-6 rounded border">
+                        <div className="font-bold text-gray-700 capitalize mb-3 text-lg">
+                          {key.replace(/([A-Z])/g, ' $1')}:
+                        </div>
+                        <div className="text-gray-900">
+                          {formatFullValue(key, value)}
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
-            )}
-            
-            {inspectionData.data?.message && (
-              <div className="text-center p-12 bg-gray-50 rounded-lg">
-                <div className="text-gray-400 mb-4">
-                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+              )}
+            </div>
+          )}
+          
+          {inspectionData.type === 'statistics' && (
+            <div className="space-y-8">
+              <div className="bg-gray-50 p-8 rounded-lg">
+                <h2 className="font-bold text-2xl text-gray-900 mb-6">Image Dimensions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white p-8 rounded border text-center">
+                    <div className="text-lg text-gray-600 mb-2">Width</div>
+                    <div className="text-4xl font-bold text-blue-600">{inspectionData.data.dimensions.width}px</div>
+                  </div>
+                  <div className="bg-white p-8 rounded border text-center">
+                    <div className="text-lg text-gray-600 mb-2">Height</div>
+                    <div className="text-4xl font-bold text-green-600">{inspectionData.data.dimensions.height}px</div>
+                  </div>
+                  <div className="bg-white p-8 rounded border text-center">
+                    <div className="text-lg text-gray-600 mb-2">Total Pixels</div>
+                    <div className="text-4xl font-bold text-purple-600">{inspectionData.data.pixelCount.toLocaleString()}</div>
+                  </div>
                 </div>
-                <p className="text-lg text-gray-600">{inspectionData.data.message}</p>
               </div>
-            )}
-          </div>
+              
+              <div className="bg-gray-50 p-8 rounded-lg">
+                <h2 className="font-bold text-2xl text-gray-900 mb-6">Channel Statistics</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {Object.entries(inspectionData.data.channels).map(([channel, stats]: [string, any]) => (
+                    <div key={channel} className="bg-white p-8 rounded border">
+                      <h3 className="font-bold capitalize mb-6 text-center text-xl text-gray-900">{channel}</h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded">
+                          <span className="font-medium text-gray-700">Mean:</span>
+                          <span className="font-mono font-bold text-xl text-gray-900">{stats.mean.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded">
+                          <span className="font-medium text-gray-700">Min:</span>
+                          <span className="font-mono font-bold text-gray-900">{stats.min}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded">
+                          <span className="font-medium text-gray-700">Max:</span>
+                          <span className="font-mono font-bold text-gray-900">{stats.max}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded">
+                          <span className="font-medium text-gray-700">Range:</span>
+                          <span className="font-mono font-bold text-gray-900">{stats.max - stats.min}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {inspectionData.data?.message && (
+            <div className="text-center p-12 bg-gray-50 rounded-lg">
+              <div className="text-gray-400 mb-4">
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-xl text-gray-600">{inspectionData.data.message}</p>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 } 

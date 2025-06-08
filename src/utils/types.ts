@@ -104,7 +104,7 @@ export interface Inspection {
   inputNodes: string[];
   
   // Inspection-specific properties
-  visualizationType: 'chart' | 'table' | 'overlay' | 'info';
+  visualizationType: 'chart' | 'table' | 'overlay' | 'info' | 'heatmap' | 'composite';
   isRealTime?: boolean; // Whether to update in real-time or on demand
   
   // Configuration and metadata

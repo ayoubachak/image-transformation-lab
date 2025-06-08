@@ -94,38 +94,33 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
     };
   }, [syncStateFromManager]);
   
-  // Add a node to the pipeline
+  // Add a node
   const addNode = useCallback((
-    type: 'input' | 'transformation' | 'output' | 'inspection', 
+    type: 'input' | 'transformation' | 'output' | 'inspection',
     transformationOrInspection?: Omit<Transformation, 'id' | 'inputNodes'> | Omit<Inspection, 'id' | 'inputNodes'>,
     position?: { x: number, y: number }
   ): string => {
-    // Calculate position if not provided
     const calculatedPosition = position || calculateNodePosition(type, nodes);
     
+    // Handle inspection nodes separately
     if (type === 'inspection' && transformationOrInspection) {
-      // Handle inspection node
-      const inspection = transformationOrInspection as Omit<Inspection, 'id' | 'inputNodes'>;
-      const completeInspection = {
-        ...inspection,
-        id: uuidv4(), // Add temporary ID (will be replaced by PipelineManager)
-        inputNodes: [] // Initialize empty inputNodes array
+      const completeInspection: Omit<Inspection, 'id' | 'inputNodes'> = {
+        ...transformationOrInspection as Omit<Inspection, 'id' | 'inputNodes'>,
+        // No need to add ID here as PipelineManager will handle it
       };
       
       return pipelineManager.addInspectionNode(calculatedPosition, completeInspection);
-    } else if (transformationOrInspection && type === 'transformation') {
-      // Handle transformation node
-      const transformation = transformationOrInspection as Omit<Transformation, 'id' | 'inputNodes'>;
-      const completeTransformation = {
-        ...transformation,
-        id: uuidv4(), // Add temporary ID (will be replaced by PipelineManager)
-        inputNodes: [] // Initialize empty inputNodes array
+    } else if (type === 'transformation' && transformationOrInspection) {
+      // Handle transformation nodes
+      const completeTransformation: Omit<Transformation, 'id' | 'inputNodes'> = {
+        ...transformationOrInspection as Omit<Transformation, 'id' | 'inputNodes'>,
+        // No need to add ID here as PipelineManager will handle it
       };
       
       return pipelineManager.addNode(type, calculatedPosition, completeTransformation);
     } else {
       // Handle input/output nodes
-      return pipelineManager.addNode(type, calculatedPosition);
+      return pipelineManager.addNode(type as 'input' | 'transformation' | 'output', calculatedPosition);
     }
   }, [nodes]);
 
