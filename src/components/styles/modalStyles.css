@@ -10,24 +10,69 @@
 .modal-content textarea {
   color: #111827 !important; /* gray-900 */
   background-color: white !important;
+  border-color: #d1d5db !important; /* gray-300 */
 }
 
-/* Ensure all buttons have proper text color */
-.modal-content button.bg-blue-600 {
+/* Ensure all buttons have proper text color based on background */
+.modal-content button.bg-blue-600,
+.modal-content button.bg-indigo-600,
+.modal-content button.bg-cyan-600 {
   color: white !important;
+  background-color: #2563eb !important; /* Ensure blue background */
+}
+
+.modal-content button.bg-blue-600:hover,
+.modal-content button.bg-indigo-600:hover,
+.modal-content button.bg-cyan-600:hover {
+  background-color: #1d4ed8 !important; /* Darker blue on hover */
 }
 
 .modal-content button.bg-white,
 .modal-content button.bg-gray-50 {
   color: #374151 !important; /* gray-700 */
+  background-color: white !important;
+  border-color: #d1d5db !important; /* gray-300 */
+}
+
+.modal-content button.bg-white:hover,
+.modal-content button.bg-gray-50:hover {
+  background-color: #f9fafb !important; /* gray-50 */
 }
 
 .modal-content button.bg-red-600 {
   color: white !important;
+  background-color: #dc2626 !important; /* red-600 */
+}
+
+.modal-content button.bg-red-600:hover {
+  background-color: #b91c1c !important; /* red-700 */
+}
+
+.modal-content button.bg-yellow-600 {
+  color: white !important;
+  background-color: #d97706 !important; /* yellow-600 */
+}
+
+.modal-content button.bg-yellow-600:hover {
+  background-color: #b45309 !important; /* yellow-700 */
 }
 
 .modal-content button.bg-blue-100 {
   color: #1d4ed8 !important; /* blue-700 */
+  background-color: #dbeafe !important; /* blue-100 */
+}
+
+/* Fix any buttons with conflicting classes */
+.modal-content button[class*="bg-blue"][class*="text-white"] {
+  color: white !important;
+}
+
+.modal-content button[class*="bg-white"][class*="text-gray"] {
+  color: #374151 !important;
+}
+
+.modal-content button[class*="bg-red"][class*="text-white"] {
+  color: white !important;
 }
 
 /* Improve the dialog overall */
@@ -44,4 +89,111 @@
 .modal-content h5,
 .modal-content h6 {
   color: #111827 !important; /* gray-900 */
+}
+
+/* Fix for labels and spans */
+.modal-content label,
+.modal-content span {
+  color: #374151 !important; /* gray-700 */
+}
+
+/* Ensure dropdown options are visible */
+.modal-content select option {
+  color: #111827 !important;
+  background-color: white !important;
+}
+
+/* Fix for any remaining text elements */
+.modal-content p,
+.modal-content div {
+  color: inherit;
+}
+
+/* Specific fixes for common button patterns */
+.modal-content .inline-flex.justify-center.rounded-md.border.border-transparent.bg-blue-600 {
+  color: white !important;
+  background-color: #2563eb !important;
+}
+
+.modal-content .inline-flex.justify-center.rounded-md.border.border-gray-300.bg-white {
+  color: #374151 !important;
+  background-color: white !important;
+}
+
+/* Global override for any remaining issues */
+.modal-content * {
+  color: inherit;
+}
+
+.modal-content button {
+  font-weight: 500;
+}
+
+/* Additional comprehensive fixes for all possible conflicts */
+
+/* Fix buttons with tailwind classes that might conflict */
+.modal-content [class*="bg-blue-"] {
+  color: white !important;
+}
+
+.modal-content [class*="bg-indigo-"] {
+  color: white !important;
+}
+
+.modal-content [class*="bg-cyan-"] {
+  color: white !important;
+}
+
+.modal-content [class*="bg-red-"] {
+  color: white !important;
+}
+
+.modal-content [class*="bg-green-"] {
+  color: white !important;
+}
+
+.modal-content [class*="bg-yellow-"] {
+  color: white !important;
+}
+
+.modal-content [class*="bg-purple-"] {
+  color: white !important;
+}
+
+/* Override for white/gray backgrounds */
+.modal-content [class*="bg-white"] {
+  color: #374151 !important;
+  background-color: white !important;
+}
+
+.modal-content [class*="bg-gray-50"] {
+  color: #374151 !important;
+  background-color: #f9fafb !important;
+}
+
+.modal-content [class*="bg-gray-100"] {
+  color: #374151 !important;
+  background-color: #f3f4f6 !important;
+}
+
+/* Specific overrides for disabled states */
+.modal-content button:disabled,
+.modal-content button[disabled] {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Make sure focus states are visible */
+.modal-content button:focus {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+/* Fix any input focus states */
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+  border-color: #3b82f6 !important;
 } 

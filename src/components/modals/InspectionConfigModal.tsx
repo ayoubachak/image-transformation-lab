@@ -613,7 +613,7 @@ export default function InspectionConfigModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="modal-content w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all">
                 {/* Header */}
                 <div className="flex justify-between items-center p-6 pb-3 border-b border-gray-200">
                   <div className="flex items-center">

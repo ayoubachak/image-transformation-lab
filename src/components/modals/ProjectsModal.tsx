@@ -347,7 +347,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
   // Render the new project confirmation dialog
   const renderNewProjectConfirmation = () => {
     return (
-      <div className="p-6 bg-white rounded-lg shadow-lg max-w-md mx-auto">
+      <div className="modal-content p-6 bg-white rounded-lg shadow-lg max-w-md mx-auto">
         <div className="flex items-center mb-4">
           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
             <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
@@ -432,7 +432,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
+              <Dialog.Panel className="modal-content relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
                 {showConfirmNew && renderNewProjectConfirmation()}
                 
                 {!showConfirmNew && (

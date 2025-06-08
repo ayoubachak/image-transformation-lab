@@ -13,7 +13,7 @@ function App() {
   return (
     <Router>
       <PipelineProvider>
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-white text-gray-900">
           <Navbar />
           <main className="flex-1">
             <Routes>
@@ -21,7 +21,7 @@ function App() {
               <Route path="/lessons" element={<LessonsPage />} />
               <Route path="/lessons/:lessonId" element={<LessonDetailPage />} />
               <Route path="/lab" element={<LabPage />} />
-              <Route path="/about" element={<div className="p-8 text-center"><h1 className="text-2xl font-bold">About Page</h1><p className="mt-4">This is a learning platform for image processing techniques.</p></div>} />
+              <Route path="/about" element={<div className="p-8 text-center"><h1 className="text-2xl font-bold text-gray-900">About Page</h1><p className="mt-4 text-gray-700">This is a learning platform for image processing techniques.</p></div>} />
             </Routes>
           </main>
           <footer className="bg-gray-800 text-white p-4 text-center">
