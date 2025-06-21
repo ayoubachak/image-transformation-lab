@@ -13,22 +13,22 @@ import {
 } from '@heroicons/react/24/outline';
 
 // Transformation templates
-const transformationTemplates: Record<TransformationType, Omit<Transformation, 'id' | 'inputNodes'>> = {
+const transformationTemplates: Partial<Record<TransformationType, Omit<Transformation, 'id' | 'inputNodes'>>> = {
   grayscale: {
-    type: 'grayscale',
-    name: 'Grayscale',
-    description: 'Convert image to grayscale',
+    type: "grayscale" as TransformationType,
+    name: "Grayscale",
+    description: "Convert image to grayscale",
     parameters: [],
   },
   blur: {
-    type: 'blur',
-    name: 'Gaussian Blur',
-    description: 'Apply Gaussian blur to the image',
+    type: "blur" as TransformationType,
+    name: "Blur",
+    description: "Apply blur effect to image",
     parameters: [
       {
-        name: 'kernelSize',
-        type: 'number',
-        value: 3,
+        name: "kernelSize",
+        type: "number" as const,
+        value: 5,
         min: 1,
         max: 31,
         step: 2,
@@ -109,7 +109,7 @@ const transformationTemplates: Record<TransformationType, Omit<Transformation, '
     description: 'Apply a custom filter',
     parameters: [],
   },
-};
+} as const;
 
 // Group transformations by category
 const transformationCategories: Record<string, string[]> = {
@@ -154,9 +154,9 @@ export default function TransformationManager({ onClose }: TransformationManager
       
       return {
         transformType,
-        name: template.name,
-        description: template.description,
-        parameters: template.parameters
+        name: template?.name || '',
+        description: template?.description || '',
+        parameters: template?.parameters || []
       } as TransformWithType;
     });
   };

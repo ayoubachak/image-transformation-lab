@@ -491,7 +491,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
                             type="button"
                             className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={handleSaveProject}
-                            disabled={loading || !projectName.trim() || (storageInfo && !storageInfo.canSave)}
+                            disabled={loading || !projectName.trim() || (storageInfo ? !storageInfo.canSave : false)}
                           >
                             {loading ? 'Saving...' : (currentProjectId ? 'Update Project' : 'Save Project')}
                           </button>

@@ -83,7 +83,7 @@ export default function KernelParameterControl({
     if (width > 0 && height > 0 && newValues.every(row => row.every(cell => cell === 0))) {
       const centerRow = Math.floor(height / 2);
       const centerCol = Math.floor(width / 2);
-      newValues[centerRow][centerCol] = 1;
+      newValues[centerRow][centerCol] = 1 as never;
     }
     
     onChange(parameter.name, {

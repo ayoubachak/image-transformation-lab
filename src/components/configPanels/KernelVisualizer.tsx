@@ -26,7 +26,7 @@ export default function KernelVisualizer({ kernelValues }: KernelVisualizerProps
   }, [kernelValues]);
 
   // Dynamic camera position based on kernel size
-  const cameraPosition = useMemo(() => {
+  const cameraPosition: [number, number, number] = useMemo(() => {
     const size = Math.max(kernelValues.length, kernelValues[0]?.length || 0);
     return [size * 1.2, size * 1.5, size * 1.2];
   }, [kernelValues]);
