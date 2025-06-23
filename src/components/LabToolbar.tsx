@@ -198,6 +198,15 @@ export default function LabToolbar({
                       <AdjustmentsHorizontalIcon className="h-6 w-6 mb-1" />
                       <span className="text-xs">Threshold</span>
                     </button>
+                    <button
+                      onClick={() => handleAddTransformation('advancedThreshold')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-indigo-50 text-indigo-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span className="text-xs">Advanced</span>
+                    </button>
                   </div>
                   
                   <div className="px-3 py-1 mt-2">
@@ -374,6 +383,147 @@ export default function LabToolbar({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                       </svg>
                       <span className="text-xs">Perspective</span>
+                    </button>
+                  </div>
+
+                  {/* Binary Processing Section */}
+                  <div className="px-3 py-1 mt-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Binary Processing</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1 px-1.5">
+                    <button
+                      onClick={() => handleAddTransformation('otsuThreshold')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-yellow-50 text-yellow-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span className="text-xs">Otsu</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('fillHoles')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-yellow-50 text-yellow-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                      </svg>
+                      <span className="text-xs">Fill Holes</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('clearBorder')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-yellow-50 text-yellow-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-xs">Clear Border</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('removeNoise')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-yellow-50 text-yellow-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span className="text-xs">Remove Noise</span>
+                    </button>
+                  </div>
+
+                  {/* Analysis & Detection Section */}
+                  <div className="px-3 py-1 mt-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Analysis & Detection</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1 px-1.5 mb-2">
+                    <button
+                      onClick={() => handleAddTransformation('connectedComponents')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-cyan-50 text-cyan-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      <span className="text-xs">Components</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('findContours')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-cyan-50 text-cyan-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                      </svg>
+                      <span className="text-xs">Contours</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('skeletonize')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-cyan-50 text-cyan-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span className="text-xs">Skeleton</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('houghLines')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-cyan-50 text-cyan-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span className="text-xs">Hough Lines</span>
+                    </button>
+                  </div>
+
+                  {/* Illumination & Background Section */}
+                  <div className="px-3 py-1 mt-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Illumination & Background</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1 px-1.5 mb-2">
+                    <button
+                      onClick={() => handleAddTransformation('backgroundSubtraction')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-orange-50 text-orange-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 12H4m16 0a1 1 0 01-1 1H5a1 1 0 01-1-1m16 0a1 1 0 00-1-1H5a1 1 0 00-1 1" />
+                      </svg>
+                      <span className="text-xs">Background</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('illuminationCorrection')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-orange-50 text-orange-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                      <span className="text-xs">Illumination</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('topHat')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-orange-50 text-orange-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 15l7-7 7 7" />
+                      </svg>
+                      <span className="text-xs">Top Hat</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('bottomHat')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-orange-50 text-orange-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <span className="text-xs">Bottom Hat</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('localNormalization')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-orange-50 text-orange-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span className="text-xs">Local Norm</span>
                     </button>
                   </div>
                 </div>

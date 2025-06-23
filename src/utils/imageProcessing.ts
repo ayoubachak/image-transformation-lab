@@ -2,6 +2,22 @@
 import cv from 'opencv-ts';
 import type { Transformation } from './types';
 import { createStructuringElementMat } from './morphologyUtils';
+import { FillHolesProcessor } from '../services/FillHolesProcessor';
+import { ConnectedComponentsProcessor } from '../services/ConnectedComponentsProcessor';
+import { ClearBorderProcessor } from '../services/ClearBorderProcessor';
+import { OtsuThresholdProcessor } from '../services/OtsuThresholdProcessor';
+import { RemoveNoiseProcessor } from '../services/RemoveNoiseProcessor';
+import { FindContoursProcessor } from '../services/FindContoursProcessor';
+import { SkeletonizeProcessor } from '../services/SkeletonizeProcessor';
+import { HoughLinesProcessor } from '../services/HoughLinesProcessor';
+import { BackgroundSubtractionProcessor } from '../services/BackgroundSubtractionProcessor';
+import { IlluminationCorrectionProcessor } from '../services/IlluminationCorrectionProcessor';
+import { MorphologicalHatProcessor } from '../services/MorphologicalHatProcessor';
+import { LocalNormalizationProcessor } from '../services/LocalNormalizationProcessor';
+import { MedianProcessor } from '../services/MedianProcessor';
+import { BilateralProcessor } from '../services/BilateralProcessor';
+import { HistogramProcessor } from '../services/HistogramProcessor';
+import { AdvancedThresholdProcessor } from '../services/AdvancedThresholdProcessor';
 
 // Ensure OpenCV is initialized
 let isOpenCVInitialized = false;
@@ -264,117 +280,109 @@ const createFallbackMat = (imageData: ImageData): any => {
   };
 };
 
-// Helper function to convert cv.Mat to ImageData
+// Add helper function for grayscale detection after the matToImageData function
 export const matToImageData = (mat: any): ImageData => {
-  if (!isOpenCVInitialized) {
-    throw new Error('OpenCV is not initialized. Call initOpenCV() first.');
-  }
-  
   const opencv = getOpenCV();
   
-  try {
-    if (!mat) {
-      throw new Error('Invalid Mat object provided');
-    }
-    
-    // If we're dealing with a fallback Mat, shortcut the conversion
-    if (mat.isFallback) {
-      return new ImageData(
-        new Uint8ClampedArray(mat.data),
-        mat.cols,
-        mat.rows
-      );
-    }
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = mat.cols;
-    canvas.height = mat.rows;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-    const imgData = ctx.createImageData(mat.cols, mat.rows);
-    
-    // Method 1: Direct OpenCV.js approach
-    if (typeof opencv.imshow === 'function') {
-      try {
-        // Try to use imshow to render the Mat to canvas
-        opencv.imshow(canvas, mat);
-        return ctx.getImageData(0, 0, mat.cols, mat.rows);
-      } catch (e) {
-        console.warn('Error using imshow, falling back to manual conversion', e);
-        // Fall through to manual conversion
-      }
-    }
-    
-    // Method 2: Check if we can use type() method to determine format
-    if (typeof mat.type === 'function') {
-      // Try to determine if it's grayscale
-      const type = mat.type();
-      if (type === opencv.CV_8UC1) {
-        // Grayscale image
-        const data = new Uint8ClampedArray(mat.rows * mat.cols * 4);
-        for (let i = 0; i < mat.rows; i++) {
-          for (let j = 0; j < mat.cols; j++) {
-            const grayValue = mat.ucharPtr(i, j)[0];
-            const offset = (i * mat.cols + j) * 4;
-            data[offset] = grayValue;
-            data[offset + 1] = grayValue;
-            data[offset + 2] = grayValue;
-            data[offset + 3] = 255;
-          }
-        }
-        imgData.data.set(data);
-        return imgData;
-      }
-    }
-    
-    // Method 3: If the Mat has data that can be accessed directly
-    if (mat.data && (mat.data instanceof Uint8Array || mat.data instanceof Uint8ClampedArray)) {
-      try {
-        // For color images (assume RGBA or BGRA format)
-        const channels = mat.channels ? mat.channels() : 4;
-        
-        // OpenCV may store as BGRA while Canvas uses RGBA
-        const needBGRConversion = true;
-        
-        for (let i = 0; i < mat.rows; i++) {
-          for (let j = 0; j < mat.cols; j++) {
-            const offset = (i * mat.cols + j) * 4;
-            const matOffset = (i * mat.cols + j) * channels;
-            
-            if (needBGRConversion && channels >= 3) {
-              imgData.data[offset] = mat.data[matOffset + 2]; // R (from B)
-              imgData.data[offset + 1] = mat.data[matOffset + 1]; // G
-              imgData.data[offset + 2] = mat.data[matOffset]; // B (from R)
-            } else {
-              // Direct copy for each available channel
-              for (let c = 0; c < Math.min(channels, 4); c++) {
-                imgData.data[offset + c] = mat.data[matOffset + c];
-              }
-            }
-            
-            // Always set alpha to 255 if not provided
-            if (channels < 4) {
-              imgData.data[offset + 3] = 255;
-            }
-          }
-        }
-        return imgData;
-      } catch (e) {
-        console.warn('Error accessing mat.data directly, using fallback', e);
-      }
-    }
-    
-    // Method 4: Last resort - create a black image if nothing else works
-    console.warn('Using fallback method to convert Mat to ImageData - this may not show the correct image');
-    const blackData = new Uint8ClampedArray(mat.rows * mat.cols * 4);
-    for (let i = 0; i < blackData.length; i += 4) {
-      blackData[i + 3] = 255; // Full alpha
-    }
-    imgData.data.set(blackData);
-    return imgData;
-  } catch (error) {
-    console.error('Error converting Mat to ImageData:', error);
-    throw new Error('Failed to convert OpenCV format to image data');
+  if (!mat || !opencv) {
+    throw new Error('Invalid Mat or OpenCV not available');
   }
+  
+  // Ensure we have a valid Mat
+  if (typeof mat.cols === 'undefined' || typeof mat.rows === 'undefined') {
+    throw new Error('Invalid Mat object: missing dimensions');
+  }
+  
+  let processedMat = mat;
+  let shouldDeleteProcessedMat = false;
+  
+  try {
+    // Convert different Mat types to RGBA for display
+    if (mat.channels() === 1) {
+      // Grayscale to RGBA
+      processedMat = new opencv.Mat();
+      opencv.cvtColor(mat, processedMat, opencv.COLOR_GRAY2RGBA);
+      shouldDeleteProcessedMat = true;
+    } else if (mat.channels() === 3) {
+      // RGB to RGBA (or BGR to RGBA depending on source)
+      processedMat = new opencv.Mat();
+      // Assume it's BGR and convert to RGBA
+      opencv.cvtColor(mat, processedMat, opencv.COLOR_BGR2RGBA);
+      shouldDeleteProcessedMat = true;
+    } else if (mat.channels() === 4) {
+      // Already RGBA, but might need BGR->RGB conversion
+      if (mat.type() === opencv.CV_8UC4) {
+        processedMat = new opencv.Mat();
+        opencv.cvtColor(mat, processedMat, opencv.COLOR_BGRA2RGBA);
+        shouldDeleteProcessedMat = true;
+      }
+      // Otherwise use as-is
+    }
+    
+    // Get image data
+    const imageData = new ImageData(
+      new Uint8ClampedArray(processedMat.data),
+      processedMat.cols,
+      processedMat.rows
+    );
+    
+    // Clean up temporary Mat if created
+    if (shouldDeleteProcessedMat && processedMat && typeof processedMat.delete === 'function') {
+      processedMat.delete();
+    }
+    
+    return imageData;
+  } catch (error) {
+    // Clean up temporary Mat if created
+    if (shouldDeleteProcessedMat && processedMat && typeof processedMat.delete === 'function') {
+      processedMat.delete();
+    }
+    
+    console.error('Error converting Mat to ImageData:', error);
+    
+    // Fallback: try to extract data directly
+    try {
+      // Create a basic ImageData with fallback dimensions
+      const width = mat.cols || 320;
+      const height = mat.rows || 240;
+      const data = new Uint8ClampedArray(width * height * 4);
+      
+      // Fill with gray if we can't get proper data
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = 128;     // R
+        data[i + 1] = 128; // G
+        data[i + 2] = 128; // B
+        data[i + 3] = 255; // A
+      }
+      
+      return new ImageData(data, width, height);
+    } catch (fallbackError) {
+      console.error('Fallback conversion also failed:', fallbackError);
+      throw new Error('Failed to convert Mat to ImageData');
+    }
+  }
+};
+
+/**
+ * Helper function to detect if an image is grayscale
+ */
+const isImageGrayscale = (imageData: ImageData): boolean => {
+  const { data } = imageData;
+  const sampleSize = Math.min(1000, data.length / 4); // Sample up to 1000 pixels
+  const step = Math.floor((data.length / 4) / sampleSize);
+  
+  for (let i = 0; i < data.length; i += step * 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    
+    // If any sampled pixel has significant color difference, it's not grayscale
+    if (Math.abs(r - g) > 5 || Math.abs(g - b) > 5 || Math.abs(r - b) > 5) {
+      return false;
+    }
+  }
+  
+  return true;
 };
 
 // Apply grayscale transformation
@@ -780,85 +788,80 @@ export const applySobel = (src: any, ksize: number): any => {
 
 // Apply Canny edge detection
 export const applyCanny = (src: any, threshold1: number, threshold2: number): any => {
-  const opencv = getOpenCV();
-  
-  // Handle fallback Mat
-  if (src.isFallback) {
-    const result = createFallbackMat(new ImageData(
-      new Uint8ClampedArray(src.data), 
-      src.cols, 
-      src.rows
-    ));
-    
-    // Convert to grayscale first
-    let gray = new Uint8ClampedArray(result.data.length);
-    for (let i = 0; i < result.rows; i++) {
-      for (let j = 0; j < result.cols; j++) {
-        const offset = (i * result.cols + j) * 4;
-        const r = result.data[offset];
-        const g = result.data[offset + 1];
-        const b = result.data[offset + 2];
-        // Standard grayscale conversion
-        const grayValue = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-        gray[offset] = gray[offset + 1] = gray[offset + 2] = grayValue;
-        gray[offset + 3] = 255;
-      }
-    }
-    
-    // Very simple edge detection as Canny fallback
-    // Apply Sobel-like operator and threshold
-    for (let i = 1; i < result.rows - 1; i++) {
-      for (let j = 1; j < result.cols - 1; j++) {
-        const offset = (i * result.cols + j) * 4;
-        
-        // Simple gradient calculation
-        const gx = 
-          gray[((i-1) * result.cols + (j+1)) * 4] - gray[((i-1) * result.cols + (j-1)) * 4] +
-          2 * gray[(i * result.cols + (j+1)) * 4] - 2 * gray[(i * result.cols + (j-1)) * 4] +
-          gray[((i+1) * result.cols + (j+1)) * 4] - gray[((i+1) * result.cols + (j-1)) * 4];
-        
-        const gy = 
-          gray[((i-1) * result.cols + (j-1)) * 4] + 2 * gray[((i-1) * result.cols + j) * 4] + gray[((i-1) * result.cols + (j+1)) * 4] -
-          gray[((i+1) * result.cols + (j-1)) * 4] - 2 * gray[((i+1) * result.cols + j) * 4] - gray[((i+1) * result.cols + (j+1)) * 4];
-        
-        // Gradient magnitude
-        const mag = Math.sqrt(gx*gx + gy*gy);
-        
-        // Simple thresholding (not true Canny, but a reasonable fallback)
-        const edge = mag > threshold1 ? 255 : 0;
-        
-        result.data[offset] = edge;
-        result.data[offset + 1] = edge;
-        result.data[offset + 2] = edge;
-      }
-    }
-    
-    return result;
+  if (!verifyOpenCV()) {
+    throw new Error('OpenCV not initialized');
   }
-  
-  // Use OpenCV if available
-  const dst = new opencv.Mat();
-  const gray = new opencv.Mat();
+
+  const cv = getOpenCV();
+  let dst = new cv.Mat();
   
   try {
-    // Convert to grayscale if needed
-    if (src.channels() > 1) {
-      opencv.cvtColor(src, gray, opencv.COLOR_RGBA2GRAY);
+    // Ensure source is grayscale
+    let gray = new cv.Mat();
+    if (src.channels() === 3) {
+      cv.cvtColor(src, gray, cv.COLOR_RGB2GRAY, 0);
+    } else if (src.channels() === 4) {
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
     } else {
-      src.copyTo(gray);
+      gray = src.clone();
     }
     
-    // Apply Canny
-    opencv.Canny(gray, dst, threshold1, threshold2);
+    // Apply Canny edge detection
+    cv.Canny(gray, dst, threshold1, threshold2, 3, false);
     
-    // Free memory
-    gray.delete();
+    // Convert single channel result back to multi-channel for consistency
+    let result = new cv.Mat();
+    cv.cvtColor(dst, result, cv.COLOR_GRAY2RGBA, 0);
+    
+    // Cleanup intermediate matrices
+    if (gray.data !== src.data) {
+      gray.delete();
+    }
+    dst.delete();
+    
+    return result;
+    
+  } catch (error) {
+    // Cleanup on error
+    if (dst && !dst.isDeleted()) dst.delete();
+    throw error;
+  }
+};
+
+/**
+ * Apply median blur filter for noise reduction
+ * @param src Source Mat object
+ * @param kernelSize Size of the median filter kernel (must be odd)
+ */
+export const applyMedian = (src: any, kernelSize: number): any => {
+  if (!verifyOpenCV()) {
+    throw new Error('OpenCV not initialized');
+  }
+
+  const cv = getOpenCV();
+  let dst = new cv.Mat();
+  
+  try {
+    // Ensure kernel size is odd and valid
+    if (kernelSize % 2 === 0) {
+      kernelSize = kernelSize + 1; // Make it odd
+    }
+    if (kernelSize < 3) {
+      kernelSize = 3;
+    }
+    if (kernelSize > 31) {
+      kernelSize = 31;
+    }
+    
+    // Apply median blur
+    cv.medianBlur(src, dst, kernelSize);
     
     return dst;
+    
   } catch (error) {
-    dst.delete();
-    gray.delete();
-    throw new Error(`Canny transformation failed: ${error}`);
+    // Cleanup on error
+    if (dst && !dst.isDeleted()) dst.delete();
+    throw error;
   }
 };
 
@@ -1105,6 +1108,37 @@ export const processImage = async (
             dst = applyCanny(src, threshold1, threshold2);
             break;
             
+          case 'median':
+            const medianKernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const medianMethod = transformation.parameters?.find(p => p.name === 'method')?.value as 'standard' | 'adaptive' | 'cross-shaped' | 'selective' || 'standard';
+            const medianIterations = transformation.parameters?.find(p => p.name === 'iterations')?.value as number || 1;
+            const preserveEdges = transformation.parameters?.find(p => p.name === 'preserveEdges')?.value as boolean || true;
+            const edgeThreshold = transformation.parameters?.find(p => p.name === 'edgeThreshold')?.value as number || 50;
+            const adaptiveWindowMax = transformation.parameters?.find(p => p.name === 'adaptiveWindowMax')?.value as number || 9;
+            const selectiveThreshold = transformation.parameters?.find(p => p.name === 'selectiveThreshold')?.value as number || 100;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = MedianProcessor.process(currentImageData, {
+              kernelSize: medianKernelSize,
+              method: medianMethod,
+              iterations: medianIterations,
+              preserveEdges,
+              edgeThreshold,
+              adaptiveWindowMax,
+              selectiveThreshold
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            
+            if (includeIntermediateResults) {
+              intermediates.push({
+                stage: 'median',
+                imageData: processedImageData,
+                description: `Applied ${medianMethod} median filter with ${medianKernelSize}×${medianKernelSize} kernel, ${medianIterations} iteration(s)`
+              });
+            }
+            break;
+            
           case 'dilate':
             const dilateKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
             const dilateKernelSize = dilateKernelSizeParam ? dilateKernelSizeParam.value as number : 3;
@@ -1199,6 +1233,318 @@ export const processImage = async (
             const aspectRatio = transformation.parameters?.find(p => p.name === 'aspectRatio')?.value as string || 'free';
             dst = applyCrop(src, cropMethod, cropX, cropY, cropWidth, cropHeight, aspectRatio);
             break;
+            
+          // Binary Processing Transformations
+          case 'fillHoles': {
+            const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+            const minHoleSize = transformation.parameters?.find(p => p.name === 'minHoleSize')?.value as number || 0;
+            const maxHoleSize = transformation.parameters?.find(p => p.name === 'maxHoleSize')?.value as number || 0;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = FillHolesProcessor.process(currentImageData, {
+              connectivity,
+              minHoleSize,
+              maxHoleSize
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+          
+          case 'connectedComponents': {
+            const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+            const minArea = transformation.parameters?.find(p => p.name === 'minArea')?.value as number || 0;
+            const maxArea = transformation.parameters?.find(p => p.name === 'maxArea')?.value as number || 0;
+            const outputMode = transformation.parameters?.find(p => p.name === 'outputMode')?.value as 'labeled' | 'filtered' | 'largest' | 'statistics' || 'labeled';
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = ConnectedComponentsProcessor.process(currentImageData, {
+              connectivity,
+              minArea,
+              maxArea,
+              outputMode
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+          
+          case 'clearBorder': {
+            const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+            const borderWidth = transformation.parameters?.find(p => p.name === 'borderWidth')?.value as number || 1;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = ClearBorderProcessor.process(currentImageData, {
+              connectivity,
+              borderWidth
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+          
+          case 'otsuThreshold': {
+            const channels = transformation.parameters?.find(p => p.name === 'channels')?.value as 'grayscale' | 'red' | 'green' | 'blue' | 'max' | 'min' || 'grayscale';
+            const invert = transformation.parameters?.find(p => p.name === 'invert')?.value as boolean || false;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = OtsuThresholdProcessor.process(currentImageData, {
+              channels,
+              invert
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+          
+          case 'removeNoise': {
+            const noiseType = transformation.parameters?.find(p => p.name === 'noiseType')?.value as 'saltPepper' | 'impulse' | 'small-objects' | 'holes' || 'saltPepper';
+            const kernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
+            const minSize = transformation.parameters?.find(p => p.name === 'minSize')?.value as number || 10;
+            const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = RemoveNoiseProcessor.process(currentImageData, {
+              noiseType,
+              kernelSize,
+              minSize,
+              connectivity
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+          
+          case 'findContours': {
+            const mode = transformation.parameters?.find(p => p.name === 'mode')?.value as 'external' | 'all' | 'tree' | 'ccomp' || 'external';
+            const method = transformation.parameters?.find(p => p.name === 'method')?.value as 'chain' | 'simple' | 'accurate' || 'simple';
+            const thickness = transformation.parameters?.find(p => p.name === 'thickness')?.value as number || 2;
+            const color = transformation.parameters?.find(p => p.name === 'color')?.value as 'auto' | 'white' | 'colored' || 'auto';
+            const minArea = transformation.parameters?.find(p => p.name === 'minArea')?.value as number || 0;
+            const maxArea = transformation.parameters?.find(p => p.name === 'maxArea')?.value as number || 0;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = FindContoursProcessor.process(currentImageData, {
+              mode,
+              method,
+              thickness,
+              color,
+              minArea,
+              maxArea
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+          
+          case 'skeletonize': {
+            const method = transformation.parameters?.find(p => p.name === 'method')?.value as 'zhang-suen' | 'morphological' || 'zhang-suen';
+            const iterations = transformation.parameters?.find(p => p.name === 'iterations')?.value as number || 50;
+            const preserveEndpoints = transformation.parameters?.find(p => p.name === 'preserveEndpoints')?.value as boolean || true;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = SkeletonizeProcessor.process(currentImageData, {
+              method,
+              iterations,
+              preserveEndpoints
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+          
+          case 'houghLines': {
+            const houghRho = transformation.parameters.find(p => p.name === 'rho')?.value as number || 1;
+            const houghTheta = transformation.parameters.find(p => p.name === 'theta')?.value as number || 1;
+            const houghThreshold = transformation.parameters.find(p => p.name === 'threshold')?.value as number || 50;
+            const houghMinLineLength = transformation.parameters.find(p => p.name === 'minLineLength')?.value as number || 50;
+            const houghMaxLineGap = transformation.parameters.find(p => p.name === 'maxLineGap')?.value as number || 10;
+            const houghLineColor = transformation.parameters.find(p => p.name === 'lineColor')?.value as ('red' | 'green' | 'blue' | 'white' | 'auto') || 'red';
+            const houghLineThickness = transformation.parameters.find(p => p.name === 'lineThickness')?.value as number || 2;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = HoughLinesProcessor.process(currentImageData, {
+              rho: houghRho,
+              theta: houghTheta,
+              threshold: houghThreshold,
+              minLineLength: houghMinLineLength,
+              maxLineGap: houghMaxLineGap,
+              lineColor: houghLineColor,
+              lineThickness: houghLineThickness
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+            
+          case 'backgroundSubtraction': {
+            const bgMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'morphological';
+            const bgKernelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 51;
+            const bgSigmaX = transformation.parameters.find(p => p.name === 'sigmaX')?.value as number || 50;
+            const bgSigmaY = transformation.parameters.find(p => p.name === 'sigmaY')?.value as number || 50;
+            const bgBallRadius = transformation.parameters.find(p => p.name === 'ballRadius')?.value as number || 25;
+            const bgPolynomialOrder = transformation.parameters.find(p => p.name === 'polynomialOrder')?.value as number || 3;
+            const bgNormalize = transformation.parameters.find(p => p.name === 'normalize')?.value as boolean || true;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = BackgroundSubtractionProcessor.process(currentImageData, {
+              method: bgMethod as 'morphological' | 'gaussian' | 'rolling-ball' | 'polynomial',
+              kernelSize: bgKernelSize,
+              sigmaX: bgSigmaX,
+              sigmaY: bgSigmaY,
+              ballRadius: bgBallRadius,
+              polynomialOrder: bgPolynomialOrder,
+              normalize: bgNormalize
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+            
+          case 'illuminationCorrection': {
+            const illumMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'homomorphic';
+            const illumGammaHigh = transformation.parameters.find(p => p.name === 'gammaHigh')?.value as number || 2.0;
+            const illumGammaLow = transformation.parameters.find(p => p.name === 'gammaLow')?.value as number || 0.5;
+            const illumSigma = transformation.parameters.find(p => p.name === 'sigma')?.value as number || 80;
+            const illumClipLimit = transformation.parameters.find(p => p.name === 'clipLimit')?.value as number || 2.0;
+            const illumTileGridSize = transformation.parameters.find(p => p.name === 'tileGridSize')?.value as number || 8;
+            const illumGamma = transformation.parameters.find(p => p.name === 'gamma')?.value as number || 1.2;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = IlluminationCorrectionProcessor.process(currentImageData, {
+              method: illumMethod as 'homomorphic' | 'retinex' | 'clahe' | 'gamma-correction',
+              gammaHigh: illumGammaHigh,
+              gammaLow: illumGammaLow,
+              sigma: illumSigma,
+              clipLimit: illumClipLimit,
+              tileGridSize: illumTileGridSize,
+              gamma: illumGamma
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+            
+          case 'topHat': {
+            const topHatKernelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 15;
+            const topHatKernelShape = transformation.parameters.find(p => p.name === 'kernelShape')?.value as string || 'ellipse';
+            const topHatEnhanceContrast = transformation.parameters.find(p => p.name === 'enhanceContrast')?.value as boolean || true;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = MorphologicalHatProcessor.process(currentImageData, {
+              type: 'topHat',
+              kernelSize: topHatKernelSize,
+              kernelShape: topHatKernelShape as 'rect' | 'ellipse' | 'cross',
+              enhanceContrast: topHatEnhanceContrast
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+            
+          case 'bottomHat': {
+            const bottomHatKernelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 15;
+            const bottomHatKernelShape = transformation.parameters.find(p => p.name === 'kernelShape')?.value as string || 'ellipse';
+            const bottomHatEnhanceContrast = transformation.parameters.find(p => p.name === 'enhanceContrast')?.value as boolean || true;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = MorphologicalHatProcessor.process(currentImageData, {
+              type: 'bottomHat',
+              kernelSize: bottomHatKernelSize,
+              kernelShape: bottomHatKernelShape as 'rect' | 'ellipse' | 'cross',
+              enhanceContrast: bottomHatEnhanceContrast
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+            
+          case 'localNormalization': {
+            const localNormMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'mean-std';
+            const localNormWindowSize = transformation.parameters.find(p => p.name === 'windowSize')?.value as number || 31;
+            const localNormTargetMean = transformation.parameters.find(p => p.name === 'targetMean')?.value as number || 128;
+            const localNormTargetStd = transformation.parameters.find(p => p.name === 'targetStd')?.value as number || 50;
+            const localNormLowPercentile = transformation.parameters.find(p => p.name === 'lowPercentile')?.value as number || 2;
+            const localNormHighPercentile = transformation.parameters.find(p => p.name === 'highPercentile')?.value as number || 98;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = LocalNormalizationProcessor.process(currentImageData, {
+              method: localNormMethod as 'mean-std' | 'min-max' | 'percentile',
+              windowSize: localNormWindowSize,
+              targetMean: localNormTargetMean,
+              targetStd: localNormTargetStd,
+              lowPercentile: localNormLowPercentile,
+              highPercentile: localNormHighPercentile
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            break;
+          }
+            
+          case 'histogram': {
+            const histogramMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'global';
+            const histogramClipLimit = transformation.parameters.find(p => p.name === 'clipLimit')?.value as number || 2.0;
+            const histogramTileGridSize = transformation.parameters.find(p => p.name === 'tileGridSize')?.value as number || 8;
+            
+            const currentImageData = matToImageData(src);
+            
+            // Determine the best channels based on image content
+            const isGrayImage = isImageGrayscale(currentImageData);
+            const recommendedChannels = isGrayImage ? 'grayscale' : 'hsv';
+            
+            const processedImageData = HistogramProcessor.process(currentImageData, {
+              method: histogramMethod as 'global' | 'adaptive',
+              clipLimit: histogramClipLimit,
+              tileGridSize: histogramTileGridSize,
+              channels: recommendedChannels,
+              preserveColors: !isGrayImage,
+              normalize: true
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            
+            if (includeIntermediateResults) {
+              const stats = HistogramProcessor.analyzeHistogram(processedImageData);
+              intermediates.push({
+                stage: 'histogram',
+                imageData: processedImageData,
+                description: `Applied ${histogramMethod} histogram equalization (${recommendedChannels} channels). Improved contrast - entropy: ${stats.entropy.toFixed(2)}, dynamic range: ${stats.dynamicRange}`
+              });
+            }
+            break;
+          }
+            
+          case 'advancedThreshold': {
+            const thresholdMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'statistical-combined';
+            const levels = transformation.parameters.find(p => p.name === 'levels')?.value as number || 2;
+            const highThreshold = transformation.parameters.find(p => p.name === 'highThreshold')?.value as number || 180;
+            const lowThreshold = transformation.parameters.find(p => p.name === 'lowThreshold')?.value as number || 80;
+            const postProcessing = transformation.parameters.find(p => p.name === 'postProcessing')?.value as boolean || true;
+            const removeNoise = transformation.parameters.find(p => p.name === 'removeNoise')?.value as boolean || true;
+            const minComponentSize = transformation.parameters.find(p => p.name === 'minComponentSize')?.value as number || 50;
+            const fillHoles = transformation.parameters.find(p => p.name === 'fillHoles')?.value as boolean || true;
+            const preserveEdges = transformation.parameters.find(p => p.name === 'preserveEdges')?.value as boolean || true;
+            const adaptiveLocalSize = transformation.parameters.find(p => p.name === 'adaptiveLocalSize')?.value as number || 15;
+            
+            const currentImageData = matToImageData(src);
+            
+            const processedImageData = AdvancedThresholdProcessor.process(currentImageData, {
+              method: thresholdMethod as any,
+              levels,
+              highThreshold,
+              lowThreshold,
+              postProcessing,
+              removeNoise,
+              minComponentSize,
+              fillHoles,
+              preserveEdges,
+              adaptiveLocalSize
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            
+            break;
+          }
             
           default:
             throw new Error(`Transformation type ${transformation.type} not implemented`);
@@ -1410,7 +1756,7 @@ function _applyTransformationWithoutOpenCV(
       if (resizeMethod === 'scale') {
         newWidth = Math.round(outputCanvas.width * scaleX / 100);
         newHeight = Math.round(outputCanvas.height * scaleY / 100);
-      } else {
+      } else { // dimensions
         newWidth = targetWidth;
         newHeight = targetHeight;
       }
@@ -1597,6 +1943,11 @@ export function applyTransformation(
         dst = applyCanny(src, threshold1, threshold2);
         break;
         
+      case 'median':
+        const medianKernelSize = paramMap.kernelSize as number || 3;
+        dst = applyMedian(src, medianKernelSize);
+        break;
+        
       case 'dilate':
         const dilateKernelSizeParam = transformation.parameters.find(p => p.name === 'kernelSize');
         const dilateKernelSize = dilateKernelSizeParam ? dilateKernelSizeParam.value as number : 3;
@@ -1691,6 +2042,286 @@ export function applyTransformation(
         const aspectRatio = paramMap.aspectRatio as string || 'free';
         dst = applyCrop(src, cropMethod, cropX, cropY, cropWidth, cropHeight, aspectRatio);
         break;
+        
+      // Binary Processing Transformations
+      case 'fillHoles': {
+        const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+        const minHoleSize = transformation.parameters?.find(p => p.name === 'minHoleSize')?.value as number || 0;
+        const maxHoleSize = transformation.parameters?.find(p => p.name === 'maxHoleSize')?.value as number || 0;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = FillHolesProcessor.process(currentImageData, {
+          connectivity,
+          minHoleSize,
+          maxHoleSize
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+      
+      case 'connectedComponents': {
+        const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+        const minArea = transformation.parameters?.find(p => p.name === 'minArea')?.value as number || 0;
+        const maxArea = transformation.parameters?.find(p => p.name === 'maxArea')?.value as number || 0;
+        const outputMode = transformation.parameters?.find(p => p.name === 'outputMode')?.value as 'labeled' | 'filtered' | 'largest' | 'statistics' || 'labeled';
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = ConnectedComponentsProcessor.process(currentImageData, {
+          connectivity,
+          minArea,
+          maxArea,
+          outputMode
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+      
+      case 'clearBorder': {
+        const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+        const borderWidth = transformation.parameters?.find(p => p.name === 'borderWidth')?.value as number || 1;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = ClearBorderProcessor.process(currentImageData, {
+          connectivity,
+          borderWidth
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+      
+      case 'otsuThreshold': {
+        const channels = transformation.parameters?.find(p => p.name === 'channels')?.value as 'grayscale' | 'red' | 'green' | 'blue' | 'max' | 'min' || 'grayscale';
+        const invert = transformation.parameters?.find(p => p.name === 'invert')?.value as boolean || false;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = OtsuThresholdProcessor.process(currentImageData, {
+          channels,
+          invert
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+      
+      case 'removeNoise': {
+        const noiseType = transformation.parameters?.find(p => p.name === 'noiseType')?.value as 'saltPepper' | 'impulse' | 'small-objects' | 'holes' || 'saltPepper';
+        const kernelSize = transformation.parameters?.find(p => p.name === 'kernelSize')?.value as number || 3;
+        const minSize = transformation.parameters?.find(p => p.name === 'minSize')?.value as number || 10;
+        const connectivity = transformation.parameters?.find(p => p.name === 'connectivity')?.value as '4' | '8' || '8';
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = RemoveNoiseProcessor.process(currentImageData, {
+          noiseType,
+          kernelSize,
+          minSize,
+          connectivity
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+      
+      case 'findContours': {
+        const mode = transformation.parameters?.find(p => p.name === 'mode')?.value as 'external' | 'all' | 'tree' | 'ccomp' || 'external';
+        const method = transformation.parameters?.find(p => p.name === 'method')?.value as 'chain' | 'simple' | 'accurate' || 'simple';
+        const thickness = transformation.parameters?.find(p => p.name === 'thickness')?.value as number || 2;
+        const color = transformation.parameters?.find(p => p.name === 'color')?.value as 'auto' | 'white' | 'colored' || 'auto';
+        const minArea = transformation.parameters?.find(p => p.name === 'minArea')?.value as number || 0;
+        const maxArea = transformation.parameters?.find(p => p.name === 'maxArea')?.value as number || 0;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = FindContoursProcessor.process(currentImageData, {
+          mode,
+          method,
+          thickness,
+          color,
+          minArea,
+          maxArea
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+      
+      case 'skeletonize': {
+        const method = transformation.parameters?.find(p => p.name === 'method')?.value as 'zhang-suen' | 'morphological' || 'zhang-suen';
+        const iterations = transformation.parameters?.find(p => p.name === 'iterations')?.value as number || 50;
+        const preserveEndpoints = transformation.parameters?.find(p => p.name === 'preserveEndpoints')?.value as boolean || true;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = SkeletonizeProcessor.process(currentImageData, {
+          method,
+          iterations,
+          preserveEndpoints
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+      
+      case 'houghLines': {
+        const houghRho = transformation.parameters.find(p => p.name === 'rho')?.value as number || 1;
+        const houghTheta = transformation.parameters.find(p => p.name === 'theta')?.value as number || 1;
+        const houghThreshold = transformation.parameters.find(p => p.name === 'threshold')?.value as number || 50;
+        const houghMinLineLength = transformation.parameters.find(p => p.name === 'minLineLength')?.value as number || 50;
+        const houghMaxLineGap = transformation.parameters.find(p => p.name === 'maxLineGap')?.value as number || 10;
+        const houghLineColor = transformation.parameters.find(p => p.name === 'lineColor')?.value as ('red' | 'green' | 'blue' | 'white' | 'auto') || 'red';
+        const houghLineThickness = transformation.parameters.find(p => p.name === 'lineThickness')?.value as number || 2;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = HoughLinesProcessor.process(currentImageData, {
+          rho: houghRho,
+          theta: houghTheta,
+          threshold: houghThreshold,
+          minLineLength: houghMinLineLength,
+          maxLineGap: houghMaxLineGap,
+          lineColor: houghLineColor,
+          lineThickness: houghLineThickness
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+        
+      case 'backgroundSubtraction': {
+        const bgMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'morphological';
+        const bgKernelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 51;
+        const bgSigmaX = transformation.parameters.find(p => p.name === 'sigmaX')?.value as number || 50;
+        const bgSigmaY = transformation.parameters.find(p => p.name === 'sigmaY')?.value as number || 50;
+        const bgBallRadius = transformation.parameters.find(p => p.name === 'ballRadius')?.value as number || 25;
+        const bgPolynomialOrder = transformation.parameters.find(p => p.name === 'polynomialOrder')?.value as number || 3;
+        const bgNormalize = transformation.parameters.find(p => p.name === 'normalize')?.value as boolean || true;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = BackgroundSubtractionProcessor.process(currentImageData, {
+          method: bgMethod as 'morphological' | 'gaussian' | 'rolling-ball' | 'polynomial',
+          kernelSize: bgKernelSize,
+          sigmaX: bgSigmaX,
+          sigmaY: bgSigmaY,
+          ballRadius: bgBallRadius,
+          polynomialOrder: bgPolynomialOrder,
+          normalize: bgNormalize
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+        
+      case 'illuminationCorrection': {
+        const illumMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'homomorphic';
+        const illumGammaHigh = transformation.parameters.find(p => p.name === 'gammaHigh')?.value as number || 2.0;
+        const illumGammaLow = transformation.parameters.find(p => p.name === 'gammaLow')?.value as number || 0.5;
+        const illumSigma = transformation.parameters.find(p => p.name === 'sigma')?.value as number || 80;
+        const illumClipLimit = transformation.parameters.find(p => p.name === 'clipLimit')?.value as number || 2.0;
+        const illumTileGridSize = transformation.parameters.find(p => p.name === 'tileGridSize')?.value as number || 8;
+        const illumGamma = transformation.parameters.find(p => p.name === 'gamma')?.value as number || 1.2;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = IlluminationCorrectionProcessor.process(currentImageData, {
+          method: illumMethod as 'homomorphic' | 'retinex' | 'clahe' | 'gamma-correction',
+          gammaHigh: illumGammaHigh,
+          gammaLow: illumGammaLow,
+          sigma: illumSigma,
+          clipLimit: illumClipLimit,
+          tileGridSize: illumTileGridSize,
+          gamma: illumGamma
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+        
+      case 'topHat': {
+        const topHatKernelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 15;
+        const topHatKernelShape = transformation.parameters.find(p => p.name === 'kernelShape')?.value as string || 'ellipse';
+        const topHatEnhanceContrast = transformation.parameters.find(p => p.name === 'enhanceContrast')?.value as boolean || true;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = MorphologicalHatProcessor.process(currentImageData, {
+          type: 'topHat',
+          kernelSize: topHatKernelSize,
+          kernelShape: topHatKernelShape as 'rect' | 'ellipse' | 'cross',
+          enhanceContrast: topHatEnhanceContrast
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+        
+      case 'bottomHat': {
+        const bottomHatKernelSize = transformation.parameters.find(p => p.name === 'kernelSize')?.value as number || 15;
+        const bottomHatKernelShape = transformation.parameters.find(p => p.name === 'kernelShape')?.value as string || 'ellipse';
+        const bottomHatEnhanceContrast = transformation.parameters.find(p => p.name === 'enhanceContrast')?.value as boolean || true;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = MorphologicalHatProcessor.process(currentImageData, {
+          type: 'bottomHat',
+          kernelSize: bottomHatKernelSize,
+          kernelShape: bottomHatKernelShape as 'rect' | 'ellipse' | 'cross',
+          enhanceContrast: bottomHatEnhanceContrast
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+        
+      case 'localNormalization': {
+        const localNormMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'mean-std';
+        const localNormWindowSize = transformation.parameters.find(p => p.name === 'windowSize')?.value as number || 31;
+        const localNormTargetMean = transformation.parameters.find(p => p.name === 'targetMean')?.value as number || 128;
+        const localNormTargetStd = transformation.parameters.find(p => p.name === 'targetStd')?.value as number || 50;
+        const localNormLowPercentile = transformation.parameters.find(p => p.name === 'lowPercentile')?.value as number || 2;
+        const localNormHighPercentile = transformation.parameters.find(p => p.name === 'highPercentile')?.value as number || 98;
+        
+        const currentImageData = matToImageData(src);
+        const processedImageData = LocalNormalizationProcessor.process(currentImageData, {
+          method: localNormMethod as 'mean-std' | 'min-max' | 'percentile',
+          windowSize: localNormWindowSize,
+          targetMean: localNormTargetMean,
+          targetStd: localNormTargetStd,
+          lowPercentile: localNormLowPercentile,
+          highPercentile: localNormHighPercentile
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        break;
+      }
+        
+      case 'histogram': {
+        const histogramMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'global';
+        const histogramClipLimit = transformation.parameters.find(p => p.name === 'clipLimit')?.value as number || 2.0;
+        const histogramTileGridSize = transformation.parameters.find(p => p.name === 'tileGridSize')?.value as number || 8;
+        
+        const currentImageData = matToImageData(src);
+        
+        // Determine the best channels based on image content
+        const isGrayImage = isImageGrayscale(currentImageData);
+        const recommendedChannels = isGrayImage ? 'grayscale' : 'hsv';
+        
+        const processedImageData = HistogramProcessor.process(currentImageData, {
+          method: histogramMethod as 'global' | 'adaptive',
+          clipLimit: histogramClipLimit,
+          tileGridSize: histogramTileGridSize,
+          channels: recommendedChannels,
+          preserveColors: !isGrayImage,
+          normalize: true
+        });
+        
+        dst = imageDataToMat(processedImageData);
+        
+        if (includeIntermediateResults) {
+          const stats = HistogramProcessor.analyzeHistogram(processedImageData);
+          intermediates.push({
+            stage: 'histogram',
+            imageData: processedImageData,
+            description: `Applied ${histogramMethod} histogram equalization (${recommendedChannels} channels). Improved contrast - entropy: ${stats.entropy.toFixed(2)}, dynamic range: ${stats.dynamicRange}`
+          });
+        }
+        break;
+      }
         
       default:
         throw new Error(`Transformation type ${transformation.type} not implemented`);

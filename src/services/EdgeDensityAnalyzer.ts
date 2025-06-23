@@ -556,18 +556,14 @@ export class EdgeDensityAnalyzer {
     if (showHotspots) {
       ctx.strokeStyle = 'white';
       ctx.lineWidth = 2;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.font = '12px Arial';
 
-      statistics.hotspots.forEach((hotspot, index) => {
+      statistics.hotspots.forEach((hotspot) => {
         const x = (hotspot.x / width) * canvas.width;
         const y = (hotspot.y / height) * canvas.height;
         
         ctx.beginPath();
         ctx.arc(x, y, 8, 0, 2 * Math.PI);
         ctx.stroke();
-        
-        ctx.fillText(`${index + 1}`, x + 10, y - 10);
       });
     }
 

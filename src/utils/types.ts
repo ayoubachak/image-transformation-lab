@@ -4,6 +4,7 @@ export type TransformationType =
   | 'customBlur'
   | 'threshold'
   | 'adaptiveThreshold'
+  | 'advancedThreshold'
   | 'laplacian'
   | 'sobel'
   | 'canny'
@@ -20,7 +21,20 @@ export type TransformationType =
   | 'flip'
   | 'crop'
   | 'perspective'
-  | 'custom';
+  | 'custom'
+  | 'fillHoles'
+  | 'connectedComponents'
+  | 'clearBorder'
+  | 'findContours'
+  | 'skeletonize'
+  | 'otsuThreshold'
+  | 'removeNoise'
+  | 'houghLines'
+  | 'backgroundSubtraction'
+  | 'illuminationCorrection'
+  | 'topHat'
+  | 'bottomHat'
+  | 'localNormalization';
 
 // New inspection node types
 export type InspectionType = 

@@ -54,7 +54,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Kernel Size',
         description: 'Size of the convolution kernel',
         dependsOn: 'kernelType',
-        showIf: (params) => params.kernelType !== 'custom'
+        showIf: (params: Record<string, any>) => params.kernelType !== 'custom'
       },
       {
         name: 'customKernel',
@@ -129,6 +129,115 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         step: 1,
         label: 'Constant',
         description: 'Constant subtracted from the mean or weighted mean'
+      }
+    ]
+  },
+  advancedThreshold: {
+    type: 'advancedThreshold',
+    name: 'Advanced Thresholding',
+    description: 'Advanced statistical and multi-level thresholding for noisy images',
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'statistical-combined',
+        options: ['multi-otsu', 'triangle', 'minimum-error', 'hysteresis', 'statistical-combined', 'multi-scale'],
+        label: 'Thresholding Method',
+        description: 'Advanced thresholding algorithm to use'
+      },
+      {
+        name: 'levels',
+        type: 'number',
+        value: 2,
+        min: 1,
+        max: 4,
+        step: 1,
+        label: 'Threshold Levels',
+        description: 'Number of threshold levels for multi-level methods',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => ['multi-otsu', 'multi-scale'].includes(params.method as string)
+      },
+      {
+        name: 'highThreshold',
+        type: 'number',
+        value: 180,
+        min: 50,
+        max: 255,
+        step: 1,
+        label: 'High Threshold',
+        description: 'Upper threshold for hysteresis method',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'hysteresis'
+      },
+      {
+        name: 'lowThreshold',
+        type: 'number',
+        value: 80,
+        min: 10,
+        max: 200,
+        step: 1,
+        label: 'Low Threshold',
+        description: 'Lower threshold for hysteresis method',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'hysteresis'
+      },
+      {
+        name: 'postProcessing',
+        type: 'boolean',
+        value: true,
+        label: 'Morphological Cleanup',
+        description: 'Apply automatic morphological post-processing'
+      },
+      {
+        name: 'removeNoise',
+        type: 'boolean',
+        value: true,
+        label: 'Remove Noise',
+        description: 'Remove small noise components',
+        dependsOn: 'postProcessing',
+        showIf: (params: Record<string, any>) => params.postProcessing === true
+      },
+      {
+        name: 'minComponentSize',
+        type: 'number',
+        value: 50,
+        min: 5,
+        max: 500,
+        step: 5,
+        label: 'Min Component Size',
+        description: 'Minimum component size to keep (pixels)',
+        dependsOn: 'removeNoise',
+        showIf: (params: Record<string, any>) => params.removeNoise === true
+      },
+      {
+        name: 'fillHoles',
+        type: 'boolean',
+        value: true,
+        label: 'Fill Holes',
+        description: 'Fill holes in thresholded regions',
+        dependsOn: 'postProcessing',
+        showIf: (params: Record<string, any>) => params.postProcessing === true
+      },
+      {
+        name: 'preserveEdges',
+        type: 'boolean',
+        value: true,
+        label: 'Preserve Edges',
+        description: 'Try to preserve edge details during cleanup',
+        dependsOn: 'postProcessing',
+        showIf: (params: Record<string, any>) => params.postProcessing === true
+      },
+      {
+        name: 'adaptiveLocalSize',
+        type: 'number',
+        value: 15,
+        min: 5,
+        max: 51,
+        step: 2,
+        label: 'Adaptive Window Size',
+        description: 'Local window size for adaptive components (must be odd)',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => ['statistical-combined', 'multi-scale'].includes(params.method as string)
       }
     ]
   },
@@ -322,11 +431,70 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         name: 'kernelSize',
         type: 'number',
         value: 3,
-        min: 1,
-        max: 31,
+        min: 3,
+        max: 15,
         step: 2,
         label: 'Kernel Size',
         description: 'Size of the median filter kernel (must be odd)'
+      },
+      {
+        name: 'method',
+        type: 'select',
+        value: 'standard',
+        options: ['standard', 'adaptive', 'cross-shaped', 'selective'],
+        label: 'Filter Method',
+        description: 'Type of median filtering to apply'
+      },
+      {
+        name: 'iterations',
+        type: 'number',
+        value: 1,
+        min: 1,
+        max: 5,
+        step: 1,
+        label: 'Iterations',
+        description: 'Number of times to apply the filter'
+      },
+      {
+        name: 'preserveEdges',
+        type: 'boolean',
+        value: true,
+        label: 'Preserve Edges',
+        description: 'Try to preserve edge information'
+      },
+      {
+        name: 'adaptiveWindowMax',
+        type: 'number',
+        value: 9,
+        min: 5,
+        max: 15,
+        step: 2,
+        label: 'Max Adaptive Window',
+        description: 'Maximum window size for adaptive method',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'adaptive'
+      },
+      {
+        name: 'selectiveThreshold',
+        type: 'number',
+        value: 100,
+        min: 10,
+        max: 500,
+        step: 10,
+        label: 'Selective Threshold',
+        description: 'Variance threshold for selective filtering',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'selective'
+      },
+      {
+        name: 'edgeThreshold',
+        type: 'number',
+        value: 50,
+        min: 10,
+        max: 200,
+        step: 5,
+        label: 'Edge Threshold',
+        description: 'Threshold for edge detection'
       }
     ]
   },
@@ -390,7 +558,36 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Clip Limit',
         description: 'Threshold for contrast limiting (CLAHE only)',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'adaptive'
+        showIf: (params: Record<string, any>) => params.method === 'adaptive'
+      },
+      {
+        name: 'tileGridSize',
+        type: 'number',
+        value: 8,
+        min: 2,
+        max: 32,
+        step: 1,
+        label: 'Tile Grid Size',
+        description: 'Size of local tiles for adaptive method',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'adaptive'
+      },
+      {
+        name: 'channels',
+        type: 'select',
+        value: 'auto',
+        options: ['auto', 'grayscale', 'rgb', 'hsv'],
+        label: 'Color Channels',
+        description: 'Which color channels to process'
+      },
+      {
+        name: 'preserveColors',
+        type: 'boolean',
+        value: true,
+        label: 'Preserve Colors',
+        description: 'For color images, preserve color information',
+        dependsOn: 'channels',
+        showIf: (params: Record<string, any>) => params.channels !== 'grayscale'
       }
     ]
   },
@@ -452,7 +649,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Scale X (%)',
         description: 'Horizontal scale percentage',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'scale'
+        showIf: (params: Record<string, any>) => params.method === 'scale'
       },
       {
         name: 'scaleY',
@@ -464,7 +661,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Scale Y (%)',
         description: 'Vertical scale percentage',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'scale'
+        showIf: (params: Record<string, any>) => params.method === 'scale'
       },
       {
         name: 'width',
@@ -476,7 +673,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Width (px)',
         description: 'Target width in pixels',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'dimensions'
+        showIf: (params: Record<string, any>) => params.method === 'dimensions'
       },
       {
         name: 'height',
@@ -488,7 +685,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Height (px)',
         description: 'Target height in pixels',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'dimensions'
+        showIf: (params: Record<string, any>) => params.method === 'dimensions'
       },
       {
         name: 'interpolation',
@@ -573,7 +770,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'X',
         description: 'X coordinate of top-left corner',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'manual'
+        showIf: (params: Record<string, any>) => params.method === 'manual'
       },
       {
         name: 'y',
@@ -585,7 +782,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Y',
         description: 'Y coordinate of top-left corner',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'manual'
+        showIf: (params: Record<string, any>) => params.method === 'manual'
       },
       {
         name: 'width',
@@ -597,7 +794,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Width',
         description: 'Width of crop region',
         dependsOn: 'method',
-        showIf: (params) => params.method !== 'auto'
+        showIf: (params: Record<string, any>) => params.method !== 'auto'
       },
       {
         name: 'height',
@@ -609,7 +806,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Height',
         description: 'Height of crop region',
         dependsOn: 'method',
-        showIf: (params) => params.method !== 'auto'
+        showIf: (params: Record<string, any>) => params.method !== 'auto'
       },
       {
         name: 'aspectRatio',
@@ -619,7 +816,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Aspect Ratio',
         description: 'Maintain aspect ratio when cropping',
         dependsOn: 'method',
-        showIf: (params) => params.method === 'center'
+        showIf: (params: Record<string, any>) => params.method === 'center'
       }
     ]
   },
@@ -643,7 +840,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Top Left',
         description: 'Top-left corner coordinate',
         dependsOn: 'mode',
-        showIf: (params) => params.mode === 'points'
+        showIf: (params: Record<string, any>) => params.mode === 'points'
       },
       {
         name: 'topRight',
@@ -652,7 +849,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Top Right',
         description: 'Top-right corner coordinate',
         dependsOn: 'mode',
-        showIf: (params) => params.mode === 'points'
+        showIf: (params: Record<string, any>) => params.mode === 'points'
       },
       {
         name: 'bottomLeft',
@@ -661,7 +858,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Bottom Left',
         description: 'Bottom-left corner coordinate',
         dependsOn: 'mode',
-        showIf: (params) => params.mode === 'points'
+        showIf: (params: Record<string, any>) => params.mode === 'points'
       },
       {
         name: 'bottomRight',
@@ -670,7 +867,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Bottom Right',
         description: 'Bottom-right corner coordinate',
         dependsOn: 'mode',
-        showIf: (params) => params.mode === 'points'
+        showIf: (params: Record<string, any>) => params.mode === 'points'
       },
       {
         name: 'matrix',
@@ -687,7 +884,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         label: 'Transform Matrix',
         description: '3x3 perspective transformation matrix',
         dependsOn: 'mode',
-        showIf: (params) => params.mode === 'matrix'
+        showIf: (params: Record<string, any>) => params.mode === 'matrix'
       },
       {
         name: 'interpolation',
@@ -704,6 +901,646 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
     name: 'Custom Filter',
     description: 'Apply a custom filter',
     parameters: [],
+  },
+  fillHoles: {
+    type: 'fillHoles',
+    name: 'Fill Holes',
+    description: 'Fill enclosed regions in binary images',
+    parameters: [
+      {
+        name: 'connectivity',
+        type: 'select',
+        value: '8',
+        options: ['4', '8'],
+        label: 'Connectivity',
+        description: 'Pixel connectivity (4-connected or 8-connected)'
+      },
+      {
+        name: 'minHoleSize',
+        type: 'number',
+        value: 0,
+        min: 0,
+        max: 10000,
+        step: 1,
+        label: 'Min Hole Size',
+        description: 'Minimum hole size to fill (0 = fill all holes)'
+      },
+      {
+        name: 'maxHoleSize',
+        type: 'number',
+        value: 0,
+        min: 0,
+        max: 50000,
+        step: 1,
+        label: 'Max Hole Size',
+        description: 'Maximum hole size to fill (0 = no limit)'
+      }
+    ]
+  },
+  connectedComponents: {
+    type: 'connectedComponents',
+    name: 'Connected Components',
+    description: 'Label and analyze connected regions in binary images',
+    parameters: [
+      {
+        name: 'connectivity',
+        type: 'select',
+        value: '8',
+        options: ['4', '8'],
+        label: 'Connectivity',
+        description: 'Pixel connectivity for component detection'
+      },
+      {
+        name: 'minArea',
+        type: 'number',
+        value: 0,
+        min: 0,
+        max: 10000,
+        step: 1,
+        label: 'Min Area',
+        description: 'Minimum component area (pixels)'
+      },
+      {
+        name: 'maxArea',
+        type: 'number',
+        value: 0,
+        min: 0,
+        max: 100000,
+        step: 1,
+        label: 'Max Area',
+        description: 'Maximum component area (0 = no limit)'
+      },
+      {
+        name: 'outputMode',
+        type: 'select',
+        value: 'filtered',
+        options: ['labeled', 'filtered', 'largest', 'statistics'],
+        label: 'Output Mode',
+        description: 'What to output: labeled image, filtered components, largest component, or statistics'
+      }
+    ]
+  },
+  clearBorder: {
+    type: 'clearBorder',
+    name: 'Clear Border',
+    description: 'Remove objects touching image boundaries',
+    parameters: [
+      {
+        name: 'connectivity',
+        type: 'select',
+        value: '8',
+        options: ['4', '8'],
+        label: 'Connectivity',
+        description: 'Pixel connectivity for boundary detection'
+      },
+      {
+        name: 'borderWidth',
+        type: 'number',
+        value: 1,
+        min: 1,
+        max: 50,
+        step: 1,
+        label: 'Border Width',
+        description: 'Width of border region to check'
+      }
+    ]
+  },
+  findContours: {
+    type: 'findContours',
+    name: 'Find Contours',
+    description: 'Extract object boundaries and perimeters',
+    parameters: [
+      {
+        name: 'mode',
+        type: 'select',
+        value: 'external',
+        options: ['external', 'list', 'tree', 'ccomp'],
+        label: 'Retrieval Mode',
+        description: 'Contour retrieval mode'
+      },
+      {
+        name: 'method',
+        type: 'select',
+        value: 'simple',
+        options: ['none', 'simple', 'tc89l1', 'tc89kcos'],
+        label: 'Approximation Method',
+        description: 'Contour approximation method'
+      },
+      {
+        name: 'minContourArea',
+        type: 'number',
+        value: 0,
+        min: 0,
+        max: 10000,
+        step: 1,
+        label: 'Min Contour Area',
+        description: 'Minimum contour area to include'
+      },
+      {
+        name: 'thickness',
+        type: 'number',
+        value: 2,
+        min: 1,
+        max: 10,
+        step: 1,
+        label: 'Line Thickness',
+        description: 'Thickness of drawn contour lines'
+      },
+      {
+        name: 'color',
+        type: 'select',
+        value: 'auto',
+        options: ['auto', 'white', 'black', 'red', 'green', 'blue'],
+        label: 'Contour Color',
+        description: 'Color for drawing contours'
+      }
+    ]
+  },
+  skeletonize: {
+    type: 'skeletonize',
+    name: 'Skeletonize',
+    description: 'Reduce objects to skeletal structure',
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'zhang-suen',
+        options: ['zhang-suen', 'morphological'],
+        label: 'Algorithm',
+        description: 'Skeletonization algorithm to use'
+      },
+      {
+        name: 'iterations',
+        type: 'number',
+        value: 50,
+        min: 1,
+        max: 200,
+        step: 1,
+        label: 'Max Iterations',
+        description: 'Maximum number of iterations'
+      },
+      {
+        name: 'preserveEndpoints',
+        type: 'boolean',
+        value: true,
+        label: 'Preserve Endpoints',
+        description: 'Preserve endpoint pixels in skeleton'
+      }
+    ]
+  },
+  otsuThreshold: {
+    type: 'otsuThreshold',
+    name: 'Otsu Threshold',
+    description: 'Automatic threshold selection using Otsu\'s method',
+    parameters: [
+      {
+        name: 'channels',
+        type: 'select',
+        value: 'grayscale',
+        options: ['grayscale', 'red', 'green', 'blue', 'max', 'min'],
+        label: 'Channel',
+        description: 'Which channel to analyze for threshold'
+      },
+      {
+        name: 'invert',
+        type: 'boolean',
+        value: false,
+        label: 'Invert Result',
+        description: 'Invert the binary result'
+      }
+    ]
+  },
+  removeNoise: {
+    type: 'removeNoise',
+    name: 'Remove Noise',
+    description: 'Remove noise from binary and grayscale images',
+    parameters: [
+      {
+        name: 'noiseType',
+        type: 'select',
+        value: 'saltPepper',
+        options: ['saltPepper', 'impulse', 'small-objects', 'holes'],
+        label: 'Noise Type',
+        description: 'Type of noise to remove'
+      },
+      {
+        name: 'kernelSize',
+        type: 'number',
+        value: 3,
+        min: 3,
+        max: 15,
+        step: 2,
+        label: 'Kernel Size',
+        description: 'Size of the noise removal kernel',
+        dependsOn: 'noiseType',
+        showIf: (params: Record<string, any>) => ['saltPepper', 'impulse'].includes(params.noiseType as string)
+      },
+      {
+        name: 'minSize',
+        type: 'number',
+        value: 10,
+        min: 1,
+        max: 1000,
+        step: 1,
+        label: 'Min Object Size',
+        description: 'Minimum size to keep (smaller objects removed)',
+        dependsOn: 'noiseType',
+        showIf: (params: Record<string, any>) => params.noiseType === 'small-objects'
+      },
+      {
+        name: 'connectivity',
+        type: 'select',
+        value: '8',
+        options: ['4', '8'],
+        label: 'Connectivity',
+        description: 'Pixel connectivity for object detection',
+        dependsOn: 'noiseType',
+        showIf: (params: Record<string, any>) => ['small-objects', 'holes'].includes(params.noiseType as string)
+      }
+    ]
+  },
+  houghLines: {
+    type: 'houghLines',
+    name: 'Hough Lines',
+    description: 'Detect straight lines using Hough transform',
+    parameters: [
+      {
+        name: 'rho',
+        type: 'number',
+        value: 1,
+        min: 0.1,
+        max: 10,
+        step: 0.1,
+        label: 'Rho Resolution',
+        description: 'Distance resolution in pixels'
+      },
+      {
+        name: 'theta',
+        type: 'number',
+        value: 1,
+        min: 0.1,
+        max: 10,
+        step: 0.1,
+        label: 'Theta Resolution',
+        description: 'Angle resolution in degrees'
+      },
+      {
+        name: 'threshold',
+        type: 'number',
+        value: 50,
+        min: 1,
+        max: 500,
+        step: 1,
+        label: 'Threshold',
+        description: 'Minimum votes for line detection'
+      },
+      {
+        name: 'minLineLength',
+        type: 'number',
+        value: 50,
+        min: 0,
+        max: 1000,
+        step: 1,
+        label: 'Min Line Length',
+        description: 'Minimum line length (0 = standard Hough)'
+      },
+      {
+        name: 'maxLineGap',
+        type: 'number',
+        value: 10,
+        min: 0,
+        max: 100,
+        step: 1,
+        label: 'Max Line Gap',
+        description: 'Maximum gap between line segments',
+        dependsOn: 'minLineLength',
+        showIf: (params: Record<string, any>) => params.minLineLength > 0
+      },
+      {
+        name: 'lineColor',
+        type: 'select',
+        value: 'red',
+        options: ['red', 'green', 'blue', 'white', 'black'],
+        label: 'Line Color',
+        description: 'Color for drawing detected lines'
+      },
+      {
+        name: 'lineThickness',
+        type: 'number',
+        value: 2,
+        min: 1,
+        max: 10,
+        step: 1,
+        label: 'Line Thickness',
+        description: 'Thickness of drawn lines'
+      }
+    ]
+  },
+  backgroundSubtraction: {
+    type: 'backgroundSubtraction',
+    name: 'Background Subtraction',
+    description: 'Remove uneven background illumination from images',
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'morphological',
+        options: ['morphological', 'gaussian', 'rolling-ball', 'polynomial'],
+        label: 'Method',
+        description: 'Background estimation method'
+      },
+      {
+        name: 'kernelSize',
+        type: 'number',
+        value: 51,
+        min: 3,
+        max: 201,
+        step: 2,
+        label: 'Kernel Size',
+        description: 'Size of the structuring element (must be odd)',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'morphological'
+      },
+      {
+        name: 'sigmaX',
+        type: 'number',
+        value: 50,
+        min: 1,
+        max: 200,
+        step: 1,
+        label: 'Sigma X',
+        description: 'Standard deviation in X direction',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'gaussian'
+      },
+      {
+        name: 'sigmaY',
+        type: 'number',
+        value: 50,
+        min: 1,
+        max: 200,
+        step: 1,
+        label: 'Sigma Y',
+        description: 'Standard deviation in Y direction',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'gaussian'
+      },
+      {
+        name: 'ballRadius',
+        type: 'number',
+        value: 25,
+        min: 5,
+        max: 100,
+        step: 1,
+        label: 'Ball Radius',
+        description: 'Radius of rolling ball',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'rolling-ball'
+      },
+      {
+        name: 'polynomialOrder',
+        type: 'number',
+        value: 3,
+        min: 1,
+        max: 6,
+        step: 1,
+        label: 'Polynomial Order',
+        description: 'Order of polynomial fitting',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'polynomial'
+      },
+      {
+        name: 'normalize',
+        type: 'boolean',
+        value: true,
+        label: 'Normalize Result',
+        description: 'Normalize output to full intensity range'
+      }
+    ]
+  },
+  illuminationCorrection: {
+    type: 'illuminationCorrection',
+    name: 'Illumination Correction',
+    description: 'Correct uneven lighting and illumination gradients',
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'homomorphic',
+        options: ['homomorphic', 'retinex', 'clahe', 'gamma-correction'],
+        label: 'Method',
+        description: 'Illumination correction technique'
+      },
+      {
+        name: 'gammaHigh',
+        type: 'number',
+        value: 2.0,
+        min: 0.1,
+        max: 5.0,
+        step: 0.1,
+        label: 'Gamma High',
+        description: 'Gamma value for high frequency enhancement',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'homomorphic'
+      },
+      {
+        name: 'gammaLow',
+        type: 'number',
+        value: 0.5,
+        min: 0.1,
+        max: 2.0,
+        step: 0.1,
+        label: 'Gamma Low',
+        description: 'Gamma value for low frequency suppression',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'homomorphic'
+      },
+      {
+        name: 'sigma',
+        type: 'number',
+        value: 80,
+        min: 10,
+        max: 200,
+        step: 5,
+        label: 'Sigma',
+        description: 'Scale parameter for Retinex',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'retinex'
+      },
+      {
+        name: 'clipLimit',
+        type: 'number',
+        value: 2.0,
+        min: 0.5,
+        max: 10.0,
+        step: 0.5,
+        label: 'Clip Limit',
+        description: 'Contrast limiting parameter',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'clahe'
+      },
+      {
+        name: 'tileGridSize',
+        type: 'number',
+        value: 8,
+        min: 2,
+        max: 32,
+        step: 1,
+        label: 'Tile Grid Size',
+        description: 'Size of local tiles for CLAHE',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'clahe'
+      },
+      {
+        name: 'gamma',
+        type: 'number',
+        value: 1.2,
+        min: 0.1,
+        max: 3.0,
+        step: 0.1,
+        label: 'Gamma',
+        description: 'Gamma correction value',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'gamma-correction'
+      }
+    ]
+  },
+  topHat: {
+    type: 'topHat',
+    name: 'Top Hat Transform',
+    description: 'Morphological top-hat for detecting bright objects on dark background',
+    parameters: [
+      {
+        name: 'kernelSize',
+        type: 'number',
+        value: 15,
+        min: 3,
+        max: 101,
+        step: 2,
+        label: 'Kernel Size',
+        description: 'Size of structuring element (must be odd)'
+      },
+      {
+        name: 'kernelShape',
+        type: 'select',
+        value: 'ellipse',
+        options: ['rect', 'ellipse', 'cross'],
+        label: 'Kernel Shape',
+        description: 'Shape of structuring element'
+      },
+      {
+        name: 'enhanceContrast',
+        type: 'boolean',
+        value: true,
+        label: 'Enhance Contrast',
+        description: 'Apply contrast enhancement to result'
+      }
+    ]
+  },
+  bottomHat: {
+    type: 'bottomHat',
+    name: 'Bottom Hat Transform',
+    description: 'Morphological bottom-hat for detecting dark objects on bright background',
+    parameters: [
+      {
+        name: 'kernelSize',
+        type: 'number',
+        value: 15,
+        min: 3,
+        max: 101,
+        step: 2,
+        label: 'Kernel Size',
+        description: 'Size of structuring element (must be odd)'
+      },
+      {
+        name: 'kernelShape',
+        type: 'select',
+        value: 'ellipse',
+        options: ['rect', 'ellipse', 'cross'],
+        label: 'Kernel Shape',
+        description: 'Shape of structuring element'
+      },
+      {
+        name: 'enhanceContrast',
+        type: 'boolean',
+        value: true,
+        label: 'Enhance Contrast',
+        description: 'Apply contrast enhancement to result'
+      }
+    ]
+  },
+  localNormalization: {
+    type: 'localNormalization',
+    name: 'Local Normalization',
+    description: 'Normalize intensity locally to handle uneven illumination',
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'mean-std',
+        options: ['mean-std', 'min-max', 'percentile'],
+        label: 'Normalization Method',
+        description: 'Local normalization technique'
+      },
+      {
+        name: 'windowSize',
+        type: 'number',
+        value: 31,
+        min: 5,
+        max: 101,
+        step: 2,
+        label: 'Window Size',
+        description: 'Size of local neighborhood window (must be odd)'
+      },
+      {
+        name: 'targetMean',
+        type: 'number',
+        value: 128,
+        min: 50,
+        max: 200,
+        step: 1,
+        label: 'Target Mean',
+        description: 'Target mean intensity value',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'mean-std'
+      },
+      {
+        name: 'targetStd',
+        type: 'number',
+        value: 50,
+        min: 10,
+        max: 100,
+        step: 1,
+        label: 'Target Standard Deviation',
+        description: 'Target standard deviation',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'mean-std'
+      },
+      {
+        name: 'lowPercentile',
+        type: 'number',
+        value: 2,
+        min: 0,
+        max: 25,
+        step: 1,
+        label: 'Low Percentile',
+        description: 'Lower percentile for normalization',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'percentile'
+      },
+      {
+        name: 'highPercentile',
+        type: 'number',
+        value: 98,
+        min: 75,
+        max: 100,
+        step: 1,
+        label: 'High Percentile',
+        description: 'Higher percentile for normalization',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'percentile'
+      }
+    ]
   },
 };
 

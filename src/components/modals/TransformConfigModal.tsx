@@ -462,6 +462,26 @@ export default function TransformConfigModal({
       case 'perspective':
         return renderGeometryConfig();
         
+      // Binary Processing Transformations
+      case 'fillHoles':
+      case 'clearBorder':
+      case 'otsuThreshold':
+      case 'removeNoise':
+      case 'connectedComponents':
+      case 'findContours':
+      case 'skeletonize':
+      case 'houghLines':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Parameters</h3>
+              <div className="mt-2 bg-gray-50 p-4 rounded-md">
+                {editedTransformation.parameters.map(param => renderParameterControl(param))}
+              </div>
+            </div>
+          </div>
+        );
+        
       default:
         return <div className="text-gray-700">Configuration not implemented for this transformation type.</div>;
     }
