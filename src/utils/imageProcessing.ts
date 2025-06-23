@@ -18,6 +18,7 @@ import { MedianProcessor } from '../services/MedianProcessor';
 import { BilateralProcessor } from '../services/BilateralProcessor';
 import { HistogramProcessor } from '../services/HistogramProcessor';
 import { AdvancedThresholdProcessor } from '../services/AdvancedThresholdProcessor';
+import { ColorFilterProcessor } from '../services/ColorFilterProcessor';
 
 // Ensure OpenCV is initialized
 let isOpenCVInitialized = false;
@@ -62,7 +63,7 @@ const verifyOpenCV = (): boolean => {
 /**
  * Access the OpenCV instance (prioritizing the window.cv global)
  */
-const getOpenCV = (): any => {
+export const getOpenCV = (): any => {
   // First try to get direct OpenCV.js from window (loaded via script tag)
   if (typeof window !== 'undefined' && (window as any).cv) {
     return (window as any).cv;
@@ -549,7 +550,7 @@ export const applyBlur = (src: any, ksize: number, advancedParams?: Record<strin
 };
 
 // Apply threshold transformation
-export const applyThreshold = (src: any, threshold: number): any => {
+export const applyThreshold = (src: any, threshold: number, invert: boolean = false): any => {
   const opencv = getOpenCV();
   
   // Handle fallback Mat
@@ -577,11 +578,12 @@ export const applyThreshold = (src: any, threshold: number): any => {
       }
     }
     
-    // Apply threshold
+    // Apply threshold with invert option
     for (let i = 0; i < result.rows; i++) {
       for (let j = 0; j < result.cols; j++) {
         const offset = (i * result.cols + j) * 4;
-        const value = result.data[offset] > threshold ? 255 : 0;
+        const isAboveThreshold = result.data[offset] > threshold;
+        const value = invert ? (isAboveThreshold ? 0 : 255) : (isAboveThreshold ? 255 : 0);
         result.data[offset] = value;
         result.data[offset + 1] = value;
         result.data[offset + 2] = value;
@@ -602,7 +604,9 @@ export const applyThreshold = (src: any, threshold: number): any => {
       src.copyTo(gray);
     }
     
-    opencv.threshold(gray, dst, threshold, 255, opencv.THRESH_BINARY);
+    // Choose threshold type based on invert parameter
+    const threshType = invert ? opencv.THRESH_BINARY_INV : opencv.THRESH_BINARY;
+    opencv.threshold(gray, dst, threshold, 255, threshType);
     
     gray.delete();
     return dst;
@@ -1086,10 +1090,64 @@ export const processImage = async (
             dst = applyBlur(src, kernelSize, advancedParams);
             break;
           }
+          
+          case 'colorFilter': {
+            const method = transformation.parameters?.find(p => p.name === 'method')?.value as string || 'preset-colors';
+            const presetColor = transformation.parameters?.find(p => p.name === 'presetColor')?.value as string || 'yellow';
+            const replacementAction = transformation.parameters?.find(p => p.name === 'replacementAction')?.value as string || 'black';
+            const tolerance = transformation.parameters?.find(p => p.name === 'tolerance')?.value as number || 15;
+            
+            // Get advanced parameters from metadata
+            const advancedParams = transformation.metadata?.advancedParameters || {};
+            const hueMin = advancedParams.hueMin || 20;
+            const hueMax = advancedParams.hueMax || 30;
+            const saturationMin = advancedParams.saturationMin || 100;
+            const saturationMax = advancedParams.saturationMax || 255;
+            const valueMin = advancedParams.valueMin || 100;
+            const valueMax = advancedParams.valueMax || 255;
+            const targetChannel = advancedParams.targetChannel || 'blue';
+            const colorDistance = advancedParams.colorDistance || 80;
+            const targetR = advancedParams.targetR || 255;
+            const targetG = advancedParams.targetG || 255;
+            const targetB = advancedParams.targetB || 0;
+            const smoothing = advancedParams.smoothing || 2;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = ColorFilterProcessor.processColorFilter(currentImageData, {
+              method: method as any,
+              presetColor: presetColor as any,
+              hueMin,
+              hueMax,
+              saturationMin,
+              saturationMax,
+              valueMin,
+              valueMax,
+              targetChannel: targetChannel as any,
+              colorDistance,
+              targetR,
+              targetG,
+              targetB,
+              replacementAction: replacementAction as any,
+              smoothing,
+              tolerance
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            
+            if (includeIntermediateResults) {
+              intermediates.push({
+                stage: 'colorFilter',
+                imageData: processedImageData,
+                description: `Applied ${method} color filter (${presetColor || 'custom'}) with ${replacementAction} replacement`
+              });
+            }
+            break;
+          }
             
           case 'threshold':
             const thresholdValue = transformation.parameters?.find(p => p.name === 'threshold')?.value as number;
-            dst = applyThreshold(src, thresholdValue);
+            const invertThreshold = transformation.parameters?.find(p => p.name === 'invert')?.value as boolean || false;
+            dst = applyThreshold(src, thresholdValue, invertThreshold);
             break;
             
           case 'laplacian':
@@ -1503,14 +1561,12 @@ export const processImage = async (
             
             dst = imageDataToMat(processedImageData);
             
-            if (includeIntermediateResults) {
-              const stats = HistogramProcessor.analyzeHistogram(processedImageData);
-              intermediates.push({
-                stage: 'histogram',
-                imageData: processedImageData,
-                description: `Applied ${histogramMethod} histogram equalization (${recommendedChannels} channels). Improved contrast - entropy: ${stats.entropy.toFixed(2)}, dynamic range: ${stats.dynamicRange}`
-              });
-            }
+            const stats = HistogramProcessor.analyzeHistogram(processedImageData);
+            intermediates.push({
+              stage: 'histogram',
+              imageData: processedImageData,
+              description: `Applied ${histogramMethod} histogram equalization (${recommendedChannels} channels). Improved contrast - entropy: ${stats.entropy.toFixed(2)}, dynamic range: ${stats.dynamicRange}`
+            });
             break;
           }
             
@@ -1924,7 +1980,8 @@ export function applyTransformation(
         
       case 'threshold':
         const thresholdValue = paramMap.threshold as number;
-        dst = applyThreshold(src, thresholdValue);
+        const invertThreshold = paramMap.invert as boolean || false;
+        dst = applyThreshold(src, thresholdValue, invertThreshold);
         break;
         
       case 'laplacian':
@@ -2312,14 +2369,12 @@ export function applyTransformation(
         
         dst = imageDataToMat(processedImageData);
         
-        if (includeIntermediateResults) {
-          const stats = HistogramProcessor.analyzeHistogram(processedImageData);
-          intermediates.push({
-            stage: 'histogram',
-            imageData: processedImageData,
-            description: `Applied ${histogramMethod} histogram equalization (${recommendedChannels} channels). Improved contrast - entropy: ${stats.entropy.toFixed(2)}, dynamic range: ${stats.dynamicRange}`
-          });
-        }
+        const stats = HistogramProcessor.analyzeHistogram(processedImageData);
+        intermediates.push({
+          stage: 'histogram',
+          imageData: processedImageData,
+          description: `Applied ${histogramMethod} histogram equalization (${recommendedChannels} channels). Improved contrast - entropy: ${stats.entropy.toFixed(2)}, dynamic range: ${stats.dynamicRange}`
+        });
         break;
       }
         

@@ -12,6 +12,7 @@ export type TransformationType =
   | 'erode'
   | 'morphology'
   | 'colorAdjust'
+  | 'colorFilter'
   | 'sharpen'
   | 'median'
   | 'bilateral'

@@ -94,7 +94,16 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         min: 0,
         max: 255,
         step: 1,
+        label: 'Threshold Value',
+        description: 'Intensity threshold for binarization'
       },
+      {
+        name: 'invert',
+        type: 'boolean',
+        value: false,
+        label: 'Invert Result',
+        description: 'Invert the binary result (swap black and white)'
+      }
     ],
   },
   adaptiveThreshold: {
@@ -394,6 +403,72 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
         description: 'Shift image hue'
       }
     ]
+  },
+  colorFilter: {
+    type: 'colorFilter',
+    name: 'Color Filter',
+    description: 'Remove or replace specific colors (e.g., yellow backgrounds in license plates)',
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'preset-colors',
+        options: ['preset-colors', 'hsv-range', 'color-channel', 'rgb-distance'],
+        label: 'Filter Method',
+        description: 'Method for color filtering'
+      },
+      {
+        name: 'presetColor',
+        type: 'select',
+        value: 'yellow',
+        options: ['yellow', 'blue', 'red', 'green', 'white', 'black'],
+        label: 'Color to Remove',
+        description: 'Pre-configured color to remove',
+        dependsOn: 'method',
+        showIf: (params: Record<string, any>) => params.method === 'preset-colors'
+      },
+      {
+        name: 'replacementAction',
+        type: 'select',
+        value: 'black',
+        options: ['black', 'white', 'transparent'],
+        label: 'Replace With',
+        description: 'What to replace filtered colors with'
+      },
+      {
+        name: 'tolerance',
+        type: 'number',
+        value: 15,
+        min: 0,
+        max: 50,
+        step: 1,
+        label: 'Tolerance',
+        description: 'Color matching tolerance (higher = more inclusive)'
+      }
+    ],
+    metadata: {
+      advancedParameters: {
+        // HSV range parameters
+        hueMin: 20,
+        hueMax: 30,
+        saturationMin: 100,
+        saturationMax: 255,
+        valueMin: 100,
+        valueMax: 255,
+        
+        // RGB distance parameters
+        colorDistance: 80,
+        targetR: 255,
+        targetG: 255,
+        targetB: 0,
+        
+        // Channel parameters
+        targetChannel: 'blue',
+        
+        // Processing parameters
+        smoothing: 2
+      }
+    }
   },
   sharpen: {
     type: 'sharpen',
