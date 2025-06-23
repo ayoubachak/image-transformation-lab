@@ -1,16 +1,12 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { 
-  XMarkIcon, 
-  FolderPlusIcon, 
-  TrashIcon, 
-  ArrowDownOnSquareIcon, 
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-  ArrowTopRightOnSquareIcon 
+import {
+  FolderIcon,
+  DocumentIcon,
+  TrashIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { projectManager } from '../../services/ProjectManager';
-import type { SavedProject } from '../../utils/types';
 import { usePipeline } from '../../contexts/PipelineContext';
 
 interface ProjectsModalProps {
@@ -247,7 +243,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
       }`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center">
-            <ChartBarIcon className={`h-5 w-5 mr-2 ${
+            <DocumentIcon className={`h-5 w-5 mr-2 ${
               isAtLimit ? 'text-red-600' : 
               isNearLimit ? 'text-yellow-600' : 
               'text-gray-600'
@@ -350,7 +346,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
       <div className="modal-content p-6 bg-white rounded-lg shadow-lg max-w-md mx-auto">
         <div className="flex items-center mb-4">
           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
-            <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
+            <DocumentIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
           </div>
           <h3 className="ml-3 text-lg font-medium leading-6 text-gray-900">
             Create New Project?
@@ -368,7 +364,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
               className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => {
                 setShowConfirmNew(false);
-                setMode('save');
+                onClose();
               }}
             >
               Save Current Work First
@@ -401,11 +397,6 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
     );
   };
   
-  // Helper to set mode
-  const setMode = (newMode: 'save' | 'load' | 'new') => {
-    // This is handled by parent component
-  };
-
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -447,7 +438,9 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
                       <button
                         type="button"
                         className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        onClick={onClose}
+                        onClick={() => {
+                          onClose();
+                        }}
                       >
                         <XMarkIcon className="h-6 w-6" />
                       </button>
@@ -482,7 +475,9 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
                           <button
                             type="button"
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={onClose}
+                            onClick={() => {
+                              onClose();
+                            }}
                             disabled={loading}
                           >
                             Cancel
@@ -505,7 +500,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
                         <h4 className="text-sm font-medium text-gray-700 mb-3">Select a project to load:</h4>
                         {projects.length === 0 ? (
                           <div className="text-center py-8 text-gray-500">
-                            <FolderPlusIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                            <FolderIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
                             <p>No saved projects found</p>
                           </div>
                         ) : (
@@ -544,7 +539,7 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
                                     onClick={() => handleLoadProject(project.id)}
                                     disabled={loading}
                                   >
-                                    <ArrowDownOnSquareIcon className="h-4 w-4" />
+                                    <DocumentIcon className="h-4 w-4" />
                                   </button>
                                   <button
                                     type="button"

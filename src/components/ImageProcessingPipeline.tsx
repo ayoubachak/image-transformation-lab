@@ -32,7 +32,7 @@ const nodeTypes: NodeTypes = {
 };
 
 // Define custom edge types for more attractive connections
-const CustomEdge = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style = {}, markerEnd }: any) => {
+const CustomEdge = ({ id, sourceX, sourceY, targetX, targetY, style = {}, markerEnd }: any) => {
   // Calculate a smooth curve for the edge
   const midX = (sourceX + targetX) / 2;
   
@@ -165,7 +165,7 @@ export default function ImageProcessingPipeline({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // Update nodes in context when they're moved in ReactFlow
-  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+  const onNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
     updateContextNode(node.id, { position: node.position });
   }, [updateContextNode]);
 
@@ -188,7 +188,7 @@ export default function ImageProcessingPipeline({
 
   // Handle node click to select it or for connection mode
   const handleNodeClick = useCallback(
-    (event: React.MouseEvent, node: Node) => {
+    (_event: React.MouseEvent, node: Node) => {
       // If we have a custom click handler and are in a special mode, use that
       if (onNodeClick && operationMode === 'connect') {
         onNodeClick(node.id);
@@ -202,7 +202,7 @@ export default function ImageProcessingPipeline({
 
   // Handle edge click for removal or custom handling
   const handleEdgeClick = useCallback(
-    (event: React.MouseEvent, edge: Edge) => {
+    (_event: React.MouseEvent, edge: Edge) => {
       if (operationMode === 'disconnect' && onEdgeClick) {
         onEdgeClick(edge.id);
       } else if (!readOnly) {

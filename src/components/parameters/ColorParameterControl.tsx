@@ -1,24 +1,16 @@
-import React, { useState } from 'react';
 import type { TransformationParameter } from '../../utils/types';
 
 interface ColorParameterControlProps {
   parameter: TransformationParameter;
   onChange: (name: string, value: any) => void;
-  themeColor: {
-    accentColor: string;
-    accentLight: string;
-    textAccent: string;
-  };
   disabled?: boolean;
 }
 
 export default function ColorParameterControl({
   parameter,
   onChange,
-  themeColor,
   disabled = false
 }: ColorParameterControlProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const colorValue = parameter.value as string;
   
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {

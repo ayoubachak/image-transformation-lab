@@ -13,7 +13,6 @@ export default function HistogramChart({
   data, 
   width = 400, 
   height = 300, 
-  showStatistics = false,
   interactive = true 
 }: HistogramChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);

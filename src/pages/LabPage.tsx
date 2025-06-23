@@ -4,12 +4,6 @@ import { usePipeline } from '../contexts/PipelineContext';
 import ImageProcessingPipeline from '../components/ImageProcessingPipeline';
 import TransformationManager from '../components/TransformationManager';
 import LabToolbar from '../components/LabToolbar';
-import { 
-  PhotoIcon, 
-  DocumentDuplicateIcon, 
-  ArrowsPointingOutIcon,
-  WrenchScrewdriverIcon 
-} from '@heroicons/react/24/outline';
 import type { Transformation, TransformationType } from '../utils/types';
 import ProjectsModal from '../components/modals/ProjectsModal';
 import { projectManager } from '../services/ProjectManager';
@@ -715,10 +709,7 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
 
 export default function LabPage() {
   const { 
-    addNode, 
-    nodes, 
     selectedNodeId, 
-    clearPipeline, 
     removeNode, 
     addEdge, 
     removeEdge, 
@@ -782,29 +773,6 @@ export default function LabPage() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleKeyDown]);
-
-  // Check if there's already an input node
-  const hasInputNode = nodes.some((node) => node.type === 'input');
-  // Check if there's already an output node
-  const hasOutputNode = nodes.some((node) => node.type === 'output');
-
-  const handleAddInputNode = () => {
-    if (!hasInputNode) {
-      addNode('input');
-    }
-  };
-
-  const handleAddOutputNode = () => {
-    if (!hasOutputNode) {
-      addNode('output');
-    }
-  };
-
-  const handleAddTransformation = (type: TransformationType) => {
-    // Pass the template directly - the pipeline context will handle adding id and inputNodes
-    addNode('transformation', transformationTemplates[type]);
-    setTransformationManagerOpen(false);
-  };
 
   // Check for existing project on load
   useEffect(() => {

@@ -5,7 +5,6 @@ import type {
   SerializedNode, 
   SerializedEdge,
   ImageProcessingNode,
-  ImageProcessingEdge,
   Inspection,
   Transformation
 } from '../utils/types';

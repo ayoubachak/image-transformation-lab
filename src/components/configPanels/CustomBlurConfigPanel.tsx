@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExclamationTriangleIcon, InformationCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
-import type { Transformation, TransformationParameter, KernelValue } from '../../utils/types';
+import type { TransformationParameter, KernelValue } from '../../utils/types';
 import { 
   normalizeKernelValues, 
-  cloneKernelValue, 
   resizeKernelMatrix, 
   getKernelPreset,
   getKernelSum,
@@ -15,7 +14,6 @@ import {
 import KernelVisualizer from './KernelVisualizer';
 
 interface CustomBlurConfigPanelProps {
-  transformation: Transformation;
   parameters: TransformationParameter[];
   advancedParameters: Record<string, any>;
   onParameterChange: (name: string, value: any) => void;
@@ -35,7 +33,6 @@ interface CustomBlurConfigPanelProps {
 }
 
 export default function CustomBlurConfigPanel({
-  transformation,
   parameters,
   advancedParameters,
   onParameterChange,
@@ -85,8 +82,6 @@ export default function CustomBlurConfigPanel({
   });
   const [normalize, setNormalize] = useState(initialKernelState.normalize);
   const [kernelSizeModified, setKernelSizeModified] = useState(false);
-  const [previewEffects, setPreviewEffects] = useState(false);
-  const [kernelPreview, setKernelPreview] = useState<string | null>(null);
   const [currentPreset, setCurrentPreset] = useState<string>("");
   
   // Sync local state with props when kernelState changes

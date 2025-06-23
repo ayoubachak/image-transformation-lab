@@ -1,7 +1,7 @@
-import React, { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ChartBarIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import type { Inspection, InspectionParameter } from '../../utils/types';
+import { useState, Fragment } from 'react';
 
 interface InspectionConfigModalProps {
   isOpen: boolean;
@@ -27,19 +27,6 @@ export default function InspectionConfigModal({
       parameters: prev.parameters.map(param =>
         param.name === name ? { ...param, value } : param
       )
-    }));
-  };
-
-  const handleAdvancedParamChange = (name: string, value: any) => {
-    setLocalInspection(prev => ({
-      ...prev,
-      metadata: {
-        ...prev.metadata,
-        advancedParameters: {
-          ...prev.metadata?.advancedParameters,
-          [name]: value
-        }
-      }
     }));
   };
 

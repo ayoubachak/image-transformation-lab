@@ -1,16 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { Position } from 'reactflow';
 import { usePipeline } from '../../contexts/PipelineContext';
-import { PhotoIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline';
+import { DocumentArrowUpIcon } from '@heroicons/react/24/outline';
 import BaseNode from './BaseNode';
 
 interface InputNodeProps {
   id: string;
-  data: { node: any };
   selected: boolean;
 }
 
-export default function InputNode({ id, data, selected }: InputNodeProps) {
+export default function InputNode({ id, selected }: InputNodeProps) {
   const [image, setImage] = useState<string | null>(null);
   const [imageSize, setImageSize] = useState<{width: number, height: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

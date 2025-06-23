@@ -3,9 +3,7 @@ import type {
   ImageProcessingNode, 
   ImageProcessingEdge, 
   Transformation,
-  Inspection,
-  TransformationParameter,
-  InspectionParameter
+  Inspection
 } from '../utils/types';
 import { processImage } from '../utils/imageProcessing';
 

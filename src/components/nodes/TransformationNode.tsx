@@ -1,8 +1,6 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { Position } from 'reactflow';
+import { useEffect, useState, useRef } from 'react';
 import { usePipeline } from '../../contexts/PipelineContext';
-import { processImage } from '../../utils/imageProcessing';
-import type { Transformation, TransformationParameter, ParameterType, KernelValue } from '../../utils/types';
+import type { Transformation, TransformationParameter, KernelValue } from '../../utils/types';
 import { AdjustmentsHorizontalIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, ExclamationTriangleIcon, InformationCircleIcon, EyeIcon, EyeSlashIcon, SparklesIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import type { IntermediateResult } from '../../utils/imageProcessing';
 import BaseNode from './BaseNode';
@@ -24,9 +22,7 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const { transformation } = data.node;
   const { 
     updateNode, 
-    updateParameter,
     invalidateNode,
-    getProcessedCanvas,
     results,
     getDirectDownstreamNodes
   } = usePipeline();
@@ -39,17 +35,12 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingSucceeded, setProcessingSucceeded] = useState(false);
   const [detailedErrorShown, setDetailedErrorShown] = useState(false);
-  const [intermediateResults, setIntermediateResults] = useState<IntermediateResult[]>([]);
+  const [intermediateResults] = useState<IntermediateResult[]>([]);
   const [showIntermediates, setShowIntermediates] = useState(false);
   const [isAdvancedConfigOpen, setIsAdvancedConfigOpen] = useState(false);
   const [isKernelSizeChanging, setIsKernelSizeChanging] = useState(false);
   const processingAttemptRef = useRef(0);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const lastInputRef = useRef<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const processingTimeoutRef = useRef<number | null>(null);
 
   // Function to update parameter value
   const handleUpdateParameterValue = (name: string, value: any) => {
@@ -119,7 +110,6 @@ export default function TransformationNode({ id, data, selected }: Transformatio
         
         updateNode(id, { transformation: updatedTransformation });
         setParameters(updatedParams);
-        setProcessingSucceeded(false);
         processingAttemptRef.current += 1;
         invalidateNode(id);
         return;
@@ -166,7 +156,6 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     setParameters(updatedParams);
     
     // Reset processing state to force re-processing
-    setProcessingSucceeded(false);
     processingAttemptRef.current += 1;
     invalidateNode(id);
   };
@@ -195,8 +184,8 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     setIsKernelSizeChanging(false);
     
     // Reset processing state to force re-processing
-    setProcessingSucceeded(false);
     processingAttemptRef.current += 1;
+    invalidateNode(id);
   };
 
   // Cancel kernel size change
@@ -255,7 +244,6 @@ export default function TransformationNode({ id, data, selected }: Transformatio
       setParameters(deepClonedTransformation.parameters);
       
       // Reset processing state to force re-processing
-      setProcessingSucceeded(false);
       processingAttemptRef.current += 1;
       
       // Close the modal
@@ -283,7 +271,6 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     updateNode(id, { transformation: updatedTransformation });
 
     // Reset processing state to force re-processing
-    setProcessingSucceeded(false);
     processingAttemptRef.current += 1;
     invalidateNode(id);
   };
@@ -295,7 +282,6 @@ export default function TransformationNode({ id, data, selected }: Transformatio
     if (nodeResult) {
       // Update processing state
       setIsProcessing(nodeResult.status === 'pending');
-      setProcessingSucceeded(nodeResult.status === 'success');
       
       // Handle error
       if (nodeResult.status === 'error' && nodeResult.error) {
@@ -319,12 +305,6 @@ export default function TransformationNode({ id, data, selected }: Transformatio
   useEffect(() => {
     setParameters(transformation.parameters || []);
   }, [transformation]);
-
-  const triggerProcessing = () => {
-    processingAttemptRef.current += 1;
-    setProcessingSucceeded(false);
-    invalidateNode(id);
-  };
 
   // Get node colors based on transformation type
   const getTransformationColors = () => {

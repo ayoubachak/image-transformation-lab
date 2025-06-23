@@ -859,10 +859,8 @@ export default function TransformConfigModal({
   const renderMorphologyConfig = () => {
     return (
       <MorphologyConfigPanel
-        transformation={editedTransformation}
         parameters={editedTransformation.parameters}
         advancedParameters={advancedParameters}
-        onParameterChange={handleParameterChange}
         onAdvancedParamChange={handleAdvancedParamChange}
         renderParameterControl={renderParameterControl}
       />
@@ -890,7 +888,6 @@ export default function TransformConfigModal({
   const renderCustomBlurConfig = () => {
     return (
       <CustomBlurConfigPanel
-        transformation={editedTransformation}
         parameters={editedTransformation.parameters}
         advancedParameters={advancedParameters}
         onParameterChange={handleParameterChange}

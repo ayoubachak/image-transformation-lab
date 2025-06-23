@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePipeline } from '../contexts/PipelineContext';
-import { v4 as uuidv4 } from 'uuid';
-import type { Transformation, TransformationType } from '../utils/types';
+import type { TransformationType } from '../utils/types';
 
 /**
  * Creates a specialized Laplacian edge detection pipeline that shows all intermediate steps

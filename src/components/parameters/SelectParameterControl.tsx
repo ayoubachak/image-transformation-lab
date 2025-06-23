@@ -1,21 +1,14 @@
-import React from 'react';
 import type { TransformationParameter } from '../../utils/types';
 
 interface SelectParameterControlProps {
   parameter: TransformationParameter;
   onChange: (name: string, value: any) => void;
-  themeColor: {
-    accentColor: string;
-    accentLight: string;
-    textAccent: string;
-  };
   disabled?: boolean;
 }
 
 export default function SelectParameterControl({
   parameter,
   onChange,
-  themeColor,
   disabled = false
 }: SelectParameterControlProps) {
   const value = parameter.value as string;

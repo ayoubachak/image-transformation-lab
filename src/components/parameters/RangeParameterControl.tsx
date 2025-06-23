@@ -4,18 +4,12 @@ import type { TransformationParameter, RangeValue } from '../../utils/types';
 interface RangeParameterControlProps {
   parameter: TransformationParameter;
   onChange: (name: string, value: any) => void;
-  themeColor: {
-    accentColor: string;
-    accentLight: string;
-    textAccent: string;
-  };
   disabled?: boolean;
 }
 
 export default function RangeParameterControl({
   parameter,
   onChange,
-  themeColor,
   disabled = false
 }: RangeParameterControlProps) {
   const rangeValue = parameter.value as RangeValue;

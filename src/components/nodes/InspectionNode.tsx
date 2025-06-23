@@ -19,7 +19,7 @@ import { ModuleCalculator, GradientStrategyFactory } from '../../services/Module
 import { PhaseCalculator } from '../../services/PhaseCalculator';
 import { EdgeDensityAnalyzer, EdgeDetectionStrategyFactory } from '../../services/EdgeDensityAnalyzer';
 import { fourierTransformAnalyzer } from '../../services/FourierTransformAnalyzer';
-import type { Inspection, HistogramData, InspectionResult } from '../../utils/types';
+import type { Inspection } from '../../utils/types';
 
 interface InspectionNodeProps {
   id: string;
@@ -44,9 +44,7 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
   const { 
     edges, 
     results, 
-    updateNode, 
-    updateParameter,
-    getProcessedCanvas
+    updateNode
   } = usePipeline();
   
   const [inspectionData, setInspectionData] = useState<InspectionData | null>(null);
@@ -129,7 +127,7 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
           await processStatistics(imageData);
           break;
         case 'colorProfile':
-          await processColorProfile(imageData);
+          await processColorProfile();
           break;
         case 'dimensionInfo':
           await processDimensionInfo(imageData);
@@ -172,12 +170,10 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
 
   const processModuleCalculator = async (imageData: ImageData) => {
     const gradientMethod = inspection.parameters.find(p => p.name === 'gradientMethod')?.value as string || 'sobel';
-    const kernelSize = inspection.parameters.find(p => p.name === 'kernelSize')?.value as number || 3;
     const threshold = inspection.parameters.find(p => p.name === 'threshold')?.value as number || 10;
-    const colormap = inspection.parameters.find(p => p.name === 'colormap')?.value as string || 'jet';
     const normalize = inspection.parameters.find(p => p.name === 'normalize')?.value as boolean ?? true;
 
-    const strategy = GradientStrategyFactory.create(gradientMethod, kernelSize);
+    const strategy = GradientStrategyFactory.create(gradientMethod);
     const calculator = new ModuleCalculator(strategy);
     
     const moduleData = calculator.calculateModule(imageData, {
@@ -187,8 +183,7 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
     });
     
     const visualizationCanvas = calculator.createVisualization(moduleData, {
-      colormap,
-      showOriginal: false
+      colormap: inspection.parameters.find(p => p.name === 'colormap')?.value as string || 'jet'
     });
     
     setInspectionData({
@@ -202,26 +197,16 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
 
   const processPhaseCalculator = async (imageData: ImageData) => {
     const gradientMethod = inspection.parameters.find(p => p.name === 'gradientMethod')?.value as string || 'sobel';
-    const angleUnit = inspection.parameters.find(p => p.name === 'angleUnit')?.value as 'degrees' | 'radians' || 'degrees';
-    const magnitudeThreshold = inspection.parameters.find(p => p.name === 'magnitudeThreshold')?.value as number || 10;
-    const visualizationMode = inspection.parameters.find(p => p.name === 'visualizationMode')?.value as string || 'color';
-    const arrowDensity = inspection.parameters.find(p => p.name === 'arrowDensity')?.value as number || 20;
-    const smoothing = inspection.parameters.find(p => p.name === 'smoothing')?.value as boolean || false;
 
     const strategy = GradientStrategyFactory.create(gradientMethod);
     const calculator = new PhaseCalculator(strategy);
     
     const phaseData = calculator.calculatePhase(imageData, {
-      angleUnit,
-      magnitudeThreshold,
-      smoothing,
-      generateStatistics: true
+      unwrap: false
     });
     
     const visualizationCanvas = calculator.createVisualization(phaseData, {
-      overlayMode: visualizationMode as 'color' | 'arrows' | 'both',
-      arrowDensity,
-      showColorwheel: true
+      colormap: inspection.parameters.find(p => p.name === 'colormap')?.value as string || 'jet'
     });
     
     setInspectionData({
@@ -253,7 +238,6 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
     
     const visualizationCanvas = analyzer.createVisualization(densityData, {
       colormap: 'hot',
-      interpolation: true,
       showHotspots: true
     });
     
@@ -563,7 +547,7 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
     });
   };
 
-  const processColorProfile = async (imageData: ImageData) => {
+  const processColorProfile = async () => {
     // Placeholder for color profile analysis
     setInspectionData({
       type: 'colorProfile',
@@ -588,12 +572,6 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
       },
       timestamp: Date.now()
     });
-  };
-
-  const handleParameterChange = (name: string, value: any) => {
-    updateParameter(id, name, value);
-    // Trigger reprocessing when parameters change
-    setTimeout(() => processInspection(), 100);
   };
 
   const handleSaveConfig = (updatedInspection: Inspection) => {
@@ -663,7 +641,7 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
   };
 
   // Helper function to format values for display
-  const formatStatValue = (key: string, value: any): string => {
+  const formatStatValue = (value: any): string => {
     if (Array.isArray(value)) {
       if (value.length > 5) {
         return `[${value.slice(0, 3).map(v => typeof v === 'number' ? v.toFixed(2) : v).join(', ')}, ... +${value.length - 3} more]`;
@@ -760,7 +738,7 @@ export default function InspectionNode({ id, data, selected }: InspectionNodePro
                       <div key={key} className="flex justify-between">
                         <span>{key}:</span>
                         <span className="font-medium truncate ml-2">
-                          {formatStatValue(key, value)}
+                          {formatStatValue(value)}
                         </span>
                       </div>
                     ))}

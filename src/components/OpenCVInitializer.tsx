@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { initOpenCV, getOpenCVInitStatus } from '../utils/imageProcessing';
+import { useState, useCallback } from 'react';
+import { getOpenCVInitStatus } from '../utils/imageProcessing';
 import OpenCVLoader from './OpenCVLoader';
 
 /**

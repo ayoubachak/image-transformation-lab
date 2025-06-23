@@ -1,7 +1,5 @@
 import React from 'react';
-import { useCallback } from 'react';
 import { Handle, Position } from 'reactflow';
-import { usePipeline } from '../../contexts/PipelineContext';
 
 export interface BaseNodeProps {
   id: string;
@@ -29,7 +27,6 @@ export interface BaseNodeProps {
  * This creates a foundation for reusable node components with consistent styling
  */
 export default function BaseNode({
-  id,
   type,
   selected,
   children,

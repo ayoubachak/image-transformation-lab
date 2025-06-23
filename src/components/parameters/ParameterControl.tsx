@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import type { TransformationParameter } from '../../utils/types';
 import NumberParameterControl from './NumberParameterControl';
 import SelectParameterControl from './SelectParameterControl';
@@ -64,7 +63,6 @@ export default function ParameterControl({
           <SelectParameterControl
             parameter={parameter}
             onChange={onChange}
-            themeColor={themeColor}
             disabled={disabled}
           />
         );
@@ -91,7 +89,6 @@ export default function ParameterControl({
           <ColorParameterControl
             parameter={parameter}
             onChange={onChange}
-            themeColor={themeColor}
             disabled={disabled}
           />
         );
@@ -109,7 +106,6 @@ export default function ParameterControl({
           <RangeParameterControl
             parameter={parameter}
             onChange={onChange}
-            themeColor={themeColor}
             disabled={disabled}
           />
         );
@@ -118,7 +114,6 @@ export default function ParameterControl({
           <PointParameterControl
             parameter={parameter}
             onChange={onChange}
-            themeColor={themeColor}
             disabled={disabled}
           />
         );

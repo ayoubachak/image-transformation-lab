@@ -4,18 +4,12 @@ import type { TransformationParameter, PointValue } from '../../utils/types';
 interface PointParameterControlProps {
   parameter: TransformationParameter;
   onChange: (name: string, value: any) => void;
-  themeColor: {
-    accentColor: string;
-    accentLight: string;
-    textAccent: string;
-  };
   disabled?: boolean;
 }
 
 export default function PointParameterControl({
   parameter,
   onChange,
-  themeColor,
   disabled = false
 }: PointParameterControlProps) {
   const pointValue = parameter.value as PointValue;

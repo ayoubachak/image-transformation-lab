@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { pipelineManager, type PipelineObserver, type PipelineEvent, PipelineEventType, type NodeProcessingResult } from '../services/PipelineManager';
 import type { ImageProcessingNode, ImageProcessingEdge, Transformation, Inspection } from '../utils/types';
-import { v4 as uuidv4 } from 'uuid';
 
 interface PipelineContextType {
   // Pipeline state

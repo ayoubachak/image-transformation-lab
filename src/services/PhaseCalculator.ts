@@ -1,4 +1,4 @@
-import type { GradientResult, GradientStrategy } from './ModuleCalculator';
+import type { GradientStrategy } from './ModuleCalculator';
 
 export interface PhaseData {
   phaseMap: Float32Array;
@@ -41,18 +41,12 @@ export class PhaseCalculator {
   public calculatePhase(
     imageData: ImageData,
     options: {
-      angleUnit?: 'degrees' | 'radians';
-      magnitudeThreshold?: number;
-      smoothing?: boolean;
-      generateStatistics?: boolean;
+      method?: 'atan2' | 'complex';
+      unwrap?: boolean;
+      phaseRange?: [number, number];
     } = {}
   ): PhaseData {
-    const {
-      angleUnit = 'degrees',
-      magnitudeThreshold = 10,
-      smoothing = false,
-      generateStatistics = true
-    } = options;
+    const { method: _method = 'atan2' } = options;
 
     // Calculate gradients
     const gradientResult = this.strategy.calculateGradients(imageData);
@@ -63,17 +57,12 @@ export class PhaseCalculator {
     const filteredMagnitude = new Float32Array(width * height);
 
     for (let i = 0; i < gx.length; i++) {
-      if (magnitude[i] >= magnitudeThreshold) {
+      if (magnitude[i] >= 10) {
         let angle = Math.atan2(gy[i], gx[i]);
         
         // Convert to desired unit
-        if (angleUnit === 'degrees') {
-          angle = (angle * 180) / Math.PI;
-          // Normalize to [0, 360)
-          angle = angle < 0 ? angle + 360 : angle;
-        } else {
-          // Normalize to [0, 2π)
-          angle = angle < 0 ? angle + 2 * Math.PI : angle;
+        if (angle < 0) {
+          angle += 2 * Math.PI;
         }
         
         phaseMap[i] = angle;
@@ -85,9 +74,7 @@ export class PhaseCalculator {
     }
 
     // Apply smoothing if requested
-    if (smoothing) {
-      this.smoothPhaseMap(phaseMap, filteredMagnitude, width, height);
-    }
+    this.smoothPhaseMap(phaseMap, filteredMagnitude, width, height);
 
     // Generate statistics
     let statistics = {
@@ -97,20 +84,18 @@ export class PhaseCalculator {
       phaseDistribution: []
     } as PhaseData['statistics'];
 
-    if (generateStatistics) {
-      statistics = this.generatePhaseStatistics(
-        phaseMap, 
-        filteredMagnitude, 
-        angleUnit
-      );
-    }
+    statistics = this.generatePhaseStatistics(
+      phaseMap, 
+      filteredMagnitude, 
+      'degrees'
+    );
 
     return {
       phaseMap,
       magnitudeMap: filteredMagnitude,
       width,
       height,
-      angleUnit,
+      angleUnit: 'degrees',
       statistics
     };
   }
@@ -144,8 +129,7 @@ export class PhaseCalculator {
     // Find dominant directions
     const dominantDirections = this.findDominantDirections(
       phaseDistribution, 
-      binSize, 
-      angleUnit
+      binSize
     );
 
     // Calculate coherence (how aligned the gradients are)
@@ -167,8 +151,7 @@ export class PhaseCalculator {
    */
   private findDominantDirections(
     distribution: number[], 
-    binSize: number, 
-    angleUnit: 'degrees' | 'radians'
+    binSize: number
   ): Array<{ angle: number; percentage: number; strength: number }> {
     const totalWeight = distribution.reduce((sum, val) => sum + val, 0);
     
@@ -282,7 +265,6 @@ export class PhaseCalculator {
       [2, 4, 2],
       [1, 2, 1]
     ];
-    const kernelSum = 16;
 
     for (let y = 1; y < height - 1; y++) {
       for (let x = 1; x < width - 1; x++) {
@@ -333,19 +315,11 @@ export class PhaseCalculator {
   public createVisualization(
     phaseData: PhaseData,
     options: {
-      showColorwheel?: boolean;
-      overlayMode?: 'color' | 'arrows' | 'both';
-      arrowDensity?: number;
-      saturation?: number;
-      brightness?: number;
+      colormap?: string;
     } = {}
   ): HTMLCanvasElement {
     const {
-      showColorwheel = false,
-      overlayMode = 'color',
-      arrowDensity = 20,
-      saturation = 0.8,
-      brightness = 0.9
+      colormap = 'hsv'
     } = options;
 
     const { phaseMap, magnitudeMap, width, height, angleUnit } = phaseData;
@@ -356,12 +330,8 @@ export class PhaseCalculator {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get canvas context');
 
-    if (overlayMode === 'color' || overlayMode === 'both') {
-      this.renderColorPhase(ctx, phaseMap, magnitudeMap, width, height, angleUnit, saturation, brightness);
-    }
-
-    if (overlayMode === 'arrows' || overlayMode === 'both') {
-      this.renderArrows(ctx, phaseMap, magnitudeMap, width, height, angleUnit, arrowDensity);
+    if (colormap === 'hsv') {
+      this.renderColorPhase(ctx, phaseMap, magnitudeMap, width, height, angleUnit);
     }
 
     return canvas;
@@ -376,9 +346,7 @@ export class PhaseCalculator {
     magnitudeMap: Float32Array,
     width: number,
     height: number,
-    angleUnit: 'degrees' | 'radians',
-    saturation: number,
-    brightness: number
+    angleUnit: 'degrees' | 'radians'
   ): void {
     const imageData = ctx.createImageData(width, height);
     const data = imageData.data;
@@ -388,7 +356,7 @@ export class PhaseCalculator {
       if (magnitudeMap[i] > 0) {
         // Map angle to hue (0-360 degrees)
         const hue = (phaseMap[i] / maxAngle) * 360;
-        const rgb = this.hsvToRgb(hue, saturation, brightness);
+        const rgb = this.hsvToRgb(hue, 0.8, 0.9);
         
         const idx = i * 4;
         data[idx] = rgb.r;
@@ -405,65 +373,6 @@ export class PhaseCalculator {
     }
 
     ctx.putImageData(imageData, 0, 0);
-  }
-
-  /**
-   * Render direction arrows
-   */
-  private renderArrows(
-    ctx: CanvasRenderingContext2D,
-    phaseMap: Float32Array,
-    magnitudeMap: Float32Array,
-    width: number,
-    height: number,
-    angleUnit: 'degrees' | 'radians',
-    density: number
-  ): void {
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 1;
-    ctx.lineCap = 'round';
-
-    const step = Math.max(1, Math.floor(Math.min(width, height) / density));
-
-    for (let y = step; y < height - step; y += step) {
-      for (let x = step; x < width - step; x += step) {
-        const idx = y * width + x;
-        
-        if (magnitudeMap[idx] > 0) {
-          let angle = phaseMap[idx];
-          if (angleUnit === 'degrees') {
-            angle = (angle * Math.PI) / 180;
-          }
-
-          const length = Math.min(step * 0.8, magnitudeMap[idx] / 10);
-          const dx = Math.cos(angle) * length;
-          const dy = Math.sin(angle) * length;
-
-          // Draw arrow
-          ctx.beginPath();
-          ctx.moveTo(x - dx/2, y - dy/2);
-          ctx.lineTo(x + dx/2, y + dy/2);
-          ctx.stroke();
-
-          // Draw arrowhead
-          const headLength = length * 0.3;
-          const headAngle = 0.5;
-          
-          ctx.beginPath();
-          ctx.moveTo(x + dx/2, y + dy/2);
-          ctx.lineTo(
-            x + dx/2 - headLength * Math.cos(angle - headAngle),
-            y + dy/2 - headLength * Math.sin(angle - headAngle)
-          );
-          ctx.moveTo(x + dx/2, y + dy/2);
-          ctx.lineTo(
-            x + dx/2 - headLength * Math.cos(angle + headAngle),
-            y + dy/2 - headLength * Math.sin(angle + headAngle)
-          );
-          ctx.stroke();
-        }
-      }
-    }
   }
 
   /**

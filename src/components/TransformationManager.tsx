@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { usePipeline } from '../contexts/PipelineContext';
-import { v4 as uuidv4 } from 'uuid';
 import type { TransformationType, Transformation, ImageProcessingNode } from '../utils/types';
 import { 
   TrashIcon, 
-  PlusIcon, 
   CheckIcon, 
-  ArrowPathIcon, 
   AdjustmentsHorizontalIcon,
   LinkIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 
 // Transformation templates

@@ -6,11 +6,10 @@ import BaseNode from './BaseNode';
 
 interface OutputNodeProps {
   id: string;
-  data: { node: any };
   selected: boolean;
 }
 
-export default function OutputNode({ id, data, selected }: OutputNodeProps) {
+export default function OutputNode({ id, selected }: OutputNodeProps) {
   const { edges, results, invalidateNode } = usePipeline();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);

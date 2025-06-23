@@ -1,22 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { usePipeline } from '../contexts/PipelineContext';
-import { v4 as uuidv4 } from 'uuid';
-import type { Transformation, TransformationType, InspectionType } from '../utils/types';
+import type { TransformationType, InspectionType } from '../utils/types';
+
 import {
   PhotoIcon,
   DocumentArrowDownIcon,
-  ArrowPathIcon,
   TrashIcon,
   PlusIcon,
   AdjustmentsHorizontalIcon,
   QuestionMarkCircleIcon,
   LinkIcon,
   NoSymbolIcon,
-  ScissorsIcon,
-  ClipboardIcon,
   DocumentDuplicateIcon,
-  ArrowUturnLeftIcon,
-  ArrowUturnRightIcon,
   SwatchIcon,
   CubeTransparentIcon,
   FolderIcon,

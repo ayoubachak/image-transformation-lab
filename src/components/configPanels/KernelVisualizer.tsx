@@ -1,6 +1,6 @@
-import React, { useRef, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, PerspectiveCamera, useTexture, Float } from '@react-three/drei';
+import { OrbitControls, Text, PerspectiveCamera, Float } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface KernelVisualizerProps {
@@ -227,9 +227,6 @@ function KernelMesh({
             // Gray for zero
             material = zeroMaterial.current;
           }
-          
-          // Animate with subtle delay based on position
-          const delay = (i * cols + j) * 0.05;
           
           return (
             <group key={`${i}-${j}`} position={[x, 0, z]}>

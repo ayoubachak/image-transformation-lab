@@ -510,13 +510,11 @@ export class EdgeDensityAnalyzer {
     densityData: EdgeDensityData,
     options: {
       colormap?: string;
-      interpolation?: boolean;
       showHotspots?: boolean;
     } = {}
   ): HTMLCanvasElement {
     const {
       colormap = 'hot',
-      interpolation = true,
       showHotspots = true
     } = options;
 

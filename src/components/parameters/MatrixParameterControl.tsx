@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { TransformationParameter, MatrixValue } from '../../utils/types';
 
 interface MatrixParameterControlProps {

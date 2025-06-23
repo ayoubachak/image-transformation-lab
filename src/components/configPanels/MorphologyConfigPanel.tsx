@@ -1,22 +1,18 @@
 import React, { useState } from 'react';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
-import type { Transformation, TransformationParameter, StructuringElement } from '../../utils/types';
+import type { TransformationParameter, StructuringElement } from '../../utils/types';
 import StructuringElementEditor from './StructuringElementEditor';
 
 interface MorphologyConfigPanelProps {
-  transformation: Transformation;
   parameters: TransformationParameter[];
   advancedParameters: Record<string, any>;
-  onParameterChange: (name: string, value: any) => void;
   onAdvancedParamChange: (name: string, value: any) => void;
   renderParameterControl: (param: TransformationParameter) => React.ReactNode;
 }
 
 export default function MorphologyConfigPanel({
-  transformation,
   parameters,
   advancedParameters,
-  onParameterChange,
   onAdvancedParamChange,
   renderParameterControl
 }: MorphologyConfigPanelProps) {

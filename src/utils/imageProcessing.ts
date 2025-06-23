@@ -78,7 +78,7 @@ export const initOpenCV = (): Promise<void> => {
     return initializationPromise;
   }
   
-  initializationPromise = new Promise<void>(async (resolve, reject) => {
+  initializationPromise = new Promise<void>(async (resolve) => {
     console.log('Starting OpenCV initialization');
     
     // If OpenCV is already available, resolve immediately
@@ -1032,14 +1032,16 @@ export const processImage = async (
       // Convert ImageData to cv.Mat
       let src: any = null;
       let dst: any = null;
-      let result: any = null;
-      const opencv = getOpenCV();
       
       try {
         diagnosticInfo.steps.push({ name: 'convert_to_mat', startTime: Date.now() });
         src = imageDataToMat(imageData);
         diagnosticInfo.steps[diagnosticInfo.steps.length - 1].endTime = Date.now();
         diagnosticInfo.steps[diagnosticInfo.steps.length - 1].success = true;
+        
+        if (!src) {
+          throw new Error('Failed to convert ImageData to Mat');
+        }
         
         // Apply transformation based on type
         switch (transformation.type) {
@@ -1264,7 +1266,8 @@ export const processImage = async (
 }; 
 
 // Define a fallback function for when OpenCV isn't available
-function applyTransformationWithoutOpenCV(
+// @ts-ignore - Unused function but kept for future reference
+function _applyTransformationWithoutOpenCV(
   transformation: Transformation,
   inputCanvas: HTMLCanvasElement
 ): { canvas: HTMLCanvasElement | null; intermediates: IntermediateResult[] } {
@@ -1442,12 +1445,13 @@ function applyTransformationWithoutOpenCV(
 }
 
 // Fix the custom blur handler function to avoid normalize variable issue
-function handleCustomBlur(
+// @ts-ignore - Unused function but kept for future reference
+function _handleCustomBlur(
   cv: any,
   src: any,
   dst: any,
   transformation: Transformation,
-  intermediates: IntermediateResult[]
+  _intermediates: IntermediateResult[]
 ) {
   const kernelType = transformation.parameters?.find(p => p.name === 'kernelType')?.value as string || 'gaussian';
   const borderType = transformation.parameters?.find(p => p.name === 'borderType')?.value as string || 'reflect';
@@ -1471,7 +1475,6 @@ function handleCustomBlur(
       const kernelWidth = kernelParam.width;
       const kernelHeight = kernelParam.height;
       const kernelValues = kernelParam.values;
-      const shouldNormalize = kernelParam.normalize !== false; // Default to true if not specified
       
       // Create kernel Mat
       const kernel = cv.matFromArray(kernelHeight, kernelWidth, cv.CV_32FC1, 
@@ -1508,7 +1511,7 @@ function handleCustomBlur(
 export function applyTransformation(
   transformation: Transformation,
   inputCanvas: HTMLCanvasElement | null,
-  cv: any
+  _cv: any
 ): { canvas: HTMLCanvasElement | null; intermediates: IntermediateResult[] } {
   if (!inputCanvas) return { canvas: null, intermediates: [] };
   
@@ -2043,19 +2046,6 @@ function parseAspectRatio(aspectRatio: string): number {
   
   return width / height;
 }
-
-// Helper function to adjust an image channel for color adjustments
-function adjustChannel(channel: any, adjustment: number, maxValue: number, cv: any) {
-  const factor = adjustment / 100;
-  
-  if (factor > 0) {
-    // Increase value (make brighter)
-    cv.addWeighted(channel, 1, channel, 0, maxValue * factor, channel);
-  } else if (factor < 0) {
-    // Decrease value (make darker)
-    cv.addWeighted(channel, 1 + factor, channel, 0, 0, channel);
-  }
-} 
 
 // Apply morphological operations (opening, closing, gradient, tophat, blackhat)
 export const applyMorphology = (src: any, operation: string, kernelSize: number, iterations: number = 1, advancedParams?: Record<string, any>): any => {

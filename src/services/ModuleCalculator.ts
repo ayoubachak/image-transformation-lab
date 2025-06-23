@@ -1,5 +1,3 @@
-import type { InspectionResult } from '../utils/types';
-
 export interface ModuleData {
   magnitudeMap: Float32Array;
   width: number;
@@ -34,10 +32,8 @@ export interface GradientStrategy {
  * Sobel gradient calculation strategy
  */
 export class SobelGradientStrategy implements GradientStrategy {
-  private kernelSize: number;
-
-  constructor(kernelSize: number = 3) {
-    this.kernelSize = kernelSize;
+  constructor() {
+    // Removed unused kernelSize parameter
   }
 
   calculateGradients(imageData: ImageData): GradientResult {
@@ -194,16 +190,16 @@ export class LaplacianGradientStrategy implements GradientStrategy {
  * Factory for creating gradient strategies
  */
 export class GradientStrategyFactory {
-  static create(method: string, kernelSize: number = 3): GradientStrategy {
+  static create(method: string): GradientStrategy {
     switch (method.toLowerCase()) {
       case 'sobel':
-        return new SobelGradientStrategy(kernelSize);
+        return new SobelGradientStrategy();
       case 'scharr':
         return new ScharrGradientStrategy();
       case 'laplacian':
         return new LaplacianGradientStrategy();
       default:
-        return new SobelGradientStrategy(kernelSize);
+        return new SobelGradientStrategy();
     }
   }
 }
@@ -213,8 +209,10 @@ export class GradientStrategyFactory {
  */
 export class ModuleCalculator {
   private strategy: GradientStrategy;
-
-  constructor(strategy: GradientStrategy) {
+  
+  constructor(
+    strategy: GradientStrategy
+  ) {
     this.strategy = strategy;
   }
 
@@ -354,14 +352,10 @@ export class ModuleCalculator {
     moduleData: ModuleData,
     options: {
       colormap?: string;
-      showOriginal?: boolean;
-      blendRatio?: number;
     } = {}
   ): HTMLCanvasElement {
     const {
-      colormap = 'jet',
-      showOriginal = false,
-      blendRatio = 0.7
+      colormap = 'jet'
     } = options;
 
     const { magnitudeMap, width, height } = moduleData;

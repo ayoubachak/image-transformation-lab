@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import LessonCard from '../components/LessonCard';
-import { usePipeline } from '../contexts/PipelineContext';
 import { sampleLessons } from '../utils/sampleData';
 import type { Lesson } from '../utils/types';
 
