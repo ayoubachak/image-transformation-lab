@@ -361,10 +361,6 @@ export class ConnectedComponentsProcessor {
       : new Set(components.map(c => c.label)); // All filtered
     
     for (let i = 0; i < sourcePixels.length; i += 4) {
-      const idx = i / 4;
-      const y = Math.floor(idx / width);
-      const x = idx % width;
-      
       // Check if this pixel belongs to a kept component
       let shouldKeep = false;
       for (const comp of components) {

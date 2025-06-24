@@ -31,8 +31,6 @@ export class MedianProcessor {
    * Apply median filtering with the specified options
    */
   static process(imageData: ImageData, options: MedianFilterOptions): ImageData {
-    const startTime = performance.now();
-    
     const { data, width, height } = imageData;
     const result = new ImageData(width, height);
     const resultData = result.data;
@@ -101,11 +99,6 @@ export class MedianProcessor {
     
     for (let y = 1; y < height - 1; y++) {
       for (let x = 1; x < width - 1; x++) {
-        const centerIdx = (y * width + x) * 4;
-        
-        // Convert to grayscale for edge detection
-        const centerGray = (data[centerIdx] + data[centerIdx + 1] + data[centerIdx + 2]) / 3;
-        
         // Calculate gradient using Sobel-like operator
         const topIdx = ((y - 1) * width + x) * 4;
         const bottomIdx = ((y + 1) * width + x) * 4;

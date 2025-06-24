@@ -207,7 +207,6 @@ export class BilateralProcessor {
     
     const totalSamples = Math.pow(Math.floor((Math.min(width, height) - 2 * sampleStep) / sampleStep), 2);
     const avgVariance = totalVariance / totalSamples;
-    const avgGradient = totalGradient / totalSamples;
     const edgeDensity = edgePixels / totalSamples;
     
     // Determine noise level

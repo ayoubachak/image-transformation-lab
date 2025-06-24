@@ -122,7 +122,7 @@ export class BackgroundSubtractionProcessor {
     data: Uint8Array,
     width: number,
     height: number,
-    order: number
+    _order: number
   ): Uint8Array {
     // Use Gaussian blur as a simple polynomial approximation
     const sigma = Math.min(width, height) / 8;
@@ -338,7 +338,7 @@ export class BackgroundSubtractionProcessor {
   /**
    * Normalize image to full intensity range
    */
-  private static normalizeImage(data: Uint8ClampedArray, width: number, height: number): void {
+  private static normalizeImage(data: Uint8ClampedArray, _width: number, _height: number): void {
     let min = 255;
     let max = 0;
 

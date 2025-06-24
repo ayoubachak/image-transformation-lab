@@ -147,8 +147,6 @@ export class FindContoursProcessor {
     let currentY = startY;
     let currentDir = 6; // Start looking up
     
-    const startIdx = startY * width + startX;
-    
     do {
       points.push({ x: currentX, y: currentY });
       visited.add(currentY * width + currentX);
@@ -195,7 +193,7 @@ export class FindContoursProcessor {
     binaryData: Uint8Array,
     width: number,
     height: number,
-    options: FindContoursOptions
+    _options: FindContoursOptions
   ): Contour[] {
     const holes: Contour[] = [];
     

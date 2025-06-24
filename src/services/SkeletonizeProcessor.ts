@@ -112,7 +112,7 @@ export class SkeletonizeProcessor {
     x: number,
     y: number,
     width: number,
-    height: number,
+    _height: number,
     firstSubIteration: boolean
   ): boolean {
     // Get 8-connected neighbors (clockwise from top)

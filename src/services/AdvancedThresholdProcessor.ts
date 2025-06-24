@@ -83,7 +83,7 @@ export class AdvancedThresholdProcessor {
   /**
    * Triangle thresholding method - good for images with large background
    */
-  private static triangleThresholding(imageData: ImageData, options: AdvancedThresholdOptions): ImageData {
+  private static triangleThresholding(imageData: ImageData, _options: AdvancedThresholdOptions): ImageData {
     const histogram = this.calculateHistogram(imageData);
     const threshold = this.calculateTriangleThreshold(histogram);
     
@@ -93,7 +93,7 @@ export class AdvancedThresholdProcessor {
   /**
    * Minimum Error thresholding - minimizes classification error
    */
-  private static minimumErrorThresholding(imageData: ImageData, options: AdvancedThresholdOptions): ImageData {
+  private static minimumErrorThresholding(imageData: ImageData, _options: AdvancedThresholdOptions): ImageData {
     const histogram = this.calculateHistogram(imageData);
     const threshold = this.calculateMinimumErrorThreshold(histogram);
     
@@ -141,7 +141,7 @@ export class AdvancedThresholdProcessor {
   /**
    * Statistical combined method - uses multiple statistical measures
    */
-  private static statisticalCombinedThresholding(imageData: ImageData, options: AdvancedThresholdOptions): ImageData {
+  private static statisticalCombinedThresholding(imageData: ImageData, _options: AdvancedThresholdOptions): ImageData {
     const histogram = this.calculateHistogram(imageData);
     
     // Calculate multiple threshold candidates
@@ -160,7 +160,7 @@ export class AdvancedThresholdProcessor {
   /**
    * Multi-scale thresholding - analyzes at different scales
    */
-  private static multiScaleThresholding(imageData: ImageData, options: AdvancedThresholdOptions): ImageData {
+  private static multiScaleThresholding(imageData: ImageData, _options: AdvancedThresholdOptions): ImageData {
     const scales = [1, 0.5, 0.25]; // Different scales to analyze
     const thresholdMaps: ImageData[] = [];
     
@@ -641,7 +641,7 @@ export class AdvancedThresholdProcessor {
     return result;
   }
 
-  private static removeSmallComponents(imageData: ImageData, minSize: number): ImageData {
+  private static removeSmallComponents(imageData: ImageData, _minSize: number): ImageData {
     // Simplified implementation - would need full connected components analysis
     return imageData;
   }
@@ -656,7 +656,7 @@ export class AdvancedThresholdProcessor {
     return imageData;
   }
 
-  private static estimateNoiseLevel(imageData: ImageData): number {
+  private static estimateNoiseLevel(_imageData: ImageData): number {
     // Simplified noise estimation
     return 0.2;
   }
@@ -675,7 +675,7 @@ export class AdvancedThresholdProcessor {
     return 1 - (entropy / 8); // Normalize to 0-1
   }
 
-  private static calculateEdgeDensity(imageData: ImageData): number {
+  private static calculateEdgeDensity(_imageData: ImageData): number {
     // Simplified edge density calculation
     return 0.3;
   }

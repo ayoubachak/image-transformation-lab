@@ -29,8 +29,6 @@ export class HistogramProcessor {
    * Apply histogram equalization with the specified options
    */
   static process(imageData: ImageData, options: HistogramEqualizationOptions): ImageData {
-    const { data, width, height } = imageData;
-    
     if (options.channels === 'grayscale') {
       return this.processGrayscale(imageData, options);
     } else if (options.channels === 'rgb') {

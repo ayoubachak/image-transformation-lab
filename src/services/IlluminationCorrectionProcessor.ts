@@ -215,8 +215,8 @@ export class IlluminationCorrectionProcessor {
    */
   private static gammaCorrection(
     data: Uint8ClampedArray,
-    width: number,
-    height: number,
+    _width: number,
+    _height: number,
     gamma: number
   ): Uint8ClampedArray {
     const result = new Uint8ClampedArray(data.length);

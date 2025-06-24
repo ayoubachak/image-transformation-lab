@@ -15,8 +15,6 @@ export class RemoveNoiseProcessor {
    * Remove noise from image based on specified type
    */
   static process(imageData: ImageData, options: RemoveNoiseOptions): ImageData {
-    const { data, width, height } = imageData;
-    
     switch (options.noiseType) {
       case 'saltPepper':
         return this.removeSaltPepperNoise(imageData, options.kernelSize || 3);

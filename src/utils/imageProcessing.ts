@@ -15,7 +15,6 @@ import { IlluminationCorrectionProcessor } from '../services/IlluminationCorrect
 import { MorphologicalHatProcessor } from '../services/MorphologicalHatProcessor';
 import { LocalNormalizationProcessor } from '../services/LocalNormalizationProcessor';
 import { MedianProcessor } from '../services/MedianProcessor';
-import { BilateralProcessor } from '../services/BilateralProcessor';
 import { HistogramProcessor } from '../services/HistogramProcessor';
 import { AdvancedThresholdProcessor } from '../services/AdvancedThresholdProcessor';
 import { ColorFilterProcessor } from '../services/ColorFilterProcessor';

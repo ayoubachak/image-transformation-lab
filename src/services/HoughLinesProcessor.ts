@@ -345,7 +345,7 @@ export class HoughLinesProcessor {
     // Draw each line
     lines.forEach((line, index) => {
       // Set line color
-      const color = this.getLineColor(options.lineColor, index, lines.length);
+      const color = this.getLineColor(options.lineColor, index);
       ctx.strokeStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
       
       // Draw line
@@ -365,7 +365,7 @@ export class HoughLinesProcessor {
   /**
    * Get color for line based on mode
    */
-  private static getLineColor(colorMode: string, index: number, totalLines: number): number[] {
+  private static getLineColor(colorMode: string, index: number): number[] {
     switch (colorMode) {
       case 'red':
         return [255, 0, 0];

@@ -26,7 +26,6 @@ export default function LessonDetailPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const { 
     nodes, 
-    edges, 
     addNode, 
     addEdge, 
     removeNode, 
