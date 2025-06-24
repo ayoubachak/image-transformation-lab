@@ -483,6 +483,60 @@ export default function LabToolbar({
                     </button>
                   </div>
 
+                  {/* Shape Detection Section */}
+                  <div className="px-3 py-1 mt-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Shape Detection</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1 px-1.5 mb-2">
+                    <button
+                      onClick={() => handleAddTransformation('watershed')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-purple-50 text-purple-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
+                      </svg>
+                      <span className="text-xs">Watershed</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('distanceTransform')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-purple-50 text-purple-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                      </svg>
+                      <span className="text-xs">Distance</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('shapeAnalysis')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-purple-50 text-purple-700 rounded-md"
+                    >
+                      <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2zm0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      <span className="text-xs">Shape Analysis</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddTransformation('bwperim')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-purple-50 text-purple-700 rounded-md"
+                    >
+                      <svg className="h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V7.618a1 1 0 01.553-.894L9 4l6 3v13l-6-3z" />
+                      </svg>
+                      <span className="text-xs text-center">Boundary</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => handleAddTransformation('cellDetection')}
+                      className="flex flex-col items-center justify-center p-2 hover:bg-purple-50 text-purple-700 rounded-md"
+                    >
+                      <svg className="h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs text-center">Cell Detection</span>
+                    </button>
+                  </div>
+
                   {/* Illumination & Background Section */}
                   <div className="px-3 py-1 mt-2">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Illumination & Background</h3>

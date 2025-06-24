@@ -471,6 +471,9 @@ export default function TransformConfigModal({
       case 'findContours':
       case 'skeletonize':
       case 'houghLines':
+      case 'watershed':
+      case 'distanceTransform':
+      case 'shapeAnalysis':
         return (
           <div className="space-y-6">
             <div>
@@ -482,8 +485,12 @@ export default function TransformConfigModal({
           </div>
         );
         
+      case 'bwperim':
+        return 'Boundary Detection Configuration';
+      case 'cellDetection':
+        return 'Cell Detection Pipeline Configuration';
       default:
-        return <div className="text-gray-700">Configuration not implemented for this transformation type.</div>;
+        return 'Transformation Configuration';
     }
   };
 

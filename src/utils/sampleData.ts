@@ -58,6 +58,11 @@ const getTransformationName = (type: string): string => {
     case 'laplacian': return 'Laplacian Edge Detection';
     case 'sobel': return 'Sobel Edge Detection';
     case 'canny': return 'Canny Edge Detection';
+    case 'watershed': return 'Watershed Segmentation';
+    case 'distanceTransform': return 'Distance Transform';
+    case 'shapeAnalysis': return 'Shape Analysis';
+    case 'bwperim': return 'Boundary Detection (bwperim)';
+    case 'cellDetection': return 'Cell Detection Pipeline';
     default: return 'Custom Transformation';
   }
 };
@@ -71,6 +76,11 @@ const getTransformationDescription = (type: string): string => {
     case 'laplacian': return 'Detect edges using Laplacian operator';
     case 'sobel': return 'Detect edges using Sobel operator';
     case 'canny': return 'Detect edges using Canny algorithm';
+    case 'watershed': return 'Separate touching objects using watershed segmentation';
+    case 'distanceTransform': return 'Compute distance to nearest background pixel';
+    case 'shapeAnalysis': return 'Analyze geometric properties of detected shapes';
+    case 'bwperim': return 'Boundary Detection (bwperim)';
+    case 'cellDetection': return 'Cell Detection Pipeline';
     default: return 'Apply custom transformation';
   }
 };

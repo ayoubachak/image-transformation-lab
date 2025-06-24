@@ -35,7 +35,12 @@ export type TransformationType =
   | 'illuminationCorrection'
   | 'topHat'
   | 'bottomHat'
-  | 'localNormalization';
+  | 'localNormalization'
+  | 'watershed'
+  | 'distanceTransform'
+  | 'shapeAnalysis'
+  | 'bwperim'
+  | 'cellDetection';
 
 // New inspection node types
 export type InspectionType = 

@@ -184,7 +184,7 @@ export class SkeletonizeProcessor {
         skeleton[i] = Math.max(skeleton[i], skeletonPart);
       }
       
-      currentImage = erodedImage;
+      currentImage = new Uint8Array(erodedImage);
     }
     
     return skeleton;

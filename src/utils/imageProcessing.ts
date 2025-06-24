@@ -18,6 +18,9 @@ import { MedianProcessor } from '../services/MedianProcessor';
 import { HistogramProcessor } from '../services/HistogramProcessor';
 import { AdvancedThresholdProcessor } from '../services/AdvancedThresholdProcessor';
 import { ColorFilterProcessor } from '../services/ColorFilterProcessor';
+import { WatershedProcessor } from '../services/WatershedProcessor';
+import { DistanceTransformProcessor } from '../services/DistanceTransformProcessor';
+import { ShapeAnalysisProcessor } from '../services/ShapeAnalysisProcessor';
 
 // Ensure OpenCV is initialized
 let isOpenCVInitialized = false;
@@ -1616,6 +1619,220 @@ export const processImage = async (
                 description: `Applied color adjustment: brightness=${brightness}, contrast=${contrast}, saturation=${saturation}, hue=${hue}`
               });
             }
+            break;
+          }
+          
+          case 'watershed': {
+            const watershedMethod = transformation.parameters.find(p => p.name === 'method')?.value as string || 'distance';
+            const preprocessing = transformation.parameters.find(p => p.name === 'preprocessing')?.value as string || 'gaussian';
+            const blurKernelSize = transformation.parameters.find(p => p.name === 'blurKernelSize')?.value as number || 5;
+            const distanceType = transformation.parameters.find(p => p.name === 'distanceType')?.value as string || 'euclidean';
+            const minDistance = transformation.parameters.find(p => p.name === 'minDistance')?.value as number || 10;
+            const threshold = transformation.parameters.find(p => p.name === 'threshold')?.value as number || 128;
+            const connectivityType = transformation.parameters.find(p => p.name === 'connectivityType')?.value as number || 8;
+            const removeSmallObjects = transformation.parameters.find(p => p.name === 'removeSmallObjects')?.value as boolean || true;
+            const minObjectSize = transformation.parameters.find(p => p.name === 'minObjectSize')?.value as number || 50;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = WatershedProcessor.process(currentImageData, {
+              method: watershedMethod as 'distance' | 'gradient' | 'markers',
+              preprocessing: preprocessing as 'gaussian' | 'median' | 'bilateral' | 'none',
+              blurKernelSize,
+              distanceType: distanceType as 'euclidean' | 'manhattan' | 'chessboard',
+              minDistance,
+              threshold,
+              connectivityType: connectivityType as 4 | 8,
+              removeSmallObjects,
+              minObjectSize
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            
+            intermediates.push({
+              stage: 'watershed',
+              imageData: processedImageData,
+              description: `Applied ${watershedMethod} watershed segmentation with ${preprocessing} preprocessing`
+            });
+            break;
+          }
+          
+          case 'distanceTransform': {
+            const distanceType = transformation.parameters.find(p => p.name === 'distanceType')?.value as string || 'euclidean';
+            const maskSize = transformation.parameters.find(p => p.name === 'maskSize')?.value as number || 3;
+            const normalize = transformation.parameters.find(p => p.name === 'normalize')?.value as boolean || true;
+            const threshold = transformation.parameters.find(p => p.name === 'threshold')?.value as number || 128;
+            const outputMode = transformation.parameters.find(p => p.name === 'outputMode')?.value as string || 'distance';
+            const minDistance = transformation.parameters.find(p => p.name === 'minDistance')?.value as number || 5;
+            const invertInput = transformation.parameters.find(p => p.name === 'invertInput')?.value as boolean || false;
+            
+            const currentImageData = matToImageData(src);
+            const processedImageData = DistanceTransformProcessor.process(currentImageData, {
+              distanceType: distanceType as 'euclidean' | 'manhattan' | 'chessboard' | 'l1' | 'l2',
+              maskSize: maskSize as 3 | 5,
+              normalize,
+              threshold,
+              outputMode: outputMode as 'distance' | 'skeleton' | 'peaks' | 'ridges',
+              minDistance,
+              invertInput
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            
+            intermediates.push({
+              stage: 'distance_transform',
+              imageData: processedImageData,
+              description: `Applied ${distanceType} distance transform (${outputMode} mode)`
+            });
+            break;
+          }
+          
+          case 'shapeAnalysis': {
+            const analysisType = transformation.parameters.find(p => p.name === 'analysisType')?.value as string || 'contours';
+            const minArea = transformation.parameters.find(p => p.name === 'minArea')?.value as number || 100;
+            const maxArea = transformation.parameters.find(p => p.name === 'maxArea')?.value as number || 10000;
+            const minPerimeter = transformation.parameters.find(p => p.name === 'minPerimeter')?.value as number || 20;
+            const maxPerimeter = transformation.parameters.find(p => p.name === 'maxPerimeter')?.value as number || 1000;
+            const circularityMin = transformation.parameters.find(p => p.name === 'circularityMin')?.value as number || 0.0;
+            const circularityMax = transformation.parameters.find(p => p.name === 'circularityMax')?.value as number || 1.0;
+            const aspectRatioMin = transformation.parameters.find(p => p.name === 'aspectRatioMin')?.value as number || 0.1;
+            const aspectRatioMax = transformation.parameters.find(p => p.name === 'aspectRatioMax')?.value as number || 10.0;
+            const solidityMin = transformation.parameters.find(p => p.name === 'solidityMin')?.value as number || 0.0;
+            const solidityMax = transformation.parameters.find(p => p.name === 'solidityMax')?.value as number || 1.0;
+            const convexityMin = transformation.parameters.find(p => p.name === 'convexityMin')?.value as number || 0.0;
+            const convexityMax = transformation.parameters.find(p => p.name === 'convexityMax')?.value as number || 1.0;
+            const outputMode = transformation.parameters.find(p => p.name === 'outputMode')?.value as string || 'overlay';
+            const colorCode = transformation.parameters.find(p => p.name === 'colorCode')?.value as boolean || true;
+            const drawProperties = transformation.parameters.find(p => p.name === 'drawProperties')?.value as boolean || true;
+            
+            const currentImageData = matToImageData(src);
+            const analysisResult = ShapeAnalysisProcessor.process(currentImageData, {
+              analysisType: analysisType as 'contours' | 'blobs' | 'regions' | 'geometric',
+              minArea,
+              maxArea,
+              minPerimeter,
+              maxPerimeter,
+              circularityRange: [circularityMin, circularityMax],
+              aspectRatioRange: [aspectRatioMin, aspectRatioMax],
+              solidityRange: [solidityMin, solidityMax],
+              convexityRange: [convexityMin, convexityMax],
+              outputMode: outputMode as 'filtered' | 'labeled' | 'properties' | 'overlay',
+              colorCode,
+              drawProperties
+            });
+            
+            dst = imageDataToMat(analysisResult.imageData);
+            
+            intermediates.push({
+              stage: 'shape_analysis',
+              imageData: analysisResult.imageData,
+              description: `Analyzed ${analysisResult.shapes.length} shapes (${analysisType} mode). Avg area: ${analysisResult.statistics.avgArea.toFixed(1)}, Avg circularity: ${analysisResult.statistics.avgCircularity.toFixed(2)}`
+            });
+            break;
+          }
+          
+          case 'bwperim': {
+            const connectivity = transformation.parameters.find(p => p.name === 'connectivity')?.value as number || 8;
+            const method = transformation.parameters.find(p => p.name === 'method')?.value as string || 'internal';
+            const thickness = transformation.parameters.find(p => p.name === 'thickness')?.value as number || 1;
+            const smoothing = transformation.parameters.find(p => p.name === 'smoothing')?.value as boolean || false;
+            const includeHoles = transformation.parameters.find(p => p.name === 'includeHoles')?.value as boolean || false;
+            
+            const { BwPerimProcessor } = await import('../services/BwPerimProcessor');
+            const currentImageData = matToImageData(src);
+            const processedImageData = BwPerimProcessor.process(currentImageData, {
+              connectivity: connectivity as 4 | 8,
+              method: method as 'internal' | 'external' | 'both',
+              thickness,
+              smoothing,
+              includeHoles
+            });
+            
+            dst = imageDataToMat(processedImageData);
+            
+            intermediates.push({
+              stage: 'bwperim',
+              imageData: processedImageData,
+              description: `Extracted ${method} boundaries (connectivity: ${connectivity}, thickness: ${thickness})`
+            });
+            break;
+          }
+          
+          case 'cellDetection': {
+            const enablePreprocessing = transformation.parameters.find(p => p.name === 'enablePreprocessing')?.value as boolean || true;
+            const gaussianBlur = transformation.parameters.find(p => p.name === 'gaussianBlur')?.value as number || 2;
+            const medianFilterSize = transformation.parameters.find(p => p.name === 'medianFilterSize')?.value as number || 3;
+            const medianIterations = transformation.parameters.find(p => p.name === 'medianIterations')?.value as number || 2;
+            const thresholdMethod = transformation.parameters.find(p => p.name === 'thresholdMethod')?.value as string || 'otsu';
+            const manualThreshold = transformation.parameters.find(p => p.name === 'manualThreshold')?.value as number || 128;
+            const adaptiveBlockSize = transformation.parameters.find(p => p.name === 'adaptiveBlockSize')?.value as number || 15;
+            const adaptiveC = transformation.parameters.find(p => p.name === 'adaptiveC')?.value as number || 5;
+            const invertBinary = transformation.parameters.find(p => p.name === 'invertBinary')?.value as boolean || false;
+            const enableMorphology = transformation.parameters.find(p => p.name === 'enableMorphology')?.value as boolean || true;
+            const openingKernel = transformation.parameters.find(p => p.name === 'openingKernel')?.value as number || 3;
+            const closingKernel = transformation.parameters.find(p => p.name === 'closingKernel')?.value as number || 5;
+            const fillHoles = transformation.parameters.find(p => p.name === 'fillHoles')?.value as boolean || true;
+            const clearBorder = transformation.parameters.find(p => p.name === 'clearBorder')?.value as boolean || true;
+            const borderWidth = transformation.parameters.find(p => p.name === 'borderWidth')?.value as number || 5;
+            const segmentationMethod = transformation.parameters.find(p => p.name === 'segmentationMethod')?.value as string || 'watershed';
+            const minCellSize = transformation.parameters.find(p => p.name === 'minCellSize')?.value as number || 100;
+            const maxCellSize = transformation.parameters.find(p => p.name === 'maxCellSize')?.value as number || 5000;
+            const watershedThreshold = transformation.parameters.find(p => p.name === 'watershedThreshold')?.value as number || 0.4;
+            const minDistance = transformation.parameters.find(p => p.name === 'minDistance')?.value as number || 10;
+            const enableShapeAnalysis = transformation.parameters.find(p => p.name === 'enableShapeAnalysis')?.value as boolean || true;
+            const minCircularity = transformation.parameters.find(p => p.name === 'minCircularity')?.value as number || 0.3;
+            const maxCircularity = transformation.parameters.find(p => p.name === 'maxCircularity')?.value as number || 1.0;
+            const minAspectRatio = transformation.parameters.find(p => p.name === 'minAspectRatio')?.value as number || 0.5;
+            const maxAspectRatio = transformation.parameters.find(p => p.name === 'maxAspectRatio')?.value as number || 2.0;
+            const minSolidity = transformation.parameters.find(p => p.name === 'minSolidity')?.value as number || 0.7;
+            const maxSolidity = transformation.parameters.find(p => p.name === 'maxSolidity')?.value as number || 1.0;
+            const outputMode = transformation.parameters.find(p => p.name === 'outputMode')?.value as string || 'overlay';
+            const colorCoding = transformation.parameters.find(p => p.name === 'colorCoding')?.value as boolean || true;
+            const showCellNumbers = transformation.parameters.find(p => p.name === 'showCellNumbers')?.value as boolean || false;
+            const boundaryThickness = transformation.parameters.find(p => p.name === 'boundaryThickness')?.value as number || 2;
+            
+            const { CellDetectionProcessor } = await import('../services/CellDetectionProcessor');
+            const currentImageData = matToImageData(src);
+            const detectionResult = CellDetectionProcessor.process(currentImageData, {
+              enablePreprocessing,
+              gaussianBlur,
+              medianFilterSize,
+              medianIterations,
+              thresholdMethod: thresholdMethod as 'otsu' | 'adaptive' | 'manual',
+              manualThreshold,
+              adaptiveBlockSize,
+              adaptiveC,
+              invertBinary,
+              enableMorphology,
+              openingKernel,
+              closingKernel,
+              fillHoles,
+              clearBorder,
+              borderWidth,
+              segmentationMethod: segmentationMethod as 'watershed' | 'distance' | 'contours' | 'components',
+              minCellSize,
+              maxCellSize,
+              watershedThreshold,
+              minDistance,
+              enableShapeAnalysis,
+              minCircularity,
+              maxCircularity,
+              minAspectRatio,
+              maxAspectRatio,
+              minSolidity,
+              maxSolidity,
+              outputMode: outputMode as 'segmented' | 'labeled' | 'overlay' | 'boundaries' | 'analysis',
+              colorCoding,
+              showCellNumbers,
+              boundaryThickness
+            });
+            
+            dst = imageDataToMat(detectionResult.processedImage);
+            
+            intermediates.push({
+              stage: 'cell_detection',
+              imageData: detectionResult.processedImage,
+              description: `Detected ${detectionResult.cellCount} cells. Avg area: ${detectionResult.statistics.averageArea.toFixed(1)}, Avg circularity: ${detectionResult.statistics.averageCircularity.toFixed(2)}, Processing steps: ${detectionResult.processingSteps.length}`
+            });
             break;
           }
             

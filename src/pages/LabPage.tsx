@@ -1617,6 +1617,328 @@ export const transformationTemplates: Record<TransformationType, Omit<Transforma
       }
     ]
   },
+  watershed: {
+    type: 'watershed',
+    name: 'Watershed Segmentation',
+    description: 'Segment touching/overlapping objects using watershed algorithm',
+    parameters: [
+      {
+        name: 'method',
+        type: 'select',
+        value: 'distance',
+        options: ['distance', 'gradient', 'markers'],
+        label: 'Watershed Method',
+        description: 'Algorithm for watershed segmentation'
+      },
+      {
+        name: 'preprocessing',
+        type: 'select',
+        value: 'gaussian',
+        options: ['gaussian', 'median', 'bilateral', 'none'],
+        label: 'Preprocessing',
+        description: 'Image preprocessing before watershed'
+      },
+      {
+        name: 'blurKernelSize',
+        type: 'number',
+        value: 5,
+        min: 3,
+        max: 15,
+        step: 2,
+        label: 'Blur Kernel Size',
+        description: 'Size of blur kernel for preprocessing'
+      },
+      {
+        name: 'threshold',
+        type: 'number',
+        value: 0.5,
+        min: 0.1,
+        max: 0.9,
+        step: 0.1,
+        label: 'Distance Threshold',
+        description: 'Threshold for distance transform (0.1 to 0.9)'
+      },
+      {
+        name: 'minDistance',
+        type: 'number',
+        value: 20,
+        min: 5,
+        max: 100,
+        step: 5,
+        label: 'Minimum Distance',
+        description: 'Minimum distance between peaks'
+      },
+      {
+        name: 'connectivityType',
+        type: 'select',
+        value: '8',
+        options: ['4', '8'],
+        label: 'Connectivity',
+        description: 'Pixel connectivity type'
+      },
+      {
+        name: 'removeSmallObjects',
+        type: 'boolean',
+        value: true,
+        label: 'Remove Small Objects',
+        description: 'Filter out small objects after segmentation'
+      },
+      {
+        name: 'minObjectSize',
+        type: 'number',
+        value: 50,
+        min: 10,
+        max: 500,
+        step: 10,
+        label: 'Min Object Size',
+        description: 'Minimum object size to keep (pixels)'
+      }
+    ]
+  },
+  distanceTransform: {
+    type: 'distanceTransform',
+    name: 'Distance Transform',
+    description: 'Compute distance to nearest background pixel for shape analysis',
+    parameters: [
+      {
+        name: 'distanceType',
+        type: 'select',
+        value: 'euclidean',
+        options: ['euclidean', 'manhattan', 'chessboard', 'l1', 'l2'],
+        label: 'Distance Type',
+        description: 'Distance metric to use'
+      },
+      {
+        name: 'maskSize',
+        type: 'select',
+        value: '5',
+        options: ['3', '5'],
+        label: 'Mask Size',
+        description: 'Size of distance transform mask'
+      },
+      {
+        name: 'normalize',
+        type: 'boolean',
+        value: true,
+        label: 'Normalize Output',
+        description: 'Normalize distance values to 0-255 range'
+      },
+      {
+        name: 'outputMode',
+        type: 'select',
+        value: 'distance',
+        options: ['distance', 'skeleton', 'peaks', 'ridges'],
+        label: 'Output Mode',
+        description: 'Type of output to generate'
+      },
+      {
+        name: 'threshold',
+        type: 'number',
+        value: 0.5,
+        min: 0.1,
+        max: 0.9,
+        step: 0.1,
+        label: 'Threshold',
+        description: 'Threshold for skeleton/peaks extraction'
+      },
+      {
+        name: 'minDistance',
+        type: 'number',
+        value: 10,
+        min: 1,
+        max: 50,
+        step: 1,
+        label: 'Minimum Distance',
+        description: 'Minimum distance between detected peaks'
+      },
+      {
+        name: 'invertInput',
+        type: 'boolean',
+        value: false,
+        label: 'Invert Input',
+        description: 'Invert binary input before processing'
+      }
+    ]
+  },
+  shapeAnalysis: {
+    type: 'shapeAnalysis',
+    name: 'Shape Analysis',
+    description: 'Analyze geometric properties of detected shapes and contours',
+    parameters: [
+      {
+        name: 'analysisType',
+        type: 'select',
+        value: 'contours',
+        options: ['contours', 'blobs', 'regions', 'geometric'],
+        label: 'Analysis Type',
+        description: 'Type of shape analysis to perform'
+      },
+      {
+        name: 'minArea',
+        type: 'number',
+        value: 50,
+        min: 1,
+        max: 10000,
+        step: 10,
+        label: 'Min Area',
+        description: 'Minimum area of shapes to analyze'
+      },
+      {
+        name: 'maxArea',
+        type: 'number',
+        value: 50000,
+        min: 100,
+        max: 100000,
+        step: 100,
+        label: 'Max Area',
+        description: 'Maximum area of shapes to analyze'
+      },
+      {
+        name: 'minPerimeter',
+        type: 'number',
+        value: 20,
+        min: 1,
+        max: 1000,
+        step: 5,
+        label: 'Min Perimeter',
+        description: 'Minimum perimeter of shapes'
+      },
+      {
+        name: 'maxPerimeter',
+        type: 'number',
+        value: 2000,
+        min: 50,
+        max: 5000,
+        step: 50,
+        label: 'Max Perimeter',
+        description: 'Maximum perimeter of shapes'
+      },
+      {
+        name: 'outputMode',
+        type: 'select',
+        value: 'overlay',
+        options: ['filtered', 'labeled', 'properties', 'overlay'],
+        label: 'Output Mode',
+        description: 'Visualization mode for results'
+      },
+      {
+        name: 'colorCode',
+        type: 'boolean',
+        value: true,
+        label: 'Color Code Shapes',
+        description: 'Color shapes by their properties'
+      },
+      {
+        name: 'drawProperties',
+        type: 'boolean',
+        value: false,
+        label: 'Draw Properties',
+        description: 'Draw shape properties as text overlay'
+      }
+    ]
+  },
+  bwperim: {
+    type: 'bwperim',
+    name: 'Boundary Detection (bwperim)',
+    description: 'Extract object boundaries from binary images',
+    parameters: [
+      {
+        name: 'connectivity',
+        type: 'select',
+        value: '8',
+        options: ['4', '8'],
+        label: 'Connectivity',
+        description: 'Pixel connectivity for boundary detection'
+      },
+      {
+        name: 'method',
+        type: 'select',
+        value: 'internal',
+        options: ['internal', 'external', 'both'],
+        label: 'Boundary Method',
+        description: 'Type of boundary to extract'
+      },
+      {
+        name: 'thickness',
+        type: 'number',
+        value: 1,
+        min: 1,
+        max: 10,
+        label: 'Boundary Thickness',
+        description: 'Thickness of the boundary lines'
+      },
+      {
+        name: 'smoothing',
+        type: 'boolean',
+        value: false,
+        label: 'Smooth Boundaries',
+        description: 'Apply morphological smoothing to boundaries'
+      },
+      {
+        name: 'includeHoles',
+        type: 'boolean',
+        value: false,
+        label: 'Include Internal Holes',
+        description: 'Include boundaries of holes within objects'
+      }
+    ]
+  },
+  cellDetection: {
+    type: 'cellDetection',
+    name: 'Cell Detection Pipeline',
+    description: 'Comprehensive cell detection and analysis combining multiple operations',
+    parameters: [
+      {
+        name: 'enablePreprocessing',
+        type: 'boolean',
+        value: true,
+        label: 'Enable Preprocessing',
+        description: 'Apply noise reduction and enhancement'
+      },
+      {
+        name: 'thresholdMethod',
+        type: 'select',
+        value: 'otsu',
+        options: ['otsu', 'adaptive', 'manual'],
+        label: 'Threshold Method',
+        description: 'Method for binary thresholding'
+      },
+      {
+        name: 'segmentationMethod',
+        type: 'select',
+        value: 'watershed',
+        options: ['watershed', 'distance', 'contours', 'components'],
+        label: 'Segmentation Method',
+        description: 'Algorithm for cell segmentation'
+      },
+      {
+        name: 'minCellSize',
+        type: 'number',
+        value: 100,
+        min: 10,
+        max: 1000,
+        label: 'Min Cell Size',
+        description: 'Minimum cell area in pixels'
+      },
+      {
+        name: 'maxCellSize',
+        type: 'number',
+        value: 5000,
+        min: 500,
+        max: 50000,
+        label: 'Max Cell Size',
+        description: 'Maximum cell area in pixels'
+      },
+      {
+        name: 'outputMode',
+        type: 'select',
+        value: 'overlay',
+        options: ['segmented', 'labeled', 'overlay', 'boundaries', 'analysis'],
+        label: 'Output Mode',
+        description: 'Type of output visualization'
+      }
+    ]
+  }
 };
 
 export default function LabPage() {
