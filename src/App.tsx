@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import LessonsPage from './pages/LessonsPage';
 import LessonDetailPage from './pages/LessonDetailPage';
 import LabPage from './pages/LabPage';
+import AboutPage from './pages/AboutPage';
 import OpenCVInitializer from './components/OpenCVInitializer';
 import './components/styles/tooltipStyles.css';
 import './components/styles/modalStyles.css';
@@ -21,7 +22,7 @@ function App() {
               <Route path="/lessons" element={<LessonsPage />} />
               <Route path="/lessons/:lessonId" element={<LessonDetailPage />} />
               <Route path="/lab" element={<LabPage />} />
-              <Route path="/about" element={<div className="p-8 text-center"><h1 className="text-2xl font-bold text-gray-900">About Page</h1><p className="mt-4 text-gray-700">This is a learning platform for image processing techniques.</p></div>} />
+              <Route path="/about" element={<AboutPage />} />
             </Routes>
           </main>
           <footer className="bg-gray-800 text-white p-4 text-center">
