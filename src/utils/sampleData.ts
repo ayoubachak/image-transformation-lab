@@ -388,7 +388,7 @@ const createCannyPipeline = (): Pipeline => {
   };
 };
 
-// Create License Plate Detection Pipeline (Mini-Project 2)
+// Create License Plate Detection Pipeline (Mini-Project 1)
 const createLicensePlateDetectionPipeline = (): Pipeline => {
   const inputNodeId = uuidv4();
   const grayscaleNodeId = uuidv4();
@@ -489,41 +489,41 @@ const createLicensePlateDetectionPipeline = (): Pipeline => {
   };
 };
 
-// Create Line Segmentation Pipeline (Mini-Project 3)
+// Create Line Segmentation Pipeline (Mini-Project 2)
 const createLineSegmentationPipeline = (): Pipeline => {
   const inputNodeId = uuidv4();
-  const grayscaleNodeId = uuidv4();
+  const medianNodeId = uuidv4();
   const backgroundSubtractionNodeId = uuidv4();
-  const colorAdjustNodeId = uuidv4();
-  const cannyNodeId = uuidv4();
-  const morphologyCloseNodeId = uuidv4();
-  const houghLinesNodeId = uuidv4();
-  const dilateNodeId = uuidv4();
-  const fillHolesNodeId = uuidv4();
-  const connectedComponentsNodeId = uuidv4();
-  const findContoursNodeId = uuidv4();
+  const advancedThresholdNodeId = uuidv4();
+  const morphologyNodeId = uuidv4();
   const outputNodeId = uuidv4();
-  
+
   return {
     nodes: [
       {
         id: inputNodeId,
         type: 'input',
-        position: { x: 50, y: 200 }
+        position: { x: 100, y: 150 }
       },
       {
-        id: grayscaleNodeId,
+        id: medianNodeId,
         type: 'transformation',
         transformation: {
-          id: grayscaleNodeId,
-          type: 'grayscale',
-          name: 'Grayscale',
-          description: 'Convert to grayscale',
-          parameters: [],
+          id: medianNodeId,
+          type: 'median',
+          name: 'Median Filter',
+          description: 'Reduce noise while preserving edges',
+          parameters: [
+            { name: 'kernelSize', type: 'number', value: 3, min: 3, max: 15, step: 2, label: 'Filter Size' },
+            { name: 'method', type: 'select', value: 'standard', options: ['standard', 'adaptive', 'cross-shaped', 'selective'], label: 'Filter Method' },
+            { name: 'iterations', type: 'number', value: 2, min: 1, max: 5, label: 'Iterations' },
+            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges' },
+            { name: 'edgeThreshold', type: 'number', value: 30, min: 10, max: 100, label: 'Edge Threshold' }
+          ],
           inputNodes: [inputNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 200, y: 200 }
+        position: { x: 290, y: 120 }
       },
       {
         id: backgroundSubtractionNodeId,
@@ -532,185 +532,243 @@ const createLineSegmentationPipeline = (): Pipeline => {
           id: backgroundSubtractionNodeId,
           type: 'backgroundSubtraction',
           name: 'Background Subtraction',
-          description: 'Remove uneven background',
+          description: 'Remove uneven illumination and background patterns',
           parameters: [
-            { name: 'method', type: 'select', value: 'morphological' },
-            { name: 'kernelSize', type: 'number', value: 51, min: 3, max: 201, step: 2 },
-            { name: 'normalize', type: 'boolean', value: true }
+            { name: 'method', type: 'select', value: 'morphological', options: ['morphological', 'gaussian', 'rolling-ball', 'polynomial'], label: 'Method' },
+            { name: 'kernelSize', type: 'number', value: 71, min: 15, max: 201, step: 2, label: 'Kernel Size' },
+            { name: 'sigmaX', type: 'number', value: 100, min: 1, max: 200, label: 'Sigma X' },
+            { name: 'sigmaY', type: 'number', value: 100, min: 1, max: 200, label: 'Sigma Y' },
+            { name: 'ballRadius', type: 'number', value: 50, min: 5, max: 100, label: 'Ball Radius' },
+            { name: 'polynomialOrder', type: 'number', value: 2, min: 1, max: 7, label: 'Polynomial Order' },
+            { name: 'normalize', type: 'boolean', value: true, label: 'Normalize Result' }
           ],
-          inputNodes: [grayscaleNodeId],
+          inputNodes: [medianNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 350, y: 120 }
+        position: { x: 545, y: 120 }
       },
       {
-        id: colorAdjustNodeId,
+        id: advancedThresholdNodeId,
         type: 'transformation',
         transformation: {
-          id: colorAdjustNodeId,
-          type: 'colorAdjust',
-          name: 'Color Adjustment',
-          description: 'Enhance contrast',
+          id: advancedThresholdNodeId,
+          type: 'advancedThreshold',
+          name: 'Advanced Thresholding',
+          description: 'Multi-level thresholding for line extraction',
           parameters: [
-            { name: 'brightness', type: 'number', value: 10, min: -100, max: 100, step: 1 },
-            { name: 'contrast', type: 'number', value: 30, min: -100, max: 100, step: 1 },
-            { name: 'saturation', type: 'number', value: 0, min: -100, max: 100, step: 1 },
-            { name: 'hue', type: 'number', value: 0, min: -180, max: 180, step: 1 }
+            { name: 'thresholdingMethod', type: 'select', value: 'local-adaptive', options: ['statistical-combined', 'multi-otsu', 'local-adaptive'], label: 'Thresholding Method' },
+            { name: 'thresholdLevels', type: 'number', value: 2, min: 1, max: 4, label: 'Threshold Levels' },
+            { name: 'highThreshold', type: 'number', value: 200, min: 50, max: 255, label: 'High Threshold' },
+            { name: 'lowThreshold', type: 'number', value: 100, min: 10, max: 200, label: 'Low Threshold' },
+            { name: 'morphologicalCleanup', type: 'boolean', value: true, label: 'Morphological Cleanup' },
+            { name: 'removeNoise', type: 'boolean', value: true, label: 'Remove Noise' },
+            { name: 'minComponentSize', type: 'number', value: 200, min: 50, max: 500, label: 'Min Component Size' },
+            { name: 'fillHoles', type: 'boolean', value: false, label: 'Fill Holes' },
+            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges' },
+            { name: 'adaptiveWindowSize', type: 'number', value: 15, min: 3, max: 31, step: 2, label: 'Adaptive Window Size' }
           ],
           inputNodes: [backgroundSubtractionNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 500, y: 120 }
+        position: { x: 820, y: 120 }
       },
       {
-        id: cannyNodeId,
+        id: morphologyNodeId,
         type: 'transformation',
         transformation: {
-          id: cannyNodeId,
-          type: 'canny',
-          name: 'Canny Edge Detection',
-          description: 'Detect line edges',
-          parameters: [
-            { name: 'threshold1', type: 'number', value: 50, min: 0, max: 255, step: 1 },
-            { name: 'threshold2', type: 'number', value: 150, min: 0, max: 255, step: 1 }
-          ],
-          inputNodes: [colorAdjustNodeId],
-          showPreprocessingSteps: true
-        },
-        position: { x: 650, y: 120 }
-      },
-      {
-        id: morphologyCloseNodeId,
-        type: 'transformation',
-        transformation: {
-          id: morphologyCloseNodeId,
+          id: morphologyNodeId,
           type: 'morphology',
-          name: 'Morphology Close',
-          description: 'Connect line segments',
+          name: 'Morphological Operation',
+          description: 'Connect broken line segments',
           parameters: [
-            { name: 'operation', type: 'select', value: 'close' },
-            { name: 'kernelSize', type: 'number', value: 5, min: 1, max: 31, step: 2 },
-            { name: 'iterations', type: 'number', value: 2, min: 1, max: 10, step: 1 }
+            { name: 'operation', type: 'select', value: 'close', options: ['open', 'close', 'gradient', 'tophat', 'blackhat'], label: 'Operation' },
+            { name: 'kernelSize', type: 'number', value: 7, min: 3, max: 31, step: 2, label: 'Kernel Size' },
+            { name: 'iterations', type: 'number', value: 2, min: 1, max: 10, label: 'Iterations' }
           ],
-          inputNodes: [cannyNodeId],
+          inputNodes: [advancedThresholdNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 800, y: 120 }
-      },
-      {
-        id: houghLinesNodeId,
-        type: 'transformation',
-        transformation: {
-          id: houghLinesNodeId,
-          type: 'houghLines',
-          name: 'Hough Line Detection',
-          description: 'Detect straight lines',
-          parameters: [
-            { name: 'rho', type: 'number', value: 1, min: 0.1, max: 10, step: 0.1 },
-            { name: 'theta', type: 'number', value: 1, min: 0.1, max: 10, step: 0.1 },
-            { name: 'threshold', type: 'number', value: 100, min: 1, max: 500, step: 1 },
-            { name: 'minLineLength', type: 'number', value: 50, min: 0, max: 1000, step: 1 },
-            { name: 'maxLineGap', type: 'number', value: 10, min: 0, max: 100, step: 1 },
-            { name: 'lineColor', type: 'select', value: 'red' },
-            { name: 'lineThickness', type: 'number', value: 2, min: 1, max: 10, step: 1 }
-          ],
-          inputNodes: [morphologyCloseNodeId],
-          showPreprocessingSteps: true
-        },
-        position: { x: 950, y: 120 }
-      },
-      {
-        id: dilateNodeId,
-        type: 'transformation',
-        transformation: {
-          id: dilateNodeId,
-          type: 'dilate',
-          name: 'Dilation',
-          description: 'Thicken detected lines',
-          parameters: [
-            { name: 'kernelSize', type: 'number', value: 3, min: 1, max: 31, step: 2 },
-            { name: 'iterations', type: 'number', value: 2, min: 1, max: 10, step: 1 }
-          ],
-          inputNodes: [houghLinesNodeId],
-          showPreprocessingSteps: true
-        },
-        position: { x: 1100, y: 120 }
-      },
-      {
-        id: fillHolesNodeId,
-        type: 'transformation',
-        transformation: {
-          id: fillHolesNodeId,
-          type: 'fillHoles',
-          name: 'Fill Holes',
-          description: 'Fill gaps in lines',
-          parameters: [
-            { name: 'connectivity', type: 'select', value: '8' },
-            { name: 'minHoleSize', type: 'number', value: 0, min: 0, max: 1000, step: 1 },
-            { name: 'maxHoleSize', type: 'number', value: 100, min: 0, max: 1000, step: 1 }
-          ],
-          inputNodes: [dilateNodeId],
-          showPreprocessingSteps: true
-        },
-        position: { x: 1250, y: 120 }
-      },
-      {
-        id: connectedComponentsNodeId,
-        type: 'transformation',
-        transformation: {
-          id: connectedComponentsNodeId,
-          type: 'connectedComponents',
-          name: 'Connected Components',
-          description: 'Filter line segments',
-          parameters: [
-            { name: 'connectivity', type: 'select', value: '8' },
-            { name: 'minArea', type: 'number', value: 50, min: 0, max: 10000, step: 1 },
-            { name: 'maxArea', type: 'number', value: 0, min: 0, max: 100000, step: 1 },
-            { name: 'outputMode', type: 'select', value: 'filtered' }
-          ],
-          inputNodes: [fillHolesNodeId],
-          showPreprocessingSteps: true
-        },
-        position: { x: 1400, y: 120 }
-      },
-      {
-        id: findContoursNodeId,
-        type: 'transformation',
-        transformation: {
-          id: findContoursNodeId,
-          type: 'findContours',
-          name: 'Find Contours',
-          description: 'Extract line boundaries',
-          parameters: [
-            { name: 'mode', type: 'select', value: 'external' },
-            { name: 'method', type: 'select', value: 'simple' },
-            { name: 'minContourArea', type: 'number', value: 50, min: 0, max: 10000, step: 1 },
-            { name: 'thickness', type: 'number', value: 2, min: 1, max: 10, step: 1 },
-            { name: 'color', type: 'select', value: 'white' }
-          ],
-          inputNodes: [connectedComponentsNodeId],
-          showPreprocessingSteps: true
-        },
-        position: { x: 1550, y: 120 }
+        position: { x: 1075, y: 120 }
       },
       {
         id: outputNodeId,
         type: 'output',
-        position: { x: 1700, y: 200 }
+        position: { x: 1250, y: 200 }
       }
     ],
     edges: [
-      { id: `${inputNodeId}-${grayscaleNodeId}`, source: inputNodeId, target: grayscaleNodeId },
-      { id: `${grayscaleNodeId}-${backgroundSubtractionNodeId}`, source: grayscaleNodeId, target: backgroundSubtractionNodeId },
-      { id: `${backgroundSubtractionNodeId}-${colorAdjustNodeId}`, source: backgroundSubtractionNodeId, target: colorAdjustNodeId },
-      { id: `${colorAdjustNodeId}-${cannyNodeId}`, source: colorAdjustNodeId, target: cannyNodeId },
-      { id: `${cannyNodeId}-${morphologyCloseNodeId}`, source: cannyNodeId, target: morphologyCloseNodeId },
-      { id: `${morphologyCloseNodeId}-${houghLinesNodeId}`, source: morphologyCloseNodeId, target: houghLinesNodeId },
-      { id: `${houghLinesNodeId}-${dilateNodeId}`, source: houghLinesNodeId, target: dilateNodeId },
-      { id: `${dilateNodeId}-${fillHolesNodeId}`, source: dilateNodeId, target: fillHolesNodeId },
-      { id: `${fillHolesNodeId}-${connectedComponentsNodeId}`, source: fillHolesNodeId, target: connectedComponentsNodeId },
-      { id: `${connectedComponentsNodeId}-${findContoursNodeId}`, source: connectedComponentsNodeId, target: findContoursNodeId },
-      { id: `${findContoursNodeId}-${outputNodeId}`, source: findContoursNodeId, target: outputNodeId }
+      { id: `${inputNodeId}-${medianNodeId}`, source: inputNodeId, target: medianNodeId },
+      { id: `${medianNodeId}-${backgroundSubtractionNodeId}`, source: medianNodeId, target: backgroundSubtractionNodeId },
+      { id: `${backgroundSubtractionNodeId}-${advancedThresholdNodeId}`, source: backgroundSubtractionNodeId, target: advancedThresholdNodeId },
+      { id: `${advancedThresholdNodeId}-${morphologyNodeId}`, source: advancedThresholdNodeId, target: morphologyNodeId },
+      { id: `${morphologyNodeId}-${outputNodeId}`, source: morphologyNodeId, target: outputNodeId }
+    ]
+  };
+};
+
+const createCellDetectionMiniProject = (): Pipeline => {
+  const inputNodeId = uuidv4();
+  const medianNodeId = uuidv4();
+  const backgroundSubtractionNodeId = uuidv4();
+  const advancedThresholdNodeId = uuidv4();
+  const morphologyNodeId = uuidv4();
+  const cellDetectionNodeId = uuidv4();
+  const outputNodeId = uuidv4();
+
+  return {
+    nodes: [
+      {
+        id: inputNodeId,
+        type: 'input',
+        position: { x: 100, y: 150 }
+      },
+      {
+        id: medianNodeId,
+        type: 'transformation',
+        transformation: {
+          id: medianNodeId,
+          type: 'median',
+          name: 'Median Filter',
+          description: 'Reduce noise while preserving edges',
+          parameters: [
+            { name: 'kernelSize', type: 'number', value: 5, min: 3, max: 15, step: 2, label: 'Filter Size' },
+            { name: 'method', type: 'select', value: 'cross-shaped', options: ['standard', 'adaptive', 'cross-shaped', 'selective'], label: 'Filter Method' },
+            { name: 'iterations', type: 'number', value: 3, min: 1, max: 5, label: 'Iterations' },
+            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges' },
+            { name: 'edgeThreshold', type: 'number', value: 50, min: 10, max: 100, label: 'Edge Threshold' }
+          ],
+          inputNodes: [inputNodeId],
+          showPreprocessingSteps: true
+        },
+        position: { x: 290, y: 120 }
+      },
+      {
+        id: backgroundSubtractionNodeId,
+        type: 'transformation',
+        transformation: {
+          id: backgroundSubtractionNodeId,
+          type: 'backgroundSubtraction',
+          name: 'Background Subtraction',
+          description: 'Remove uneven illumination',
+          parameters: [
+            { name: 'method', type: 'select', value: 'morphological', options: ['morphological', 'gaussian', 'rolling-ball', 'polynomial'], label: 'Method' },
+            { name: 'kernelSize', type: 'number', value: 51, min: 15, max: 201, step: 2, label: 'Kernel Size' },
+            { name: 'sigmaX', type: 'number', value: 50, min: 1, max: 200, label: 'Sigma X' },
+            { name: 'sigmaY', type: 'number', value: 50, min: 1, max: 200, label: 'Sigma Y' },
+            { name: 'ballRadius', type: 'number', value: 25, min: 5, max: 100, label: 'Ball Radius' },
+            { name: 'polynomialOrder', type: 'number', value: 3, min: 1, max: 7, label: 'Polynomial Order' },
+            { name: 'normalize', type: 'boolean', value: true, label: 'Normalize Result' }
+          ],
+          inputNodes: [medianNodeId],
+          showPreprocessingSteps: true
+        },
+        position: { x: 545, y: 120 }
+      },
+      {
+        id: advancedThresholdNodeId,
+        type: 'transformation',
+        transformation: {
+          id: advancedThresholdNodeId,
+          type: 'advancedThreshold',
+          name: 'Advanced Thresholding',
+          description: 'Multi-level statistical thresholding',
+          parameters: [
+            { name: 'thresholdingMethod', type: 'select', value: 'statistical-combined', options: ['statistical-combined', 'multi-otsu', 'local-adaptive'], label: 'Thresholding Method' },
+            { name: 'thresholdLevels', type: 'number', value: 1, min: 1, max: 4, label: 'Threshold Levels' },
+            { name: 'highThreshold', type: 'number', value: 180, min: 50, max: 255, label: 'High Threshold' },
+            { name: 'lowThreshold', type: 'number', value: 80, min: 10, max: 200, label: 'Low Threshold' },
+            { name: 'morphologicalCleanup', type: 'boolean', value: true, label: 'Morphological Cleanup' },
+            { name: 'removeNoise', type: 'boolean', value: true, label: 'Remove Noise' },
+            { name: 'minComponentSize', type: 'number', value: 135, min: 50, max: 500, label: 'Min Component Size' },
+            { name: 'fillHoles', type: 'boolean', value: true, label: 'Fill Holes' },
+            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges' },
+            { name: 'adaptiveWindowSize', type: 'number', value: 9, min: 3, max: 31, step: 2, label: 'Adaptive Window Size' }
+          ],
+          inputNodes: [backgroundSubtractionNodeId],
+          showPreprocessingSteps: true
+        },
+        position: { x: 820, y: 120 }
+      },
+      {
+        id: morphologyNodeId,
+        type: 'transformation',
+        transformation: {
+          id: morphologyNodeId,
+          type: 'morphology',
+          name: 'Morphological Operation',
+          description: 'Clean and enhance cell shapes',
+          parameters: [
+            { name: 'operation', type: 'select', value: 'open', options: ['open', 'close', 'gradient', 'tophat', 'blackhat'], label: 'Operation' },
+            { name: 'kernelSize', type: 'number', value: 5, min: 3, max: 31, step: 2, label: 'Kernel Size' },
+            { name: 'iterations', type: 'number', value: 1, min: 1, max: 10, label: 'Iterations' }
+          ],
+          inputNodes: [advancedThresholdNodeId],
+          showPreprocessingSteps: true
+        },
+        position: { x: 1075, y: 120 }
+      },
+      {
+        id: cellDetectionNodeId,
+        type: 'transformation',
+        transformation: {
+          id: cellDetectionNodeId,
+          type: 'cellDetection',
+          name: 'Cell Detection Pipeline',
+          description: 'Comprehensive cell detection and analysis',
+          parameters: [
+            // Preprocessing
+            { name: 'enablePreprocessing', type: 'boolean', value: false, label: 'Enable Preprocessing' },
+            { name: 'gaussianBlur', type: 'number', value: 1, min: 0, max: 10, label: 'Gaussian Blur' },
+            { name: 'medianFilterSize', type: 'number', value: 3, min: 1, max: 15, step: 2, label: 'Median Filter Size' },
+            { name: 'medianIterations', type: 'number', value: 1, min: 1, max: 5, label: 'Median Iterations' },
+            
+            // Thresholding (skip since already done)
+            { name: 'thresholdMethod', type: 'select', value: 'manual', options: ['otsu', 'adaptive', 'manual'], label: 'Threshold Method' },
+            { name: 'manualThreshold', type: 'number', value: 128, min: 0, max: 255, label: 'Manual Threshold' },
+            { name: 'invertBinary', type: 'boolean', value: false, label: 'Invert Binary' },
+            
+            // Morphology (minimal since already done)
+            { name: 'enableMorphology', type: 'boolean', value: false, label: 'Enable Morphology' },
+            { name: 'fillHoles', type: 'boolean', value: true, label: 'Fill Holes' },
+            { name: 'clearBorder', type: 'boolean', value: true, label: 'Clear Border' },
+            { name: 'borderWidth', type: 'number', value: 5, min: 1, max: 20, label: 'Border Width' },
+            
+            // Segmentation
+            { name: 'segmentationMethod', type: 'select', value: 'contours', options: ['watershed', 'distance', 'contours', 'components'], label: 'Segmentation Method' },
+            { name: 'minCellSize', type: 'number', value: 50, min: 10, max: 1000, label: 'Min Cell Size' },
+            { name: 'maxCellSize', type: 'number', value: 2000, min: 500, max: 50000, label: 'Max Cell Size' },
+            
+            // Shape analysis
+            { name: 'enableShapeAnalysis', type: 'boolean', value: true, label: 'Enable Shape Analysis' },
+            { name: 'minCircularity', type: 'number', value: 0.2, min: 0.0, max: 1.0, step: 0.1, label: 'Min Circularity' },
+            { name: 'maxCircularity', type: 'number', value: 1.0, min: 0.0, max: 1.0, step: 0.1, label: 'Max Circularity' },
+            { name: 'minAspectRatio', type: 'number', value: 0.3, min: 0.1, max: 5.0, step: 0.1, label: 'Min Aspect Ratio' },
+            { name: 'maxAspectRatio', type: 'number', value: 3.0, min: 0.5, max: 10.0, step: 0.1, label: 'Max Aspect Ratio' },
+            
+            // Output
+            { name: 'outputMode', type: 'select', value: 'overlay', options: ['segmented', 'labeled', 'overlay', 'boundaries', 'analysis'], label: 'Output Mode' },
+            { name: 'colorCoding', type: 'boolean', value: true, label: 'Color Coding' },
+            { name: 'showCellNumbers', type: 'boolean', value: false, label: 'Show Cell Numbers' },
+            { name: 'boundaryThickness', type: 'number', value: 2, min: 1, max: 10, label: 'Boundary Thickness' }
+          ],
+          inputNodes: [morphologyNodeId],
+          showPreprocessingSteps: true
+        },
+        position: { x: 1375, y: 120 }
+      },
+      {
+        id: outputNodeId,
+        type: 'output',
+        position: { x: 1550, y: 200 }
+      }
+    ],
+    edges: [
+      { id: `${inputNodeId}-${medianNodeId}`, source: inputNodeId, target: medianNodeId },
+      { id: `${medianNodeId}-${backgroundSubtractionNodeId}`, source: medianNodeId, target: backgroundSubtractionNodeId },
+      { id: `${backgroundSubtractionNodeId}-${advancedThresholdNodeId}`, source: backgroundSubtractionNodeId, target: advancedThresholdNodeId },
+      { id: `${advancedThresholdNodeId}-${morphologyNodeId}`, source: advancedThresholdNodeId, target: morphologyNodeId },
+      { id: `${morphologyNodeId}-${cellDetectionNodeId}`, source: morphologyNodeId, target: cellDetectionNodeId },
+      { id: `${cellDetectionNodeId}-${outputNodeId}`, source: cellDetectionNodeId, target: outputNodeId }
     ]
   };
 };
@@ -809,7 +867,7 @@ export const sampleLessons: Lesson[] = [
   },
   {
     id: 'license-plate-detection',
-    title: 'Mini-Project 2: License Plate Detection',
+    title: 'Mini-Project 1: License Plate Detection',
     description: 'Image processing pipeline using grayscale conversion, threshold binarization, median filtering for noise reduction, and skeletonization for structure analysis.',
     image: '/assets/projects/plaque.jpg',
     category: 'mini-projects',
@@ -819,12 +877,22 @@ export const sampleLessons: Lesson[] = [
   },
   {
     id: 'line-segmentation',
-    title: 'Mini-Project 3: Line Segmentation',
-    description: 'Complete solution for segmenting and detecting lines in document images using edge detection, Hough transforms, and morphological processing.',
+    title: 'Mini-Project 2: Line Segmentation',
+    description: 'Simplified line segmentation pipeline using median filtering, background subtraction, advanced thresholding, and morphological operations.',
     image: '/assets/projects/MP3.gif',
     category: 'mini-projects',
     difficulty: 'advanced',
-    tags: ['line detection', 'hough transform', 'edge detection', 'morphology'],
+    tags: ['line detection', 'advanced thresholding', 'background subtraction', 'morphology'],
     pipeline: createLineSegmentationPipeline()
+  },
+  {
+    id: 'cell-detection',
+    title: 'Mini-Project 3: Cell Detection',
+    description: 'Comprehensive cell detection and analysis using advanced thresholding, morphological operations, and shape analysis.',
+    image: '/assets/projects/cell.jpg',
+    category: 'mini-projects',
+    difficulty: 'advanced',
+    tags: ['cell detection', 'advanced thresholding', 'morphology', 'shape analysis'],
+    pipeline: createCellDetectionMiniProject()
   }
 ]; 

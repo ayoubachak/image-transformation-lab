@@ -116,7 +116,7 @@ export default function LessonDetailPage() {
           console.log('Pipeline loading complete!');
           
           // Load sample image for mini-projects (single attempt)
-          if (lessonId === 'license-plate-detection' || lessonId === 'line-segmentation') {
+          if (lessonId === 'license-plate-detection' || lessonId === 'line-segmentation' || lessonId === 'cell-detection') {
             setTimeout(() => {
               loadSampleImage(lessonId);
             }, 1000);
@@ -133,9 +133,18 @@ export default function LessonDetailPage() {
   // Function to load sample images for mini-projects
   const loadSampleImage = async (projectId: string) => {
     try {
-      const imagePath = projectId === 'license-plate-detection' 
-        ? '/assets/projects/plaque.jpg'
-        : '/assets/projects/MP3.gif';
+      let imagePath: string;
+      
+      if (projectId === 'license-plate-detection') {
+        imagePath = '/assets/projects/plaque.jpg';
+      } else if (projectId === 'line-segmentation') {
+        imagePath = '/assets/projects/MP3.gif';
+      } else if (projectId === 'cell-detection') {
+        imagePath = '/assets/projects/cell-detection.jpg';
+      } else {
+        console.warn('Unknown project ID for sample image loading:', projectId);
+        return;
+      }
       
       console.log(`Loading sample image: ${imagePath}`);
       
@@ -287,6 +296,48 @@ export default function LessonDetailPage() {
           </p>
         </div>
       );
+    } else if (lesson?.id === 'cell-detection') {
+      return (
+        <div className="mb-6">
+          <h3 className="text-xl font-medium mb-3">Technical Approach</h3>
+          
+          <h4 className="text-lg font-medium mb-2">1. Median Filtering</h4>
+          <p className="text-gray-600 mb-4">
+            Apply cross-shaped median filtering for noise reduction while preserving cell structures:
+          </p>
+          <Formula formula="Output(x,y) = median{I(x+i,y+j) | (i,j) ∈ N_cross}\nKernel size: 5×5, Iterations: 3" />
+          
+          <h4 className="text-lg font-medium mb-2">2. Background Subtraction</h4>
+          <p className="text-gray-600 mb-4">
+            Remove uneven illumination using morphological background estimation:
+          </p>
+          <Formula formula="Background = Opening(I, SE_71×71)\nForeground = normalize(I - Background)" />
+          
+          <h4 className="text-lg font-medium mb-2">3. Advanced Thresholding</h4>
+          <p className="text-gray-600 mb-4">
+            Statistical combined thresholding for cell separation:
+          </p>
+          <Formula formula="T_high = 180, T_low = 80\nBinary = hysteresis_threshold(I, T_low, T_high)\n+ morphological cleanup + noise removal" />
+          
+          <h4 className="text-lg font-medium mb-2">4. Morphological Operations</h4>
+          <p className="text-gray-600 mb-4">
+            Opening operation to separate touching cells:
+          </p>
+          <Formula formula="Opening = Dilation(Erosion(I, SE), SE)\nSE = elliptical, size = 5×5" />
+          
+          <h4 className="text-lg font-medium mb-2">5. Cell Detection & Analysis</h4>
+          <p className="text-gray-600 mb-4">
+            Contour-based segmentation with shape analysis:
+          </p>
+          <Formula formula="Circularity = 4π × Area / Perimeter²\nAspect Ratio = Major Axis / Minor Axis\nSolidity = Area / Convex Hull Area" />
+          
+          <h4 className="text-lg font-medium mb-2">6. Filtering Criteria</h4>
+          <p className="text-gray-600">
+            Filter detected objects based on cell-like properties:
+            • Area: 50-2000 pixels • Circularity: 0.2-1.0 • Aspect Ratio: 0.3-3.0
+          </p>
+        </div>
+      );
     }
     
     return null;
@@ -303,7 +354,7 @@ export default function LessonDetailPage() {
   };
 
   const handleManualLoadImage = () => {
-    if (lesson && (lesson.id === 'license-plate-detection' || lesson.id === 'line-segmentation')) {
+    if (lesson && (lesson.id === 'license-plate-detection' || lesson.id === 'line-segmentation' || lesson.id === 'cell-detection')) {
       console.log('Manual image load triggered');
       loadSampleImage(lesson.id);
     }
@@ -390,12 +441,12 @@ export default function LessonDetailPage() {
             </p>
             
             {/* Sample image note for mini-projects */}
-            {(lesson?.id === 'license-plate-detection' || lesson?.id === 'line-segmentation') && (
+            {(lesson?.id === 'license-plate-detection' || lesson?.id === 'line-segmentation' || lesson?.id === 'cell-detection') && (
               <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
                 <h4 className="font-semibold text-purple-800 mb-2">📸 Sample Image Auto-Loading</h4>
                 <p className="text-purple-700 text-sm">
                   This mini-project automatically loads a sample image optimized for the solution pipeline. 
-                  The sample image {lesson.id === 'license-plate-detection' ? '(plaque.jpg)' : '(MP3.gif)'} will be 
+                  The sample image {lesson.id === 'license-plate-detection' ? '(plaque.jpg)' : lesson.id === 'line-segmentation' ? '(MP3.gif)' : '(cell-detection.jpg)'} will be 
                   loaded into the input node to demonstrate the complete solution.
                 </p>
                 <p className="text-purple-600 text-xs mt-2">
@@ -417,7 +468,7 @@ export default function LessonDetailPage() {
             )}
 
             {/* Manual image load button for mini-projects */}
-            {hasNodes && (lesson?.id === 'license-plate-detection' || lesson?.id === 'line-segmentation') && (
+            {hasNodes && (lesson?.id === 'license-plate-detection' || lesson?.id === 'line-segmentation' || lesson?.id === 'cell-detection') && (
               <div className="mb-4 p-2 bg-green-50 border border-green-200 rounded-md">
                 <p className="font-medium text-green-800">Manual Controls:</p>
                 <button 
@@ -466,23 +517,40 @@ export default function LessonDetailPage() {
               ) : lesson?.id === 'line-segmentation' ? (
                 <>
                   <p className="text-gray-600 mb-4">
-                    This mini-project demonstrates line segmentation in document images, which is crucial for text recognition and document analysis. The solution handles uneven lighting, broken lines, and noise.
+                    This mini-project demonstrates simplified line segmentation in document images using advanced thresholding and morphological operations. The solution handles uneven lighting and noise efficiently.
                   </p>
                   <p className="text-gray-600 mb-4">
                     The pipeline applies the following transformations in sequence:
                   </p>
                   <ol className="list-decimal list-inside text-gray-600 mt-2 ml-4 space-y-3">
-                    <li><strong>Grayscale Conversion:</strong> Convert to single-channel image for easier processing</li>
-                    <li><strong>Background Subtraction:</strong> Remove uneven illumination and background patterns using morphological operations</li>
-                    <li><strong>Color Adjustment:</strong> Enhance contrast to make text lines more prominent</li>
-                    <li><strong>Canny Edge Detection:</strong> Detect edges of text lines using gradient-based edge detection</li>
-                    <li><strong>Morphological Closing:</strong> Connect broken edge segments to form continuous lines</li>
-                    <li><strong>Hough Line Detection:</strong> Detect straight line segments using the Hough transform</li>
-                    <li><strong>Dilation:</strong> Thicken the detected lines to make them more visible</li>
-                    <li><strong>Hole Filling:</strong> Fill gaps within line segments</li>
-                    <li><strong>Connected Components:</strong> Filter line segments by size and shape characteristics</li>
-                    <li><strong>Contour Detection:</strong> Extract the final line boundaries for visualization</li>
+                    <li><strong>Median Filtering:</strong> Apply standard median filter with 3×3 kernel and 2 iterations to reduce noise while preserving text boundaries</li>
+                    <li><strong>Background Subtraction:</strong> Remove uneven illumination using morphological background estimation with 71×71 kernel</li>
+                    <li><strong>Advanced Thresholding:</strong> Use local adaptive thresholding with high (200) and low (100) thresholds for optimal text separation</li>
+                    <li><strong>Morphological Closing:</strong> Apply closing operation with 7×7 kernel and 2 iterations to connect broken line segments</li>
                   </ol>
+                  <p className="text-gray-600 mt-4">
+                    This simplified pipeline effectively segments text lines from document images while being more robust to different image conditions.
+                  </p>
+                </>
+              ) : lesson?.id === 'cell-detection' ? (
+                <>
+                  <p className="text-gray-600 mb-4">
+                    This mini-project demonstrates comprehensive cell detection and analysis using advanced image processing techniques for biological applications. The solution handles uneven illumination, noise, and touching cells.
+                  </p>
+                  <p className="text-gray-600 mb-4">
+                    The pipeline applies the following transformations in sequence:
+                  </p>
+                  <ol className="list-decimal list-inside text-gray-600 mt-2 ml-4 space-y-3">
+                    <li><strong>Median Filtering:</strong> Apply cross-shaped median filter with 5×5 kernel and 3 iterations to reduce noise while preserving cell boundaries</li>
+                    <li><strong>Background Subtraction:</strong> Remove uneven illumination using morphological background estimation with 71×71 kernel</li>
+                    <li><strong>Advanced Thresholding:</strong> Use statistical combined thresholding with high (180) and low (80) thresholds plus morphological cleanup</li>
+                    <li><strong>Morphological Opening:</strong> Apply opening operation with 5×5 kernel to separate touching cells while preserving individual cell shapes</li>
+                    <li><strong>Cell Detection:</strong> Use contour-based segmentation to identify individual cells and extract their properties</li>
+                    <li><strong>Shape Analysis:</strong> Filter detected objects based on cell-like properties (circularity, area, aspect ratio)</li>
+                  </ol>
+                  <p className="text-gray-600 mt-4">
+                    This pipeline is designed for biological cell analysis and can detect, count, and analyze the morphological properties of cells in microscopy images.
+                  </p>
                 </>
               ) : (
                 <>
@@ -531,18 +599,38 @@ export default function LessonDetailPage() {
                     Try adjusting the parameters in each transformation node to see how they affect the line segmentation:
                   </p>
                   <ul className="list-disc list-inside text-gray-600 mt-2 ml-4 space-y-2">
-                    <li><strong>Background Subtraction Kernel:</strong> Change the size for different background patterns</li>
-                    <li><strong>Color Adjustment:</strong> Modify brightness and contrast to enhance line visibility</li>
-                    <li><strong>Canny Thresholds:</strong> Adjust edge detection sensitivity</li>
-                    <li><strong>Hough Transform Parameters:</strong> Change line detection sensitivity and minimum line length</li>
-                    <li><strong>Morphological Operations:</strong> Adjust kernel sizes for line connection and thickening</li>
-                    <li><strong>Component Filtering:</strong> Modify area filters to keep only line-like objects</li>
+                    <li><strong>Median Filter:</strong> Adjust kernel size (3-15) and iterations (1-5) for different noise levels</li>
+                    <li><strong>Background Subtraction:</strong> Change kernel size (15-201) for different background patterns</li>
+                    <li><strong>Advanced Thresholding:</strong> Modify thresholding method and threshold levels for better text separation</li>
+                    <li><strong>Morphological Closing:</strong> Adjust kernel size (3-31) and iterations (1-10) for line connectivity</li>
                   </ul>
                   <div className="mt-4 p-4 bg-green-50 rounded-lg">
                     <p className="text-green-800 font-medium">💡 Tip:</p>
                     <p className="text-green-700 text-sm mt-1">
                       Load the sample document image (MP3.gif) from the assets to see the complete solution in action.
-                      The pipeline works well for printed text but may need adjustment for handwritten documents.
+                      This simplified approach is more robust and efficient than complex edge detection methods.
+                    </p>
+                  </div>
+                </>
+              ) : lesson?.id === 'cell-detection' ? (
+                <>
+                  <p className="text-gray-600 mb-4">
+                    Try adjusting the parameters in each transformation node to see how they affect the cell detection and analysis:
+                  </p>
+                  <ul className="list-disc list-inside text-gray-600 mt-2 ml-4 space-y-2">
+                    <li><strong>Median Filter Parameters:</strong> Adjust kernel size (3-15) and iterations (1-5) for different noise reduction levels</li>
+                    <li><strong>Background Subtraction:</strong> Change kernel size (15-201) to handle different illumination patterns</li>
+                    <li><strong>Advanced Thresholding:</strong> Modify high/low thresholds and try different thresholding methods</li>
+                    <li><strong>Morphological Operations:</strong> Adjust operation type and kernel size to better separate touching cells</li>
+                    <li><strong>Cell Detection Filters:</strong> Change size range (50-2000 pixels) to detect different cell populations</li>
+                    <li><strong>Shape Analysis:</strong> Modify circularity (0.2-1.0) and aspect ratio (0.3-3.0) filters for cell-like shapes</li>
+                    <li><strong>Output Visualization:</strong> Try different output modes (overlay, labeled, boundaries, analysis) to view results</li>
+                  </ul>
+                  <div className="mt-4 p-4 bg-purple-50 rounded-lg">
+                    <p className="text-purple-800 font-medium">💡 Tip:</p>
+                    <p className="text-purple-700 text-sm mt-1">
+                      Load the sample cell image (cell-detection.jpg) from the assets to see the complete solution in action.
+                      The pipeline can detect individual cells, count them, and analyze their morphological properties for biological research.
                     </p>
                   </div>
                 </>

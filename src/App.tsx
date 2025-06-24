@@ -25,7 +25,7 @@ function App() {
             </Routes>
           </main>
           <footer className="bg-gray-800 text-white p-4 text-center">
-            <p>Image Transform Lab &copy; {new Date().getFullYear()} Dedicated to Professor Dr. A. Benzinou</p>
+            <p>Image Transform Lab &copy; {new Date().getFullYear()} Dedicated to Professor Dr. A. Benzinou and Dr. K. Nasserdine</p>
           </footer>
           
           {/* Initialize OpenCV and show status notifications */}
