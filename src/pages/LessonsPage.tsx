@@ -18,6 +18,10 @@ const groupLessonsByCategory = (lessons: Lesson[]) => {
     'transformations': {
       name: 'Transformations',
       lessons: []
+    },
+    'mini-projects': {
+      name: 'Mini-Projects',
+      lessons: []
     }
   };
   
@@ -26,6 +30,8 @@ const groupLessonsByCategory = (lessons: Lesson[]) => {
       categories['edge-detection'].lessons.push(lesson);
     } else if (lesson.id.startsWith('gaussian') || lesson.id.includes('filter')) {
       categories['filters'].lessons.push(lesson);
+    } else if (lesson.category === 'mini-projects' || lesson.id.includes('license-plate') || lesson.id.includes('line-segmentation')) {
+      categories['mini-projects'].lessons.push(lesson);
     } else {
       categories['transformations'].lessons.push(lesson);
     }

@@ -1602,6 +1602,24 @@ export const processImage = async (
             break;
           }
             
+          case 'colorAdjust': {
+            const brightness = transformation.parameters?.find(p => p.name === 'brightness')?.value as number || 0;
+            const contrast = transformation.parameters?.find(p => p.name === 'contrast')?.value as number || 0;
+            const saturation = transformation.parameters?.find(p => p.name === 'saturation')?.value as number || 0;
+            const hue = transformation.parameters?.find(p => p.name === 'hue')?.value as number || 0;
+            
+            dst = applyColorAdjust(src, brightness, contrast, saturation, hue);
+            
+            if (includeIntermediateResults) {
+              intermediates.push({
+                stage: 'colorAdjust',
+                imageData: matToImageData(dst),
+                description: `Applied color adjustment: brightness=${brightness}, contrast=${contrast}, saturation=${saturation}, hue=${hue}`
+              });
+            }
+            break;
+          }
+            
           default:
             throw new Error(`Transformation type ${transformation.type} not implemented`);
         }
@@ -2807,5 +2825,97 @@ export const applyMorphology = (src: any, operation: string, kernelSize: number,
   } catch (error) {
     console.error('Error in applyMorphology:', error);
     throw error;
+  }
+};
+
+export const applyColorAdjust = (src: any, brightness: number = 0, contrast: number = 0, saturation: number = 0, hue: number = 0): any => {
+  if (!src || !src.data) {
+    throw new Error('Invalid source matrix for color adjustment');
+  }
+  
+  const cv = getOpenCV();
+  if (!cv || !cv.Mat) {
+    throw new Error('OpenCV not available for color adjustment');
+  }
+  
+  let dst: any = null;
+  let temp: any = null;
+  let hsv: any = null;
+  
+  try {
+    // Create output matrix
+    dst = new cv.Mat();
+    
+    // Convert brightness and contrast to OpenCV scale
+    // Brightness: -100 to 100 -> -50 to 50 (additive)
+    // Contrast: -100 to 100 -> 0.5 to 1.5 (multiplicative)
+    const alpha = 1.0 + (contrast / 100.0); // Contrast multiplier
+    const beta = brightness * 2.55; // Brightness additive (0-255 scale)
+    
+    // Apply brightness and contrast adjustment
+    src.convertTo(dst, -1, alpha, beta);
+    
+    // If we need to adjust saturation or hue, convert to HSV
+    if (saturation !== 0 || hue !== 0) {
+      // Create temporary matrices
+      temp = new cv.Mat();
+      hsv = new cv.Mat();
+      
+      // Convert to HSV for saturation and hue adjustment
+      cv.cvtColor(dst, hsv, cv.COLOR_BGR2HSV);
+      
+      // Split HSV channels
+      const hsvChannels = new cv.MatVector();
+      cv.split(hsv, hsvChannels);
+      
+      // Adjust hue (channel 0) if needed
+      if (hue !== 0) {
+        const hChannel = hsvChannels.get(0);
+        // Hue is in range 0-179, adjust accordingly
+        const hueShift = (hue * 179) / 360; // Convert from degrees to OpenCV hue range
+        hChannel.convertTo(hChannel, -1, 1, hueShift);
+        
+        // Handle wraparound for hue values
+        const hueThresh = new cv.Mat();
+        const hueWrap = new cv.Mat();
+        cv.threshold(hChannel, hueThresh, 179, 179, cv.THRESH_TRUNC);
+        cv.threshold(hueThresh, hueWrap, 0, 0, cv.THRESH_TOZERO);
+        hueWrap.copyTo(hChannel);
+        
+        hueThresh.delete();
+        hueWrap.delete();
+      }
+      
+      // Adjust saturation (channel 1) if needed
+      if (saturation !== 0) {
+        const sChannel = hsvChannels.get(1);
+        const satMultiplier = 1.0 + (saturation / 100.0);
+        sChannel.convertTo(sChannel, -1, satMultiplier, 0);
+        
+        // Clamp saturation to valid range (0-255)
+        const satThresh = new cv.Mat();
+        cv.threshold(sChannel, satThresh, 255, 255, cv.THRESH_TRUNC);
+        cv.threshold(satThresh, sChannel, 0, 0, cv.THRESH_TOZERO);
+        satThresh.delete();
+      }
+      
+      // Merge channels back
+      cv.merge(hsvChannels, hsv);
+      
+      // Convert back to BGR
+      cv.cvtColor(hsv, dst, cv.COLOR_HSV2BGR);
+      
+      // Clean up channel vector
+      hsvChannels.delete();
+    }
+    
+    return dst;
+    
+  } catch (error) {
+    // Clean up on error
+    if (dst) dst.delete();
+    if (temp) temp.delete();
+    if (hsv) hsv.delete();
+    throw new Error(`Color adjustment failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 };

@@ -30,6 +30,14 @@ const lessonCategories = [
       { name: 'Threshold', href: '/lessons/threshold' },
     ],
   },
+  {
+    name: 'Mini-Projects',
+    href: '/lesson-categories/mini-projects',
+    lessons: [
+      { name: 'License Plate Detection', href: '/lessons/license-plate-detection' },
+      { name: 'Line Segmentation', href: '/lessons/line-segmentation' },
+    ],
+  },
 ];
 
 const navigation = [
