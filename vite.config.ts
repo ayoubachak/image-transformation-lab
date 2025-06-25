@@ -9,4 +9,12 @@ export default defineConfig({
     tailwindcss(),
   ],
   base: '/image-transformation-lab/',
+  build: {
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
 })

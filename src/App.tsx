@@ -11,8 +11,11 @@ import './components/styles/tooltipStyles.css';
 import './components/styles/modalStyles.css';
 
 function App() {
+  // Use basename for GitHub Pages deployment
+  const basename = import.meta.env.PROD ? '/image-transformation-lab' : '';
+  
   return (
-    <Router>
+    <Router basename={basename}>
       <PipelineProvider>
         <div className="min-h-screen flex flex-col bg-white text-gray-900">
           <Navbar />
