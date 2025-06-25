@@ -135,12 +135,15 @@ export default function LessonDetailPage() {
     try {
       let imagePath: string;
       
+      // Get the base URL for assets - use Vite's base URL resolution
+      const baseUrl = import.meta.env.BASE_URL;
+      
       if (projectId === 'license-plate-detection') {
-        imagePath = '/assets/projects/plaque.jpg';
+        imagePath = `${baseUrl}assets/projects/plaque.jpg`;
       } else if (projectId === 'line-segmentation') {
-        imagePath = '/assets/projects/MP3.gif';
+        imagePath = `${baseUrl}assets/projects/MP3.gif`;
       } else if (projectId === 'cell-detection') {
-        imagePath = '/assets/projects/cell-detection.jpg';
+        imagePath = `${baseUrl}assets/projects/cell.jpg`;
       } else {
         console.warn('Unknown project ID for sample image loading:', projectId);
         return;
