@@ -868,8 +868,18 @@ export const sampleLessons: Lesson[] = [
     pipeline: createSingleTransformPipeline('blur', [standardParameters.kernelSize])
   },
   {
+    id: 'cell-detection',
+    title: 'Mini-Project 1: Cell Detection',
+    description: 'Comprehensive cell detection and analysis using advanced thresholding, morphological operations, and shape analysis.',
+    image: `${import.meta.env.BASE_URL}assets/projects/cell.jpg`,
+    category: 'mini-projects',
+    difficulty: 'advanced',
+    tags: ['cell detection', 'advanced thresholding', 'morphology', 'shape analysis'],
+    pipeline: createCellDetectionMiniProject()
+  },
+  {
     id: 'license-plate-detection',
-    title: 'Mini-Project 1: License Plate Detection',
+    title: 'Mini-Project 2: License Plate Detection',
     description: 'Image processing pipeline using grayscale conversion, threshold binarization, median filtering for noise reduction, and skeletonization for structure analysis.',
     image: `${import.meta.env.BASE_URL}assets/projects/plaque.jpg`,
     category: 'mini-projects',
@@ -879,22 +889,12 @@ export const sampleLessons: Lesson[] = [
   },
   {
     id: 'line-segmentation',
-    title: 'Mini-Project 2: Line Segmentation',
-    description: 'Simplified line segmentation pipeline using median filtering, background subtraction, advanced thresholding, and morphological operations.',
+    title: 'Mini-Project 3: Line Segmentation',
+    description: 'Advanced line segmentation pipeline using cross-shaped median filtering, morphological background subtraction, statistical thresholding, and morphological opening.',
     image: `${import.meta.env.BASE_URL}assets/projects/MP3.gif`,
     category: 'mini-projects',
     difficulty: 'advanced',
     tags: ['line detection', 'advanced thresholding', 'background subtraction', 'morphology'],
     pipeline: createLineSegmentationPipeline()
-  },
-  {
-    id: 'cell-detection',
-    title: 'Mini-Project 3: Cell Detection',
-    description: 'Comprehensive cell detection and analysis using advanced thresholding, morphological operations, and shape analysis.',
-    image: `${import.meta.env.BASE_URL}assets/projects/cell.jpg`,
-    category: 'mini-projects',
-    difficulty: 'advanced',
-    tags: ['cell detection', 'advanced thresholding', 'morphology', 'shape analysis'],
-    pipeline: createCellDetectionMiniProject()
   }
 ]; 
