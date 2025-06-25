@@ -1,10 +1,13 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useRef } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import {
   FolderIcon,
   DocumentIcon,
   TrashIcon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  DocumentArrowUpIcon
 } from '@heroicons/react/24/outline';
 import { projectManager } from '../../services/ProjectManager';
 import { usePipeline } from '../../contexts/PipelineContext';
@@ -39,6 +42,9 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
   const [showConfirmNew, setShowConfirmNew] = useState(false);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [showStorageDetails, setShowStorageDetails] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [showImportSection, setShowImportSection] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { nodes } = usePipeline();
 
   // Load projects list on modal open
@@ -213,6 +219,71 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
     }
   };
   
+  // Handle exporting a project
+  const handleExportProject = (projectId: string) => {
+    try {
+      projectManager.exportProject(projectId);
+      // Don't close modal, just show success
+      setError(null);
+    } catch (err) {
+      console.error('Error exporting project:', err);
+      setError(`Failed to export project: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  // Handle file selection for import
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    const validation = projectManager.validateImportFile(file);
+    if (!validation.isValid) {
+      setError(validation.error || 'Invalid file');
+      return;
+    }
+
+    // Import the project
+    handleImportProject(file);
+  };
+
+  // Handle importing a project
+  const handleImportProject = async (file: File) => {
+    setImportLoading(true);
+    setError(null);
+
+    try {
+      const importedProject = await projectManager.importProject(file);
+      
+      // Refresh the projects list
+      loadProjectsList();
+      loadStorageInfo();
+      
+      // Close import section
+      setShowImportSection(false);
+      
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      // Show success message briefly
+      setError(null);
+      console.log(`✅ Successfully imported project: ${importedProject.name}`);
+      
+    } catch (err) {
+      console.error('Error importing project:', err);
+      setError(`Failed to import project: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Trigger file input click
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+  
   // Format date for display
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
@@ -339,6 +410,62 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
       </div>
     );
   };
+
+  // Render import section
+  const renderImportSection = () => {
+    return (
+      <div className="mb-6 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center">
+            <ArrowUpTrayIcon className="h-5 w-5 text-blue-600 mr-2" />
+            <h4 className="font-medium text-gray-800">Import Project</h4>
+          </div>
+          <button
+            onClick={() => setShowImportSection(!showImportSection)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            {showImportSection ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        
+        {showImportSection && (
+          <div>
+            <p className="text-sm text-gray-600 mb-4">
+              Import a project from a JSON file exported from Image Transform Lab.
+            </p>
+            
+            <div className="flex flex-col space-y-3">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={triggerFileInput}
+                  disabled={importLoading}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
+                  {importLoading ? 'Importing...' : 'Select JSON File'}
+                </button>
+              </div>
+              
+              <div className="text-xs text-gray-500">
+                <p>• Supported format: JSON files exported from Image Transform Lab</p>
+                <p>• Maximum file size: 10MB</p>
+                <p>• Imported projects will be renamed to avoid conflicts</p>
+              </div>
+            </div>
+            
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
   
   // Render the new project confirmation dialog
   const renderNewProjectConfirmation = () => {
@@ -409,7 +536,10 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity" />
+          <div 
+            className="fixed inset-0 backdrop-blur-xl transition-opacity" 
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+          />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -448,6 +578,9 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
 
                     {/* Storage Information */}
                     {renderStorageInfo()}
+
+                    {/* Import Section */}
+                    {renderImportSection()}
 
                     {/* Error Display */}
                     {error && (
@@ -538,8 +671,18 @@ export default function ProjectsModal({ isOpen, onClose, mode, onSuccess }: Proj
                                     className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md"
                                     onClick={() => handleLoadProject(project.id)}
                                     disabled={loading}
+                                    title="Load project"
                                   >
                                     <DocumentIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md"
+                                    onClick={() => handleExportProject(project.id)}
+                                    disabled={loading}
+                                    title="Export project as JSON"
+                                  >
+                                    <ArrowDownTrayIcon className="h-4 w-4" />
                                   </button>
                                   <button
                                     type="button"

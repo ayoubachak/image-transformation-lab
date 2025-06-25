@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { pipelineManager, type PipelineObserver, type PipelineEvent, PipelineEventType, type NodeProcessingResult } from '../services/PipelineManager';
+import { projectManager } from '../services/ProjectManager';
 import type { ImageProcessingNode, ImageProcessingEdge, Transformation, Inspection } from '../utils/types';
 
 interface PipelineContextType {
@@ -92,6 +93,39 @@ export const PipelineProvider: React.FC<PipelineProviderProps> = ({ children }) 
       pipelineManager.unregisterObserver(observer);
     };
   }, [syncStateFromManager]);
+  
+  // Auto-load current project on app startup
+  useEffect(() => {
+    const loadCurrentProject = async () => {
+      try {
+        // Check if there's a current project stored
+        const currentProject = projectManager.getCurrentProject();
+        
+        if (currentProject) {
+          console.log(`🔄 Auto-loading current project: "${currentProject.name}"`);
+          
+          // Load the project (this will automatically apply it to the pipeline)
+          const loadedProject = projectManager.loadProject(currentProject.id);
+          
+          if (loadedProject) {
+            console.log(`✅ Auto-loaded project "${loadedProject.name}" successfully`);
+          } else {
+            console.warn('⚠️ Failed to auto-load current project');
+          }
+        } else {
+          console.log('ℹ️ No current project to auto-load');
+        }
+      } catch (error) {
+        console.error('❌ Error auto-loading current project:', error);
+        // Don't throw - just log the error and continue with empty pipeline
+      }
+    };
+
+    // Delay auto-loading slightly to ensure pipeline manager is fully initialized
+    const timeoutId = setTimeout(loadCurrentProject, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, []); // Empty dependency array - only run once on mount
   
   // Add a node
   const addNode = useCallback((

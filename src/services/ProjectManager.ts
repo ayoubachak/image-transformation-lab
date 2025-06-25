@@ -965,6 +965,159 @@ export class ProjectManager {
       throw new Error(`Failed to update projects list: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  /**
+   * Export a project as a JSON file for sharing or backup
+   */
+  public exportProject(projectId: string): void {
+    try {
+      const project = this.getProject(projectId);
+      if (!project) {
+        throw new Error(`Project with ID "${projectId}" not found`);
+      }
+
+      // Create export data with metadata
+      const exportData = {
+        exportVersion: '1.0.0',
+        exportedAt: new Date().toISOString(),
+        exportedBy: 'Image Transform Lab',
+        project: project
+      };
+
+      // Convert to JSON with proper formatting
+      const jsonString = JSON.stringify(exportData, null, 2);
+      
+      // Create and trigger download
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_project.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the URL object
+      URL.revokeObjectURL(url);
+      
+      console.log(`✅ Project "${project.name}" exported successfully`);
+    } catch (error) {
+      console.error('❌ Failed to export project:', error);
+      throw new Error(`Failed to export project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Import a project from a JSON file
+   */
+  public importProject(file: File): Promise<SavedProject> {
+    return new Promise((resolve, reject) => {
+      try {
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+          try {
+            const jsonString = event.target?.result as string;
+            if (!jsonString) {
+              throw new Error('Failed to read file content');
+            }
+
+            // Parse the JSON
+            const importData = JSON.parse(jsonString);
+            
+            // Validate import data structure
+            if (!importData.project) {
+              throw new Error('Invalid file format: missing project data');
+            }
+
+            const project = importData.project as SavedProject;
+            
+            // Validate the imported project
+            const validation = this.validateProject(project);
+            if (!validation.isValid) {
+              throw new Error(`Invalid project data: ${validation.errors.join(', ')}`);
+            }
+
+            // Generate a new ID to avoid conflicts
+            const newProjectId = uuidv4();
+            const timestamp = Date.now();
+            
+            // Create the imported project with new ID and timestamp
+            const importedProject: SavedProject = {
+              ...project,
+              id: newProjectId,
+              name: `${project.name} (imported)`,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+              version: APP_VERSION // Update to current version
+            };
+
+            // Check storage space before importing
+            const storageInfo = this.getStorageInfo();
+            const projectSize = new Blob([JSON.stringify(importedProject)]).size;
+            
+            if (!storageInfo.canSave || storageInfo.availableSpace < projectSize) {
+              console.log('⚠️ Low storage space, attempting cleanup...');
+              const cleanupSuccess = this.cleanupStorage(projectSize);
+              if (!cleanupSuccess) {
+                throw new Error('Insufficient storage space. Please delete some projects manually.');
+              }
+            }
+
+            // Save the imported project
+            this.saveProjectToStorage(importedProject);
+            this.addProjectToList(importedProject);
+
+            console.log(`✅ Project "${importedProject.name}" imported successfully`);
+            resolve(importedProject);
+            
+          } catch (parseError) {
+            console.error('❌ Error parsing imported file:', parseError);
+            reject(new Error(`Failed to parse project file: ${parseError instanceof Error ? parseError.message : 'Invalid JSON format'}`));
+          }
+        };
+
+        reader.onerror = () => {
+          reject(new Error('Failed to read the selected file'));
+        };
+
+        // Read the file as text
+        reader.readAsText(file);
+        
+      } catch (error) {
+        console.error('❌ Error setting up file import:', error);
+        reject(new Error(`Import setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    });
+  }
+
+  /**
+   * Validate an imported file before processing
+   */
+  public validateImportFile(file: File): { isValid: boolean; error?: string } {
+    try {
+      // Check file type
+      if (file.type !== 'application/json' && !file.name.toLowerCase().endsWith('.json')) {
+        return { isValid: false, error: 'Please select a valid JSON file' };
+      }
+
+      // Check file size (max 10MB for import)
+      const maxImportSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxImportSize) {
+        return { isValid: false, error: 'File too large. Maximum size is 10MB.' };
+      }
+
+      // Check if file is empty
+      if (file.size === 0) {
+        return { isValid: false, error: 'File is empty' };
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      return { isValid: false, error: 'Error validating file' };
+    }
+  }
 }
 
 // Export a singleton instance

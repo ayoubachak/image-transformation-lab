@@ -13,7 +13,7 @@
   border-color: #d1d5db !important; /* gray-300 */
 }
 
-/* Ensure all buttons have proper text color based on background */
+/* Ensure buttons with specific background colors have proper text color */
 .modal-content button.bg-blue-600,
 .modal-content button.bg-indigo-600,
 .modal-content button.bg-cyan-600 {
@@ -120,60 +120,90 @@
   background-color: white !important;
 }
 
-/* Global override for any remaining issues */
-.modal-content * {
-  color: inherit;
-}
+/* FIXED: More specific rules that don't affect SVG icons */
 
-.modal-content button {
-  font-weight: 500;
-}
-
-/* Additional comprehensive fixes for all possible conflicts */
-
-/* Fix buttons with tailwind classes that might conflict */
-.modal-content [class*="bg-blue-"] {
+/* Only apply white text to buttons with solid background colors, not to icons */
+.modal-content button[class*="bg-blue-6"]:not([class*="hover:bg-"]) {
   color: white !important;
 }
 
-.modal-content [class*="bg-indigo-"] {
+.modal-content button[class*="bg-indigo-6"]:not([class*="hover:bg-"]) {
   color: white !important;
 }
 
-.modal-content [class*="bg-cyan-"] {
+.modal-content button[class*="bg-cyan-6"]:not([class*="hover:bg-"]) {
   color: white !important;
 }
 
-.modal-content [class*="bg-red-"] {
+.modal-content button[class*="bg-red-6"]:not([class*="hover:bg-"]) {
   color: white !important;
 }
 
-.modal-content [class*="bg-green-"] {
+.modal-content button[class*="bg-green-6"]:not([class*="hover:bg-"]) {
   color: white !important;
 }
 
-.modal-content [class*="bg-yellow-"] {
+.modal-content button[class*="bg-yellow-6"]:not([class*="hover:bg-"]) {
   color: white !important;
 }
 
-.modal-content [class*="bg-purple-"] {
+.modal-content button[class*="bg-purple-6"]:not([class*="hover:bg-"]) {
   color: white !important;
 }
 
 /* Override for white/gray backgrounds */
-.modal-content [class*="bg-white"] {
+.modal-content button[class*="bg-white"] {
   color: #374151 !important;
   background-color: white !important;
 }
 
-.modal-content [class*="bg-gray-50"] {
+.modal-content button[class*="bg-gray-50"] {
   color: #374151 !important;
   background-color: #f9fafb !important;
 }
 
-.modal-content [class*="bg-gray-100"] {
+.modal-content button[class*="bg-gray-100"] {
   color: #374151 !important;
   background-color: #f3f4f6 !important;
+}
+
+/* IMPORTANT: Preserve icon colors - don't force white on SVG icons */
+.modal-content svg {
+  color: inherit !important;
+}
+
+/* Ensure icon buttons maintain their intended colors */
+.modal-content button.text-indigo-600 svg {
+  color: #4f46e5 !important;
+}
+
+.modal-content button.text-green-600 svg {
+  color: #16a34a !important;
+}
+
+.modal-content button.text-red-600 svg {
+  color: #dc2626 !important;
+}
+
+.modal-content button.text-blue-600 svg {
+  color: #2563eb !important;
+}
+
+/* Hover states for icon buttons */
+.modal-content button.text-indigo-600:hover svg {
+  color: #4338ca !important;
+}
+
+.modal-content button.text-green-600:hover svg {
+  color: #15803d !important;
+}
+
+.modal-content button.text-red-600:hover svg {
+  color: #b91c1c !important;
+}
+
+.modal-content button.text-blue-600:hover svg {
+  color: #1d4ed8 !important;
 }
 
 /* Specific overrides for disabled states */

@@ -503,7 +503,7 @@ const createLineSegmentationPipeline = (): Pipeline => {
       {
         id: inputNodeId,
         type: 'input',
-        position: { x: 100, y: 150 }
+        position: { x: 0, y: 160 }
       },
       {
         id: medianNodeId,
@@ -512,18 +512,20 @@ const createLineSegmentationPipeline = (): Pipeline => {
           id: medianNodeId,
           type: 'median',
           name: 'Median Filter',
-          description: 'Reduce noise while preserving edges',
+          description: 'Apply median filter for noise reduction',
           parameters: [
-            { name: 'kernelSize', type: 'number', value: 3, min: 3, max: 15, step: 2, label: 'Filter Size' },
-            { name: 'method', type: 'select', value: 'standard', options: ['standard', 'adaptive', 'cross-shaped', 'selective'], label: 'Filter Method' },
-            { name: 'iterations', type: 'number', value: 2, min: 1, max: 5, label: 'Iterations' },
-            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges' },
-            { name: 'edgeThreshold', type: 'number', value: 30, min: 10, max: 100, label: 'Edge Threshold' }
+            { name: 'kernelSize', type: 'number', value: 3, min: 3, max: 15, step: 2, label: 'Kernel Size', description: 'Size of the median filter kernel (must be odd)' },
+            { name: 'method', type: 'select', value: 'cross-shaped', options: ['standard', 'adaptive', 'cross-shaped', 'selective'], label: 'Filter Method', description: 'Type of median filtering to apply' },
+            { name: 'iterations', type: 'number', value: 5, min: 1, max: 5, step: 1, label: 'Iterations', description: 'Number of times to apply the filter' },
+            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges', description: 'Try to preserve edge information' },
+            { name: 'adaptiveWindowMax', type: 'number', value: 9, min: 5, max: 15, step: 2, label: 'Max Adaptive Window', description: 'Maximum window size for adaptive method' },
+            { name: 'selectiveThreshold', type: 'number', value: 100, min: 10, max: 500, step: 10, label: 'Selective Threshold', description: 'Variance threshold for selective filtering' },
+            { name: 'edgeThreshold', type: 'number', value: 200, min: 10, max: 200, step: 5, label: 'Edge Threshold', description: 'Threshold for edge detection' }
           ],
           inputNodes: [inputNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 290, y: 120 }
+        position: { x: 432, y: 176 }
       },
       {
         id: backgroundSubtractionNodeId,
@@ -532,20 +534,20 @@ const createLineSegmentationPipeline = (): Pipeline => {
           id: backgroundSubtractionNodeId,
           type: 'backgroundSubtraction',
           name: 'Background Subtraction',
-          description: 'Remove uneven illumination and background patterns',
+          description: 'Remove uneven background illumination from images',
           parameters: [
-            { name: 'method', type: 'select', value: 'morphological', options: ['morphological', 'gaussian', 'rolling-ball', 'polynomial'], label: 'Method' },
-            { name: 'kernelSize', type: 'number', value: 71, min: 15, max: 201, step: 2, label: 'Kernel Size' },
-            { name: 'sigmaX', type: 'number', value: 100, min: 1, max: 200, label: 'Sigma X' },
-            { name: 'sigmaY', type: 'number', value: 100, min: 1, max: 200, label: 'Sigma Y' },
-            { name: 'ballRadius', type: 'number', value: 50, min: 5, max: 100, label: 'Ball Radius' },
-            { name: 'polynomialOrder', type: 'number', value: 2, min: 1, max: 7, label: 'Polynomial Order' },
-            { name: 'normalize', type: 'boolean', value: true, label: 'Normalize Result' }
+            { name: 'method', type: 'select', value: 'morphological', options: ['morphological', 'gaussian', 'rolling-ball', 'polynomial'], label: 'Method', description: 'Background estimation method' },
+            { name: 'kernelSize', type: 'number', value: 51, min: 3, max: 201, step: 2, label: 'Kernel Size', description: 'Size of the structuring element (must be odd)' },
+            { name: 'sigmaX', type: 'number', value: 50, min: 1, max: 200, step: 1, label: 'Sigma X', description: 'Standard deviation in X direction' },
+            { name: 'sigmaY', type: 'number', value: 50, min: 1, max: 200, step: 1, label: 'Sigma Y', description: 'Standard deviation in Y direction' },
+            { name: 'ballRadius', type: 'number', value: 25, min: 5, max: 100, step: 1, label: 'Ball Radius', description: 'Radius of rolling ball' },
+            { name: 'polynomialOrder', type: 'number', value: 3, min: 1, max: 6, step: 1, label: 'Polynomial Order', description: 'Order of polynomial fitting' },
+            { name: 'normalize', type: 'boolean', value: true, label: 'Normalize Result', description: 'Normalize output to full intensity range' }
           ],
           inputNodes: [medianNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 545, y: 120 }
+        position: { x: 848, y: 160 }
       },
       {
         id: advancedThresholdNodeId,
@@ -554,23 +556,23 @@ const createLineSegmentationPipeline = (): Pipeline => {
           id: advancedThresholdNodeId,
           type: 'advancedThreshold',
           name: 'Advanced Thresholding',
-          description: 'Multi-level thresholding for line extraction',
+          description: 'Advanced statistical and multi-level thresholding for noisy images',
           parameters: [
-            { name: 'thresholdingMethod', type: 'select', value: 'local-adaptive', options: ['statistical-combined', 'multi-otsu', 'local-adaptive'], label: 'Thresholding Method' },
-            { name: 'thresholdLevels', type: 'number', value: 2, min: 1, max: 4, label: 'Threshold Levels' },
-            { name: 'highThreshold', type: 'number', value: 200, min: 50, max: 255, label: 'High Threshold' },
-            { name: 'lowThreshold', type: 'number', value: 100, min: 10, max: 200, label: 'Low Threshold' },
-            { name: 'morphologicalCleanup', type: 'boolean', value: true, label: 'Morphological Cleanup' },
-            { name: 'removeNoise', type: 'boolean', value: true, label: 'Remove Noise' },
-            { name: 'minComponentSize', type: 'number', value: 200, min: 50, max: 500, label: 'Min Component Size' },
-            { name: 'fillHoles', type: 'boolean', value: false, label: 'Fill Holes' },
-            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges' },
-            { name: 'adaptiveWindowSize', type: 'number', value: 15, min: 3, max: 31, step: 2, label: 'Adaptive Window Size' }
+            { name: 'method', type: 'select', value: 'statistical-combined', options: ['multi-otsu', 'triangle', 'minimum-error', 'hysteresis', 'statistical-combined', 'multi-scale'], label: 'Thresholding Method', description: 'Advanced thresholding algorithm to use' },
+            { name: 'levels', type: 'number', value: 2, min: 1, max: 4, step: 1, label: 'Threshold Levels', description: 'Number of threshold levels for multi-level methods' },
+            { name: 'highThreshold', type: 'number', value: 180, min: 50, max: 255, step: 1, label: 'High Threshold', description: 'Upper threshold for hysteresis method' },
+            { name: 'lowThreshold', type: 'number', value: 80, min: 10, max: 200, step: 1, label: 'Low Threshold', description: 'Lower threshold for hysteresis method' },
+            { name: 'postProcessing', type: 'boolean', value: true, label: 'Morphological Cleanup', description: 'Apply automatic morphological post-processing' },
+            { name: 'removeNoise', type: 'boolean', value: true, label: 'Remove Noise', description: 'Remove small noise components' },
+            { name: 'minComponentSize', type: 'number', value: 135, min: 5, max: 500, step: 5, label: 'Min Component Size', description: 'Minimum component size to keep (pixels)' },
+            { name: 'fillHoles', type: 'boolean', value: true, label: 'Fill Holes', description: 'Fill holes in thresholded regions' },
+            { name: 'preserveEdges', type: 'boolean', value: true, label: 'Preserve Edges', description: 'Try to preserve edge details during cleanup' },
+            { name: 'adaptiveLocalSize', type: 'number', value: 9, min: 5, max: 51, step: 2, label: 'Adaptive Window Size', description: 'Local window size for adaptive components (must be odd)' }
           ],
           inputNodes: [backgroundSubtractionNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 820, y: 120 }
+        position: { x: 1280, y: 128 }
       },
       {
         id: morphologyNodeId,
@@ -579,21 +581,21 @@ const createLineSegmentationPipeline = (): Pipeline => {
           id: morphologyNodeId,
           type: 'morphology',
           name: 'Morphological Operation',
-          description: 'Connect broken line segments',
+          description: 'Apply morphological transformations to the image',
           parameters: [
-            { name: 'operation', type: 'select', value: 'close', options: ['open', 'close', 'gradient', 'tophat', 'blackhat'], label: 'Operation' },
-            { name: 'kernelSize', type: 'number', value: 7, min: 3, max: 31, step: 2, label: 'Kernel Size' },
-            { name: 'iterations', type: 'number', value: 2, min: 1, max: 10, label: 'Iterations' }
+            { name: 'operation', type: 'select', value: 'open', options: ['open', 'close', 'gradient', 'tophat', 'blackhat'], label: 'Operation', description: 'Type of morphological operation' },
+            { name: 'kernelSize', type: 'number', value: 5, min: 1, max: 31, step: 2, label: 'Kernel Size', description: 'Size of the structuring element' },
+            { name: 'iterations', type: 'number', value: 1, min: 1, max: 10, step: 1, label: 'Iterations', description: 'Number of times to apply the operation' }
           ],
           inputNodes: [advancedThresholdNodeId],
           showPreprocessingSteps: true
         },
-        position: { x: 1075, y: 120 }
+        position: { x: 1712, y: 208 }
       },
       {
         id: outputNodeId,
         type: 'output',
-        position: { x: 1250, y: 200 }
+        position: { x: 2192, y: 192 }
       }
     ],
     edges: [

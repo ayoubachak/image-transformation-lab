@@ -36,6 +36,7 @@ export default function LessonDetailPage() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [openCVReady, setOpenCVReady] = useState(false);
+  const [sampleImageLoaded, setSampleImageLoaded] = useState(false);
   const hasInitialized = useRef(false);
 
   useEffect(() => {
@@ -56,6 +57,9 @@ export default function LessonDetailPage() {
       hasInitialized.current = true;
       
       console.log(`Loading lesson: ${lessonId}`);
+      
+      // Reset sample image loaded state for new lesson
+      setSampleImageLoaded(false);
       
       // Try to find the lesson in sample data
       const foundLesson = sampleLessons.find(l => l.id === lessonId);
@@ -114,13 +118,6 @@ export default function LessonDetailPage() {
           });
           
           console.log('Pipeline loading complete!');
-          
-          // Load sample image for mini-projects (single attempt)
-          if (lessonId === 'license-plate-detection' || lessonId === 'line-segmentation' || lessonId === 'cell-detection') {
-            setTimeout(() => {
-              loadSampleImage(lessonId);
-            }, 1000);
-          }
         }, 500); // Increased delay to ensure all nodes are added
       } else {
         console.error(`Lesson not found: ${lessonId}`);
@@ -129,6 +126,19 @@ export default function LessonDetailPage() {
       setLoading(false);
     }
   }, [lessonId, openCVReady, addNode, addEdge, removeNode, removeEdge, clearPipeline]);
+
+  // Separate useEffect to handle sample image loading after nodes are ready
+  useEffect(() => {
+    if (lesson && !sampleImageLoaded && nodes.length > 0 && 
+        (lesson.id === 'license-plate-detection' || lesson.id === 'line-segmentation' || lesson.id === 'cell-detection')) {
+      
+      const inputNode = nodes.find(node => node.type === 'input');
+      if (inputNode) {
+        console.log('Nodes are ready, attempting to load sample image...');
+        loadSampleImage(lesson.id);
+      }
+    }
+  }, [lesson, nodes, sampleImageLoaded]);
 
   // Function to load sample images for mini-projects
   const loadSampleImage = async (projectId: string) => {
@@ -157,17 +167,27 @@ export default function LessonDetailPage() {
       img.onload = () => {
         console.log(`Sample image loaded successfully: ${img.width}x${img.height}`);
         
-        // Single attempt to set the image
-        setTimeout(() => {
+        // Use a more robust approach to wait for nodes to be ready
+        const attemptImageLoad = (retryCount = 0) => {
           const inputNode = nodes.find(node => node.type === 'input');
+          
           if (inputNode) {
-            console.log(`Setting input image for node: ${inputNode.id}`);
+            console.log(`Setting input image for node: ${inputNode.id} (attempt ${retryCount + 1})`);
             setInputImage(inputNode.id, img);
+            setSampleImageLoaded(true);
             console.log('Input image set successfully!');
+          } else if (retryCount < 10) {
+            // Retry up to 10 times with increasing delays
+            const delay = Math.min(500 + (retryCount * 200), 2000);
+            console.log(`Input node not found, retrying in ${delay}ms (attempt ${retryCount + 1}/10)`);
+            setTimeout(() => attemptImageLoad(retryCount + 1), delay);
           } else {
-            console.warn('Input node not found. Use the manual "Load Sample Image" button.');
+            console.warn('Input node not found after 10 attempts. Use the manual "Load Sample Image" button.');
           }
-        }, 500);
+        };
+        
+        // Start the first attempt after a short delay
+        setTimeout(() => attemptImageLoad(), 200);
       };
       
       img.onerror = (error) => {
@@ -265,37 +285,35 @@ export default function LessonDetailPage() {
         <div className="mb-6">
           <h3 className="text-xl font-medium mb-3">Technical Approach</h3>
           
-          <h4 className="text-lg font-medium mb-2">1. Background Subtraction</h4>
+          <h4 className="text-lg font-medium mb-2">1. Cross-Shaped Median Filtering</h4>
+          <p className="text-gray-600 mb-4">
+            Apply cross-shaped median filtering for noise reduction while preserving line structures:
+          </p>
+          <Formula formula="Output(x,y) = median{I(x+i,y+j) | (i,j) ∈ N_cross}\nKernel size: 3×3, Method: Cross-shaped, Iterations: 5" />
+          
+          <h4 className="text-lg font-medium mb-2">2. Morphological Background Subtraction</h4>
           <p className="text-gray-600 mb-4">
             Remove uneven illumination using morphological background estimation:
           </p>
-          <Formula formula="Background = Opening(I, large_SE)\nForeground = I - Background" />
+          <Formula formula="Background = Opening(I, SE_51×51)\nForeground = normalize(I - Background)" />
           
-          <h4 className="text-lg font-medium mb-2">2. Canny Edge Detection</h4>
+          <h4 className="text-lg font-medium mb-2">3. Statistical Combined Thresholding</h4>
           <p className="text-gray-600 mb-4">
-            Multi-stage edge detection with non-maximum suppression:
+            Apply statistical combined thresholding for robust text separation:
           </p>
-          <Formula formula="1. Gaussian smoothing: G = I * G_σ\n2. Gradient: ∇G = √(G_x² + G_y²)\n3. Non-max suppression\n4. Hysteresis thresholding" />
+          <Formula formula="T_high = 180, T_low = 80\nBinary = statistical_threshold(I, method='combined')\n+ morphological post-processing + noise removal" />
           
-          <h4 className="text-lg font-medium mb-2">3. Hough Line Transform</h4>
+          <h4 className="text-lg font-medium mb-2">4. Morphological Opening</h4>
           <p className="text-gray-600 mb-4">
-            Detect straight lines using the parametric representation:
+            Clean up and separate line segments using opening operation:
           </p>
-          <Formula formula="ρ = x·cos(θ) + y·sin(θ)" />
-          <p className="text-gray-600 mb-4">
-            Where ρ is the distance from origin to the line, and θ is the angle.
-          </p>
+          <Formula formula="Opening = Dilation(Erosion(I, SE), SE)\nSE = structuring element, size = 5×5, iterations = 1" />
           
-          <h4 className="text-lg font-medium mb-2">4. Line Validation and Refinement</h4>
-          <p className="text-gray-600 mb-4">
-            Filter detected lines based on:
-          </p>
-          <Formula formula="• Length ≥ min_length\n• Gap ≤ max_gap\n• Votes ≥ threshold" />
-          
-          <h4 className="text-lg font-medium mb-2">5. Post-Processing</h4>
+          <h4 className="text-lg font-medium mb-2">5. Advanced Features</h4>
           <p className="text-gray-600">
-            Use morphological operations to connect broken segments and fill gaps:
-            Closing → Dilation → Hole Filling → Component Filtering
+            Enhanced processing includes:
+            • Edge preservation during filtering • Statistical threshold optimization
+            • Component size filtering (min: 135 pixels) • Hole filling for text continuity
           </p>
         </div>
       );
@@ -359,6 +377,7 @@ export default function LessonDetailPage() {
   const handleManualLoadImage = () => {
     if (lesson && (lesson.id === 'license-plate-detection' || lesson.id === 'line-segmentation' || lesson.id === 'cell-detection')) {
       console.log('Manual image load triggered');
+      setSampleImageLoaded(false); // Reset state to allow retry
       loadSampleImage(lesson.id);
     }
   };
@@ -447,11 +466,24 @@ export default function LessonDetailPage() {
             {(lesson?.id === 'license-plate-detection' || lesson?.id === 'line-segmentation' || lesson?.id === 'cell-detection') && (
               <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
                 <h4 className="font-semibold text-purple-800 mb-2">📸 Sample Image Auto-Loading</h4>
-                <p className="text-purple-700 text-sm">
-                  This mini-project automatically loads a sample image optimized for the solution pipeline. 
-                  The sample image {lesson.id === 'license-plate-detection' ? '(plaque.jpg)' : lesson.id === 'line-segmentation' ? '(MP3.gif)' : '(cell-detection.jpg)'} will be 
-                  loaded into the input node to demonstrate the complete solution.
-                </p>
+                {!sampleImageLoaded && nodes.length > 0 ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-purple-500"></div>
+                    <p className="text-purple-700 text-sm">
+                      Loading sample image for {lesson.id === 'license-plate-detection' ? 'license plate detection' : lesson.id === 'line-segmentation' ? 'line segmentation' : 'cell detection'}...
+                    </p>
+                  </div>
+                ) : sampleImageLoaded ? (
+                  <p className="text-purple-700 text-sm">
+                    ✅ Sample image loaded successfully! The pipeline is ready for demonstration.
+                  </p>
+                ) : (
+                  <p className="text-purple-700 text-sm">
+                    This mini-project will automatically load a sample image optimized for the solution pipeline. 
+                    The sample image {lesson.id === 'license-plate-detection' ? '(plaque.jpg)' : lesson.id === 'line-segmentation' ? '(MP3.gif)' : '(cell.jpg)'} will be 
+                    loaded into the input node to demonstrate the complete solution.
+                  </p>
+                )}
                 <p className="text-purple-600 text-xs mt-2">
                   💡 You can also upload your own images to test the algorithm on different data.
                 </p>
@@ -520,19 +552,19 @@ export default function LessonDetailPage() {
               ) : lesson?.id === 'line-segmentation' ? (
                 <>
                   <p className="text-gray-600 mb-4">
-                    This mini-project demonstrates simplified line segmentation in document images using advanced thresholding and morphological operations. The solution handles uneven lighting and noise efficiently.
+                    This mini-project demonstrates advanced line segmentation in document images using cross-shaped median filtering, morphological background subtraction, statistical thresholding, and morphological opening. The solution handles uneven lighting and noise efficiently.
                   </p>
                   <p className="text-gray-600 mb-4">
                     The pipeline applies the following transformations in sequence:
                   </p>
                   <ol className="list-decimal list-inside text-gray-600 mt-2 ml-4 space-y-3">
-                    <li><strong>Median Filtering:</strong> Apply standard median filter with 3×3 kernel and 2 iterations to reduce noise while preserving text boundaries</li>
-                    <li><strong>Background Subtraction:</strong> Remove uneven illumination using morphological background estimation with 71×71 kernel</li>
-                    <li><strong>Advanced Thresholding:</strong> Use local adaptive thresholding with high (200) and low (100) thresholds for optimal text separation</li>
-                    <li><strong>Morphological Closing:</strong> Apply closing operation with 7×7 kernel and 2 iterations to connect broken line segments</li>
+                    <li><strong>Cross-Shaped Median Filtering:</strong> Apply cross-shaped median filter with 5 iterations to reduce noise while preserving text line structures</li>
+                    <li><strong>Morphological Background Subtraction:</strong> Remove uneven illumination using morphological background estimation with 51×51 kernel</li>
+                    <li><strong>Statistical Combined Thresholding:</strong> Use statistical combined thresholding with high (180) and low (80) thresholds for optimal text separation with post-processing cleanup</li>
+                    <li><strong>Morphological Opening:</strong> Apply opening operation with 5×5 kernel to clean up and separate line segments</li>
                   </ol>
                   <p className="text-gray-600 mt-4">
-                    This simplified pipeline effectively segments text lines from document images while being more robust to different image conditions.
+                    This advanced pipeline effectively segments text lines from document images while being robust to different image conditions and noise levels.
                   </p>
                 </>
               ) : lesson?.id === 'cell-detection' ? (
@@ -602,16 +634,16 @@ export default function LessonDetailPage() {
                     Try adjusting the parameters in each transformation node to see how they affect the line segmentation:
                   </p>
                   <ul className="list-disc list-inside text-gray-600 mt-2 ml-4 space-y-2">
-                    <li><strong>Median Filter:</strong> Adjust kernel size (3-15) and iterations (1-5) for different noise levels</li>
-                    <li><strong>Background Subtraction:</strong> Change kernel size (15-201) for different background patterns</li>
-                    <li><strong>Advanced Thresholding:</strong> Modify thresholding method and threshold levels for better text separation</li>
-                    <li><strong>Morphological Closing:</strong> Adjust kernel size (3-31) and iterations (1-10) for line connectivity</li>
+                    <li><strong>Cross-Shaped Median Filter:</strong> Adjust kernel size (3-15) and iterations (1-5) for different noise levels. Try different methods (cross-shaped, adaptive, selective)</li>
+                    <li><strong>Background Subtraction:</strong> Change kernel size (3-201) for different background patterns and illumination variations</li>
+                    <li><strong>Statistical Combined Thresholding:</strong> Modify high/low thresholds (180/80) and component size filtering (135 pixels) for better text separation</li>
+                    <li><strong>Morphological Opening:</strong> Adjust kernel size (1-31) and operation type for line cleanup and separation</li>
                   </ul>
                   <div className="mt-4 p-4 bg-green-50 rounded-lg">
                     <p className="text-green-800 font-medium">💡 Tip:</p>
                     <p className="text-green-700 text-sm mt-1">
                       Load the sample document image (MP3.gif) from the assets to see the complete solution in action.
-                      This simplified approach is more robust and efficient than complex edge detection methods.
+                      This advanced approach uses statistical methods and cross-shaped filtering for superior performance on noisy documents.
                     </p>
                   </div>
                 </>
