@@ -1,34 +1,35 @@
-name: Deploy to GitHub Pages
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Configure Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-
-      - name: Deploy
-        run: npm run deploy 
+# This workflow is disabled - deployment is done locally with npm run deploy
+# name: Deploy to GitHub Pages
+# 
+# on:
+#   push:
+#     branches: [ main ]
+#   workflow_dispatch:
+# 
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+# 
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'npm'
+# 
+#       - name: Install dependencies
+#         run: npm ci
+# 
+#       - name: Configure Git
+#         run: |
+#           git config --global user.name 'github-actions[bot]'
+#           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+#           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+# 
+#       - name: Deploy
+#         run: npm run deploy 
