@@ -1,54 +1,97 @@
-# React + TypeScript + Vite
+# Image Transform Lab - Plateforme d'Apprentissage
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Qu'est-ce que c'est ?
 
-Currently, two official plugins are available:
+**Image Transform Lab** est une plateforme web éducative dédiée à l'apprentissage du traitement d'images numérique. Cette application interactive permet aux étudiants, chercheurs et professionnels d'expérimenter avec les algorithmes de vision par ordinateur sans programmation complexe.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Objectif de la plateforme
 
-## Expanding the ESLint configuration
+Cette plateforme a été développée pour combler le fossé entre la théorie du traitement d'images et sa mise en pratique. Elle offre un environnement d'apprentissage visuel où les utilisateurs peuvent construire des pipelines de traitement d'images et observer les résultats en temps réel.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Fonctionnalités principales
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+### Interface de pipeline visuel
+- Construction de pipelines par glisser-déposer de nœuds
+- Connexion visuelle entre les différentes étapes de traitement
+- Modification des paramètres en temps réel
+- Visualisation immédiate des résultats à chaque étape
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Bibliothèque d'algorithmes
+- **Transformations de base** : niveaux de gris, flou gaussien, seuillage
+- **Détection de contours** : Sobel, Laplacien, Canny
+- **Opérations morphologiques** : ouverture, fermeture, érosion, dilatation
+- **Filtres avancés** : médian, bilateral, filtrage adaptatif
+- **Segmentation** : seuillage adaptatif, watershed, détection de composantes
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Leçons structurées
+La plateforme propose des parcours d'apprentissage organisés par niveau :
+- **Niveau débutant** : concepts fondamentaux et transformations simples
+- **Niveau intermédiaire** : détection de contours et filtrage
+- **Niveau avancé** : algorithmes complexes et applications spécialisées
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+### Mini-projets pratiques
+Trois projets d'application concrets sont disponibles :
+1. **Détection de cellules** : analyse d'images biologiques avec segmentation automatique
+2. **Détection de plaques d'immatriculation** : traitement d'images pour reconnaissance de caractères
+3. **Segmentation de lignes de texte** : analyse de documents pour extraction de texte
+
+### Gestion de projets
+- Sauvegarde des pipelines créés
+- Export/import de projets au format JSON
+- Système de gestion de l'espace de stockage
+- Chargement automatique d'images d'exemple
+
+## Aspects techniques
+
+### Technologies utilisées
+- **Frontend** : React.js avec TypeScript
+- **Interface utilisateur** : Tailwind CSS, React Flow
+- **Traitement d'images** : OpenCV.js, Canvas API
+- **Performance** : WebGL pour les calculs intensifs
+
+### Compatibilité
+- Fonctionne dans tous les navigateurs modernes
+- Interface responsive adaptée aux écrans de toutes tailles
+- Aucune installation requise
+
+## Public cible
+
+### Étudiants
+- Étudiants en informatique, mathématiques, ingénierie
+- Apprentissage des concepts de vision par ordinateur
+- Compréhension pratique des algorithmes théoriques
+
+### Enseignants et chercheurs
+- Outil pédagogique pour l'enseignement du traitement d'images
+- Prototypage rapide d'algorithmes
+- Démonstrations interactives en cours
+
+### Professionnels
+- Formation continue en vision par ordinateur
+- Test et validation d'approches algorithmiques
+- Exploration de nouvelles techniques de traitement
+
+## Avantages pédagogiques
+
+### Apprentissage interactif
+- Feedback visuel immédiat sur les modifications
+- Expérimentation sans risque d'erreurs de code
+- Compréhension intuitive des effets des paramètres
+
+### Progression structurée
+- Parcours d'apprentissage graduel
+- Explications mathématiques accompagnant chaque algorithme
+- Exemples pratiques et cas d'usage réels
+
+### Flexibilité d'utilisation
+- Utilisation en autonomie ou en classe
+- Adaptation au rythme de chaque apprenant
+- Possibilité de créer ses propres expérimentations
+
+## Développement et crédits
+
+Cette plateforme a été développée sous la direction du **Professeur Dr. A. Benzinou** et du **Dr. K. Nasserdine**, experts en traitement d'images et vision par ordinateur. Le projet vise à moderniser l'enseignement de ces disciplines en proposant un outil pratique et accessible.
+
+---
+
+*© 2025 Image Transform Lab - Plateforme éducative pour le traitement d'images numérique* 
